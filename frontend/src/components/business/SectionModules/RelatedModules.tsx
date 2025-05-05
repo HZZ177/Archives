@@ -79,7 +79,7 @@ const RelatedModules: React.FC<RelatedModulesProps> = ({
       };
       
       const response = await axios.get(`${API_BASE_URL}/documents`, { 
-        params: { pageSize: 100 },
+        params: { page_size: 100 },
         headers
       });
       

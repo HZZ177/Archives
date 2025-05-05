@@ -44,23 +44,25 @@ class SectionBase(BaseModel):
     """
     部分基础模型
     """
-    title: Optional[str] = None
-    content: Optional[str] = None
-    order: Optional[int] = 0
+    title: str
+    content: str
+    order: int = 0
 
 
 class SectionCreate(SectionBase):
     """
     创建部分模型
     """
-    title: str
+    pass
 
 
 class SectionUpdate(SectionBase):
     """
     更新部分模型
     """
-    pass
+    title: Optional[str] = None
+    content: Optional[str] = None
+    order: Optional[int] = None
 
 
 class SectionResponse(SectionBase):
@@ -70,10 +72,9 @@ class SectionResponse(SectionBase):
     id: int
     document_id: int
     created_at: datetime
-    updated_at: Optional[datetime] = None
-    
+    updated_at: datetime
+
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -147,7 +148,7 @@ class DocumentBase(BaseModel):
     """
     文档基础模型
     """
-    title: Optional[str] = None
+    title: str
     description: Optional[str] = None
     template_id: Optional[int] = None
 
@@ -156,14 +157,14 @@ class DocumentCreate(DocumentBase):
     """
     创建文档模型
     """
-    title: str
+    pass
 
 
 class DocumentUpdate(DocumentBase):
     """
     更新文档模型
     """
-    pass
+    title: Optional[str] = None
 
 
 class DocumentResponse(DocumentBase):
@@ -173,11 +174,10 @@ class DocumentResponse(DocumentBase):
     id: int
     user_id: int
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime
     sections: List[SectionResponse] = []
-    
+
     class Config:
-        orm_mode = True
         from_attributes = True
 
 
@@ -196,4 +196,11 @@ class DocumentPage(BaseModel):
 # 模板分页响应模型
 class TemplatePage(BaseModel):
     items: List[Template]
-    total: int 
+    total: int
+
+
+class PaginatedResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: List[DocumentResponse]

@@ -10,8 +10,8 @@ class Base:
     """
     id: Any
     __name__: str
-    
+
     # 根据类名自动生成表名
     @declared_attr
     def __tablename__(cls) -> str:
-        return cls.__name__.lower() 
+        return cls.__name__.lower()

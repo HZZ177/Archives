@@ -77,7 +77,7 @@ export interface RelationFormData {
 
 export interface DocumentQueryParams {
   page?: number;
-  pageSize?: number;
+  page_size?: number;
   keyword?: string;
   template_id?: number;
 }

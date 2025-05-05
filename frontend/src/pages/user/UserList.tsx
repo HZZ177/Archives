@@ -14,19 +14,19 @@ const UserList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [current, setCurrent] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [page_size, setPageSize] = useState(10);
   const [searchKeyword, setSearchKeyword] = useState('');
   
   const navigate = useNavigate();
 
   // 获取用户列表
-  const fetchUsers = async (page = current, size = pageSize, keyword = searchKeyword) => {
+  const fetchUsers = async (page = current, size = page_size, keyword = searchKeyword) => {
     try {
       setLoading(true);
       // 构建查询参数
       const params = {
         page,
-        pageSize: size,
+        page_size: size,
         ...(keyword ? { keyword } : {}),
       };
       
@@ -59,7 +59,7 @@ const UserList: React.FC = () => {
   // 处理搜索
   const handleSearch = (value: string) => {
     setSearchKeyword(value);
-    fetchUsers(1, pageSize, value);
+    fetchUsers(1, page_size, value);
   };
 
   // 处理分页变化
@@ -176,7 +176,7 @@ const UserList: React.FC = () => {
           rowKey="id"
           pagination={{
             current,
-            pageSize,
+            pageSize: page_size,
             total,
             showSizeChanger: true,
             showQuickJumper: true,

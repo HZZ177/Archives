@@ -22,7 +22,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // 登录
   const login = async (params: LoginParams): Promise<void> => {
     try {
+      console.log('UserContext: 开始登录流程');
       const result = await authAPI.login(params);
+      console.log('UserContext: 登录成功，获取到结果', result);
+      
       // 更新状态
       setUserState({
         currentUser: result.userinfo,
@@ -31,13 +34,12 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isLoggedIn: true,
       });
       
-      // 保存到本地存储
-      localStorage.setItem(STORAGE_TOKEN_KEY, result.token);
-      localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(result.userinfo));
+      // token 和用户信息已经在 authAPI.login 中存储到 localStorage
       
+      console.log('UserContext: 状态更新完成');
       message.success('登录成功');
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('UserContext: 登录失败', error);
       throw error;
     }
   };

@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Input, Space, Card, Popconfirm, message, Select, Tag } from 'antd';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, FileOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../config/constants';
+import { ROUTES, STORAGE_TOKEN_KEY } from '../../config/constants';
 import { Document, Template } from '../../types/document';
-import axios from 'axios';
-import { API_BASE_URL } from '../../config/constants';
+import request from '../../utils/request';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -16,61 +15,68 @@ const DocumentList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [current, setCurrent] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [page_size, setPageSize] = useState(10);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<number | undefined>(undefined);
   
   const navigate = useNavigate();
 
   // 获取文档列表
-  const fetchDocuments = async (page = current, size = pageSize, params: any = {}) => {
+  const fetchDocuments = async (page = current, size = page_size, params: any = {}) => {
     try {
       setLoading(true);
       // 构建查询参数
       const queryParams = {
         page,
-        pageSize: size,
+        page_size: size,
         ...params
       };
       
-      const token = localStorage.getItem('token');
-      const headers = {
-        Authorization: `Bearer ${token}`
-      };
+      const response = await request.get('/documents', { params: queryParams });
       
-      const response = await axios.get(`${API_BASE_URL}/documents`, { 
-        params: queryParams,
-        headers
-      });
-      
-      setDocuments(response.data.items);
-      setTotal(response.data.total);
-      setCurrent(page);
-      setPageSize(size);
+      // 检查响应数据
+      if (response?.data) {
+        setDocuments(response.data.items || []);
+        setTotal(response.data.total || 0);
+        setCurrent(page);
+        setPageSize(size);
+      } else {
+        console.error('获取文档列表失败: 响应数据格式错误');
+        message.error('获取文档列表失败');
+        setDocuments([]);
+        setTotal(0);
+      }
       setLoading(false);
     } catch (error) {
+      console.error('获取文档列表失败:', error);
       message.error('获取文档列表失败');
+      setDocuments([]);
+      setTotal(0);
       setLoading(false);
     }
   };
 
   // 获取模板列表
   const fetchTemplates = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const headers = {
-        Authorization: `Bearer ${token}`
-      };
-      
-      const response = await axios.get(`${API_BASE_URL}/templates`, { headers });
-      setTemplates(response.data.items);
+    try {      
+      const response = await request.get('/templates');
+      if (response?.data?.items) {
+        setTemplates(response.data.items);
+      } else {
+        console.error('获取模板列表失败: 响应数据格式错误');
+        message.error('获取模板列表失败');
+        setTemplates([]);
+      }
     } catch (error) {
+      console.error('获取模板列表失败:', error);
       message.error('获取模板列表失败');
+      setTemplates([]);
     }
   };
 
   // 初始加载
   useEffect(() => {
+    console.log('DocumentList: 初始化加载');
     fetchDocuments();
     fetchTemplates();
   }, []);
@@ -78,13 +84,13 @@ const DocumentList: React.FC = () => {
   // 处理搜索
   const handleSearch = (value: string) => {
     setSearchKeyword(value);
-    fetchDocuments(1, pageSize, { keyword: value, template_id: selectedTemplate });
+    fetchDocuments(1, page_size, { keyword: value, template_id: selectedTemplate });
   };
 
   // 处理模板筛选变化
   const handleTemplateChange = (value: number | undefined) => {
     setSelectedTemplate(value);
-    fetchDocuments(1, pageSize, { keyword: searchKeyword, template_id: value });
+    fetchDocuments(1, page_size, { keyword: searchKeyword, template_id: value });
   };
 
   // 处理分页变化
@@ -101,16 +107,12 @@ const DocumentList: React.FC = () => {
 
   // 处理删除文档
   const handleDelete = async (id: number) => {
-    try {
-      const token = localStorage.getItem('token');
-      const headers = {
-        Authorization: `Bearer ${token}`
-      };
-      
-      await axios.delete(`${API_BASE_URL}/documents/${id}`, { headers });
+    try {      
+      await request.delete(`/documents/${id}`);
       message.success('删除文档成功');
-      fetchDocuments(current, pageSize, { keyword: searchKeyword, template_id: selectedTemplate });
+      fetchDocuments(current, page_size, { keyword: searchKeyword, template_id: selectedTemplate });
     } catch (error) {
+      console.error('删除文档失败:', error);
       message.error('删除文档失败');
     }
   };
@@ -207,7 +209,7 @@ const DocumentList: React.FC = () => {
               allowClear
               onChange={handleTemplateChange}
             >
-              {templates.map(template => (
+              {templates?.map(template => (
                 <Option key={template.id} value={template.id}>{template.name}</Option>
               ))}
             </Select>
@@ -221,7 +223,7 @@ const DocumentList: React.FC = () => {
             </Button>
           </Space>
           
-          {templates.length > 0 && (
+          {templates?.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <span style={{ marginRight: 8 }}>从模板创建:</span>
               {templates.map(template => (
@@ -243,11 +245,11 @@ const DocumentList: React.FC = () => {
           rowKey="id"
           pagination={{
             current,
-            pageSize,
+            pageSize: page_size,
             total,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条记录`,
+            showTotal: (total: number) => `共 ${total} 条记录`,
           }}
           onChange={handleTableChange}
           loading={loading}

@@ -1,5 +1,5 @@
 // API 基础URL
-export const API_BASE_URL = '/api/v1';
+export const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 // 本地存储键名
 export const STORAGE_TOKEN_KEY = 'token';

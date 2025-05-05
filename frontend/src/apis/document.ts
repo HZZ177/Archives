@@ -1,23 +1,11 @@
-import axios from 'axios';
 import { message } from 'antd';
-import { API_BASE_URL, STORAGE_TOKEN_KEY } from '../config/constants';
+import request from '../utils/request';
 import { Document, DocumentDetail, DocumentFormData, TemplateFormData, Section, SectionFormData, Image, Relation, RelationFormData } from '../types/document';
-
-// 获取请求头
-const getHeaders = () => {
-  const token = localStorage.getItem(STORAGE_TOKEN_KEY);
-  return {
-    Authorization: `Bearer ${token}`
-  };
-};
 
 // 分页查询文档
 export const fetchDocuments = async (params: any) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/documents`, {
-      params,
-      headers: getHeaders()
-    });
+    const response = await request.get('/documents', { params });
     return response.data;
   } catch (error) {
     message.error('获取文档列表失败');
@@ -28,9 +16,7 @@ export const fetchDocuments = async (params: any) => {
 // 获取单个文档
 export const fetchDocument = async (id: number | string) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/documents/${id}`, {
-      headers: getHeaders()
-    });
+    const response = await request.get(`/documents/${id}`);
     return response.data;
   } catch (error) {
     message.error('获取文档详情失败');
@@ -41,9 +27,7 @@ export const fetchDocument = async (id: number | string) => {
 // 创建文档
 export const createDocument = async (data: DocumentFormData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/documents`, data, {
-      headers: getHeaders()
-    });
+    const response = await request.post('/documents', data);
     message.success('创建文档成功');
     return response.data;
   } catch (error) {
@@ -55,9 +39,7 @@ export const createDocument = async (data: DocumentFormData) => {
 // 更新文档
 export const updateDocument = async (id: number | string, data: DocumentFormData) => {
   try {
-    const response = await axios.put(`${API_BASE_URL}/documents/${id}`, data, {
-      headers: getHeaders()
-    });
+    const response = await request.put(`/documents/${id}`, data);
     message.success('更新文档成功');
     return response.data;
   } catch (error) {
@@ -69,9 +51,7 @@ export const updateDocument = async (id: number | string, data: DocumentFormData
 // 删除文档
 export const deleteDocument = async (id: number | string) => {
   try {
-    await axios.delete(`${API_BASE_URL}/documents/${id}`, {
-      headers: getHeaders()
-    });
+    await request.delete(`/documents/${id}`);
     message.success('删除文档成功');
   } catch (error) {
     message.error('删除文档失败');
@@ -82,10 +62,7 @@ export const deleteDocument = async (id: number | string) => {
 // 分页查询模板
 export const fetchTemplates = async (params?: any) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/templates`, {
-      params,
-      headers: getHeaders()
-    });
+    const response = await request.get('/templates', { params });
     return response.data;
   } catch (error) {
     message.error('获取模板列表失败');
@@ -96,9 +73,7 @@ export const fetchTemplates = async (params?: any) => {
 // 获取单个模板
 export const fetchTemplate = async (id: number | string) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/templates/${id}`, {
-      headers: getHeaders()
-    });
+    const response = await request.get(`/templates/${id}`);
     return response.data;
   } catch (error) {
     message.error('获取模板详情失败');
@@ -109,9 +84,7 @@ export const fetchTemplate = async (id: number | string) => {
 // 创建模板
 export const createTemplate = async (data: TemplateFormData) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/templates`, data, {
-      headers: getHeaders()
-    });
+    const response = await request.post('/templates', data);
     message.success('创建模板成功');
     return response.data;
   } catch (error) {
@@ -123,9 +96,7 @@ export const createTemplate = async (data: TemplateFormData) => {
 // 更新部分
 export const updateSection = async (id: number | string, data: SectionFormData) => {
   try {
-    const response = await axios.put(`${API_BASE_URL}/sections/${id}`, data, {
-      headers: getHeaders()
-    });
+    const response = await request.put(`/sections/${id}`, data);
     message.success('更新部分成功');
     return response.data;
   } catch (error) {
@@ -140,12 +111,11 @@ export const uploadImage = async (sectionId: number | string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await axios.post(
-      `${API_BASE_URL}/sections/${sectionId}/images`,
+    const response = await request.post(
+      `/sections/${sectionId}/images`,
       formData,
       {
         headers: {
-          ...getHeaders(),
           'Content-Type': 'multipart/form-data'
         }
       }
@@ -162,9 +132,7 @@ export const uploadImage = async (sectionId: number | string, file: File) => {
 // 删除图片
 export const deleteImage = async (imageId: number | string) => {
   try {
-    await axios.delete(`${API_BASE_URL}/images/${imageId}`, {
-      headers: getHeaders()
-    });
+    await request.delete(`/images/${imageId}`);
     message.success('删除图片成功');
   } catch (error) {
     message.error('删除图片失败');
@@ -175,12 +143,9 @@ export const deleteImage = async (imageId: number | string) => {
 // 创建关联
 export const createRelation = async (documentId: number | string, data: RelationFormData) => {
   try {
-    const response = await axios.post(
-      `${API_BASE_URL}/documents/${documentId}/relations`,
-      data,
-      {
-        headers: getHeaders()
-      }
+    const response = await request.post(
+      `/documents/${documentId}/relations`,
+      data
     );
     message.success('创建关联成功');
     return response.data;
@@ -193,9 +158,7 @@ export const createRelation = async (documentId: number | string, data: Relation
 // 删除关联
 export const deleteRelation = async (relationId: number | string) => {
   try {
-    await axios.delete(`${API_BASE_URL}/relations/${relationId}`, {
-      headers: getHeaders()
-    });
+    await request.delete(`/relations/${relationId}`);
     message.success('删除关联成功');
   } catch (error) {
     message.error('删除关联失败');

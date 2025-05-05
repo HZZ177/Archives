@@ -16,6 +16,7 @@ const LoginPage: React.FC = () => {
 
   // 如果已经登录，重定向到首页
   if (userState.isLoggedIn) {
+    console.log('用户已登录，重定向到首页');
     return <Navigate to={ROUTES.HOME} replace />;
   }
 
@@ -23,11 +24,14 @@ const LoginPage: React.FC = () => {
   const handleLogin = async (values: LoginParams) => {
     try {
       setLoading(true);
+      console.log('LoginPage: 提交登录请求');
       await login(values);
+      console.log('LoginPage: 登录成功，准备跳转');
       message.success('登录成功');
       navigate(ROUTES.HOME);
-    } catch (error) {
-      console.error('Login failed:', error);
+    } catch (error: any) {
+      console.error('LoginPage: 登录失败', error);
+      message.error(error.response?.data?.detail || '登录失败，请检查用户名和密码');
     } finally {
       setLoading(false);
     }

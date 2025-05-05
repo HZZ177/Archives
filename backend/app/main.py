@@ -34,13 +34,17 @@ def create_app() -> FastAPI:
     )
 
     # 设置CORS
+    logger.info(f"配置CORS，允许的源: {settings.CORS_ORIGINS}")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
+        expose_headers=["*"],
+        max_age=3600,
     )
+    logger.info("CORS中间件配置完成")
 
     # 添加路由
     app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])

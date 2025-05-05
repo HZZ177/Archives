@@ -43,7 +43,7 @@ class UserBase(BaseModel):
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     is_active: Optional[bool] = True
-    is_admin: Optional[bool] = False
+    is_superuser: Optional[bool] = False
 
 
 # 创建用户时需要的属性
@@ -71,7 +71,7 @@ class UserInDB(UserBase):
     """
     id: int
     hashed_password: str
-    
+
     class Config:
         orm_mode = True
 
@@ -82,7 +82,7 @@ class UserResponse(UserBase):
     用户响应模型
     """
     id: int
-    
+
     class Config:
         orm_mode = True
         from_attributes = True
@@ -117,4 +117,4 @@ class UserDetail(UserResponse):
     roles: List[str] = []
 
     class Config:
-        orm_mode = True 
+        orm_mode = True

@@ -14,10 +14,10 @@ router = APIRouter()
 
 @router.get("/", response_model=List[TemplateResponse])
 async def read_templates(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
-    skip: int = 0,
-    limit: int = 100
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)],
+        skip: int = 0,
+        limit: int = 100
 ):
     """
     获取所有模板列表
@@ -29,9 +29,9 @@ async def read_templates(
 
 @router.post("/", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
 async def create_template(
-    template_in: TemplateCreate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_admin_user)]
+        template_in: TemplateCreate,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_admin_user)]
 ):
     """
     创建新模板
@@ -42,81 +42,81 @@ async def create_template(
         description=template_in.description,
         structure=template_in.structure
     )
-    
+
     db.add(db_template)
     await db.commit()
     await db.refresh(db_template)
-    
+
     return db_template
 
 
 @router.get("/{template_id}", response_model=TemplateResponse)
 async def read_template(
-    template_id: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+        template_id: int,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
     获取特定模板
     """
     template = await db.get(Template, template_id)
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="模板不存在"
         )
-    
+
     return template
 
 
 @router.put("/{template_id}", response_model=TemplateResponse)
 async def update_template(
-    template_id: int,
-    template_in: TemplateUpdate,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_admin_user)]
+        template_id: int,
+        template_in: TemplateUpdate,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_admin_user)]
 ):
     """
     更新模板
     """
     template = await db.get(Template, template_id)
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="模板不存在"
         )
-    
+
     # 更新模板数据
     update_data = template_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(template, key, value)
-    
+
     await db.commit()
     await db.refresh(template)
-    
+
     return template
 
 
 @router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_template(
-    template_id: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_admin_user)]
+        template_id: int,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_admin_user)]
 ):
     """
     删除模板
     """
     template = await db.get(Template, template_id)
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="模板不存在"
         )
-    
+
     await db.delete(template)
     await db.commit()
-    
-    return None 
+
+    return None

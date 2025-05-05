@@ -36,15 +36,15 @@ class Document(Base):
     sections = relationship("Section", back_populates="document", cascade="all, delete-orphan")
     images = relationship("Image", back_populates="document", cascade="all, delete-orphan")
     source_relations = relationship(
-        "Relation", 
-        foreign_keys="[Relation.source_id]", 
-        back_populates="source", 
+        "Relation",
+        foreign_keys="[Relation.source_id]",
+        back_populates="source",
         cascade="all, delete-orphan"
     )
     target_relations = relationship(
-        "Relation", 
-        foreign_keys="[Relation.target_id]", 
-        back_populates="target", 
+        "Relation",
+        foreign_keys="[Relation.target_id]",
+        back_populates="target",
         cascade="all, delete-orphan"
     )
 
@@ -114,4 +114,4 @@ class Relation(Base):
 
     # 关系
     source = relationship("Document", foreign_keys=[source_id], back_populates="source_relations")
-    target = relationship("Document", foreign_keys=[target_id], back_populates="target_relations") 
+    target = relationship("Document", foreign_keys=[target_id], back_populates="target_relations")

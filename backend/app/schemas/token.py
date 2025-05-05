@@ -16,6 +16,6 @@ class TokenPayload(BaseModel):
     令牌数据载荷
     """
     user_id: str = Field(..., alias="sub")
-    
+
     class Config:
-        populate_by_name = True 
+        populate_by_name = True

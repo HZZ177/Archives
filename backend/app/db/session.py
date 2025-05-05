@@ -18,7 +18,8 @@ SessionLocal = sessionmaker(
     bind=engine,
     class_=AsyncSession,
     expire_on_commit=False,
-) 
+)
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
@@ -28,4 +29,4 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         try:
             yield session
         finally:
-            await session.close() 
+            await session.close()

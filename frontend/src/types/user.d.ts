@@ -24,7 +24,7 @@ export interface UserFormData {
 
 export interface UserQueryParams {
   page?: number;
-  pageSize?: number;
+  page_size?: number;
   keyword?: string;
 }
 

@@ -4,7 +4,6 @@ from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
 
-
 # 用户角色关联表
 user_role = Table(
     "user_role",
@@ -45,4 +44,4 @@ class Role(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     # 关系
-    users = relationship("User", secondary=user_role, back_populates="roles") 
+    users = relationship("User", secondary=user_role, back_populates="roles")

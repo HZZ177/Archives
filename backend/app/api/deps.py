@@ -30,8 +30,8 @@ async def get_db() -> AsyncSession:
 
 
 async def get_current_user(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    token: Annotated[str, Depends(oauth2_scheme)]
+        db: Annotated[AsyncSession, Depends(get_db)],
+        token: Annotated[str, Depends(oauth2_scheme)]
 ) -> User:
     """
     获取当前用户
@@ -60,7 +60,7 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)]
+        current_user: Annotated[User, Depends(get_current_user)]
 ) -> User:
     """
     获取当前活动用户
@@ -71,14 +71,14 @@ async def get_current_active_user(
 
 
 async def get_current_admin_user(
-    current_user: Annotated[User, Depends(get_current_active_user)]
+        current_user: Annotated[User, Depends(get_current_active_user)]
 ) -> User:
     """
     获取当前管理员用户
     """
-    if not current_user.is_admin:
+    if not current_user.is_superuser:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="权限不足"
         )
-    return current_user 
+    return current_user
