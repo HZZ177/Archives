@@ -19,10 +19,15 @@ export const ROUTES = {
   HOME: '/',
   USER_LIST: '/users',
   USER_EDIT: '/users/:id',
+  ROLE_LIST: '/roles',
+  ROLE_EDIT: '/roles/:id',
+  PERMISSION_LIST: '/permissions',
   TEMPLATE_LIST: '/templates',
   TEMPLATE_EDIT: '/templates/:id',
   DOCUMENT_LIST: '/documents',
   DOCUMENT_EDIT: '/documents/:id',
+  STRUCTURE_MANAGEMENT: '/structure-management',
+  MODULE_CONTENT: '/module-content',
 };
 
 // 状态码

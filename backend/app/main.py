@@ -9,6 +9,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
 from backend.app.api.endpoints import auth, users, documents, templates, images
+from backend.app.api.endpoints import module_structures, module_contents
+from backend.app.api.endpoints import roles, permissions
 from backend.app.core.config import settings
 from backend.app.db.init_db import init_db
 
@@ -52,14 +54,23 @@ def create_app() -> FastAPI:
     app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", tags=["documents"])
     app.include_router(templates.router, prefix=f"{settings.API_V1_STR}/templates", tags=["templates"])
     app.include_router(images.router, prefix=f"{settings.API_V1_STR}/images", tags=["images"])
+    app.include_router(module_structures.router, prefix=f"{settings.API_V1_STR}/module-structures", tags=["module-structures"])
+    app.include_router(module_contents.router, prefix=f"{settings.API_V1_STR}/module-contents", tags=["module-contents"])
+    app.include_router(roles.router, prefix=f"{settings.API_V1_STR}/roles", tags=["roles"])
+    app.include_router(permissions.router, prefix=f"{settings.API_V1_STR}/permissions", tags=["permissions"])
 
     # 配置静态文件
     static_dir = settings.STATIC_DIR
     os.makedirs(static_dir, exist_ok=True)
     uploads_dir = os.path.join(static_dir, "uploads")
     os.makedirs(uploads_dir, exist_ok=True)
+    
+    # 确保模块图片上传目录存在
+    module_diagrams_dir = "uploads/module_diagrams"
+    os.makedirs(module_diagrams_dir, exist_ok=True)
 
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
     return app
 

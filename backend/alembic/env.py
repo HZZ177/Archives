@@ -9,7 +9,7 @@ from alembic import context
 
 # 导入数据库模型以便被检测
 from backend.app.db.base import Base
-from backend.app.models import User, Document  # 导入所有模型
+from backend.app.models import User, Document, ModuleStructureNode, ModuleContent  # 导入所有模型
 from backend.app.core.config import settings
 
 # this is the Alembic Config object, which provides

@@ -6,8 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_active_user, get_current_admin_user, get_db
 from backend.app.core.security import get_password_hash
-from backend.app.models.user import User
+from backend.app.models.user import User, Role, user_role
 from backend.app.schemas.user import UserCreate, UserResponse, UserUpdate
+from backend.app.schemas.role import UserRoleUpdate, RoleResponse
 
 router = APIRouter()
 
@@ -190,3 +191,86 @@ async def delete_user(
     await db.commit()
 
     return None
+
+
+@router.get("/{user_id}/roles", response_model=List[RoleResponse])
+async def read_user_roles(
+        user_id: int,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    获取用户的角色
+    """
+    # 普通用户只能获取自己的信息
+    if not current_user.is_superuser and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="没有足够的权限"
+        )
+
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    # 获取用户角色
+    result = await db.execute(
+        select(Role)
+        .join(user_role, Role.id == user_role.c.role_id)
+        .where(user_role.c.user_id == user_id)
+    )
+    roles = result.scalars().all()
+
+    return roles
+
+
+@router.put("/{user_id}/roles", response_model=List[RoleResponse])
+async def update_user_roles(
+        user_id: int,
+        roles_in: UserRoleUpdate,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_admin_user)]
+):
+    """
+    更新用户的角色
+    """
+    # 获取用户
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    # 查询角色是否存在
+    for role_id in roles_in.role_ids:
+        role = await db.get(Role, role_id)
+        if not role:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"角色ID {role_id} 不存在"
+            )
+
+    # 清除现有角色
+    user.roles = []
+
+    # 添加新角色
+    for role_id in roles_in.role_ids:
+        role = await db.get(Role, role_id)
+        user.roles.append(role)
+
+    await db.commit()
+    await db.refresh(user)
+
+    # 获取更新后的角色
+    result = await db.execute(
+        select(Role)
+        .join(user_role, Role.id == user_role.c.role_id)
+        .where(user_role.c.user_id == user_id)
+    )
+    roles = result.scalars().all()
+
+    return roles

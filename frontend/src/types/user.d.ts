@@ -3,7 +3,9 @@ export interface User {
   username: string;
   email?: string;
   mobile?: string;
-  status: number;
+  status?: number;
+  is_active?: boolean;
+  is_superuser?: boolean;
   created_at: string;
 }
 

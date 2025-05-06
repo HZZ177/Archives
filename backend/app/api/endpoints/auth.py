@@ -46,7 +46,7 @@ async def login_access_token(
     # 创建访问令牌
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(user.id)},
+        subject=str(user.id),
         expires_delta=access_token_expires
     )
 

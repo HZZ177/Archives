@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout, Menu, theme, Button, Dropdown, Avatar, Breadcrumb } from 'antd';
 import {
   UserOutlined,
@@ -8,11 +8,15 @@ import {
   MenuUnfoldOutlined,
   LogoutOutlined,
   HomeOutlined,
+  AppstoreOutlined,
+  FolderOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { ROUTES } from '../config/constants';
 import type { MenuProps } from 'antd';
+import { fetchModuleTree } from '../apis/moduleService';
+import { ModuleStructureNode } from '../types/modules';
 
 const { Header, Sider, Content } = Layout;
 
@@ -21,13 +25,47 @@ const MainLayout: React.FC = () => {
   const { userState, logout } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
+  const [userModules, setUserModules] = useState<ModuleStructureNode[]>([]);
+  const [loading, setLoading] = useState(false);
   
   const {
-    token: { colorBgContainer, borderRadiusLG },
+    token: { colorBgContainer },
   } = theme.useToken();
 
+  // 获取用户自定义的模块结构树
+  useEffect(() => {
+    const loadModuleTree = async () => {
+      try {
+        setLoading(true);
+        const response = await fetchModuleTree();
+        setUserModules(response.items);
+        setLoading(false);
+      } catch (error) {
+        console.error('加载模块结构树失败:', error);
+        setLoading(false);
+      }
+    };
+
+    loadModuleTree();
+  }, []);
+
+  // 将模块结构树转换为菜单项
+  const convertModuleToMenuItem = (module: ModuleStructureNode): any => {
+    const menuItem: any = {
+      key: `/module-content/${module.id}`,
+      icon: <FolderOutlined />,
+      label: module.name,
+    };
+
+    if (module.children && module.children.length > 0) {
+      menuItem.children = module.children.map(child => convertModuleToMenuItem(child));
+    }
+
+    return menuItem;
+  };
+
   // 导航菜单项
-  const menuItems: MenuProps['items'] = [
+  const staticMenuItems: MenuProps['items'] = [
     {
       key: ROUTES.HOME,
       icon: <HomeOutlined />,
@@ -36,44 +74,32 @@ const MainLayout: React.FC = () => {
     {
       key: 'user',
       icon: <UserOutlined />,
-      label: '用户管理模块',
+      label: '用户管理',
       children: [
         {
           key: ROUTES.USER_LIST,
           label: '用户列表',
         },
         {
-          key: 'role',
-          label: '角色配置',
+          key: ROUTES.ROLE_LIST,
+          label: '角色管理',
+        },
+        {
+          key: ROUTES.PERMISSION_LIST,
+          label: '权限管理',
         },
       ],
     },
     {
-      key: 'document',
-      icon: <FileOutlined />,
-      label: '资料管理模块',
-      children: [
-        {
-          key: ROUTES.DOCUMENT_LIST,
-          label: '资料列表',
-        },
-        {
-          key: ROUTES.TEMPLATE_LIST,
-          label: '模板管理',
-        },
-      ],
-    },
-    {
-      key: 'order',
-      icon: <TeamOutlined />,
-      label: '订单管理模块',
-    },
-    {
-      key: 'product',
-      icon: <TeamOutlined />,
-      label: '商品管理模块',
+      key: ROUTES.STRUCTURE_MANAGEMENT,
+      icon: <AppstoreOutlined />,
+      label: '结构管理',
     },
   ];
+
+  // 合并静态菜单项和用户自定义模块菜单项
+  const userModuleMenuItems = userModules.map(module => convertModuleToMenuItem(module));
+  const menuItems: MenuProps['items'] = [...staticMenuItems, ...userModuleMenuItems];
 
   // 用户菜单
   const userMenuItems: MenuProps['items'] = [
@@ -120,15 +146,25 @@ const MainLayout: React.FC = () => {
     
     if (pathSnippets.includes('users')) {
       breadcrumbName = '用户管理';
-    } else if (pathSnippets.includes('documents')) {
-      breadcrumbName = '资料管理';
-      if (pathSnippets.length > 1) {
-        breadcrumbItems.push({
-          title: <Link to="/documents">资料列表</Link>,
-        });
-      }
-    } else if (pathSnippets.includes('templates')) {
-      breadcrumbName = '模板管理';
+    } else if (pathSnippets.includes('structure-management')) {
+      breadcrumbName = '结构管理';
+    } else if (pathSnippets.includes('module-content')) {
+      // 为模块内容页面查找对应的模块名称
+      const moduleId = parseInt(pathSnippets[pathSnippets.length - 1]);
+      const findModuleName = (modules: ModuleStructureNode[]): string | null => {
+        for (const module of modules) {
+          if (module.id === moduleId) {
+            return module.name;
+          }
+          if (module.children && module.children.length > 0) {
+            const childResult = findModuleName(module.children);
+            if (childResult) return childResult;
+          }
+        }
+        return null;
+      };
+      
+      breadcrumbName = findModuleName(userModules) || '模块内容';
     }
     
     if (breadcrumbName) {
@@ -217,7 +253,6 @@ const MainLayout: React.FC = () => {
           padding: 24, 
           minHeight: 280, 
           background: colorBgContainer, 
-          borderRadius: borderRadiusLG 
         }}>
           <Breadcrumb style={{ marginBottom: '16px' }} items={generateBreadcrumb()} />
           <Outlet />
