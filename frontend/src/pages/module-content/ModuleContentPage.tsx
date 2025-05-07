@@ -6,23 +6,22 @@ import { Link } from 'react-router-dom';
 import { ModuleStructureNode } from '../../types/modules';
 import { fetchModuleNode } from '../../apis/moduleService';
 import ModuleContentEditor from './components/ModuleContentEditor';
-import { ROUTES } from '../../config/constants';
 
 const { Title } = Typography;
 
 const ModuleContentPage: React.FC = () => {
-  const { moduleNodeId } = useParams<{ moduleNodeId: string }>();
+  const { moduleId } = useParams<{ moduleId: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [moduleNode, setModuleNode] = useState<ModuleStructureNode | null>(null);
 
   useEffect(() => {
     const loadModuleNode = async () => {
-      if (!moduleNodeId) return;
+      if (!moduleId) return;
       
       try {
         setLoading(true);
-        const node = await fetchModuleNode(parseInt(moduleNodeId));
+        const node = await fetchModuleNode(parseInt(moduleId));
         setModuleNode(node);
         setLoading(false);
       } catch (error) {
@@ -34,7 +33,7 @@ const ModuleContentPage: React.FC = () => {
     };
     
     loadModuleNode();
-  }, [moduleNodeId, navigate]);
+  }, [moduleId, navigate]);
 
   if (loading) {
     return (
@@ -62,7 +61,7 @@ const ModuleContentPage: React.FC = () => {
         {moduleNode && (
           <>
             <Title level={4}>{moduleNode.name}</Title>
-            <ModuleContentEditor moduleNodeId={parseInt(moduleNodeId || '0')} />
+            <ModuleContentEditor moduleNodeId={parseInt(moduleId || '0')} />
           </>
         )}
       </Card>

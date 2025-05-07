@@ -8,6 +8,7 @@ class ModuleStructureNodeBase(BaseModel):
     name: str
     parent_id: Optional[int] = None
     order_index: Optional[int] = 0
+    is_content_page: Optional[bool] = False
 
 
 class ModuleStructureNodeCreate(ModuleStructureNodeBase):
@@ -20,6 +21,7 @@ class ModuleStructureNodeUpdate(BaseModel):
     name: Optional[str] = None
     parent_id: Optional[int] = None
     order_index: Optional[int] = None
+    is_content_page: Optional[bool] = None
 
 
 class ModuleStructureNodeResponse(ModuleStructureNodeBase):

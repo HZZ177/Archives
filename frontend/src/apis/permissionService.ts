@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config/constants';
+import { Permission, PermissionTree } from '../types/permission';
 
 // 获取请求头
 const getHeaders = () => {
@@ -23,13 +24,47 @@ export const fetchPermissions = async (params = {}) => {
   }
 };
 
+// 构建完整的权限树
+const buildPermissionTree = (permissions: Permission[]): PermissionTree[] => {
+  // 创建权限ID映射表，便于快速查找
+  const permissionMap = new Map<number, Permission>();
+  permissions.forEach(permission => {
+    permissionMap.set(permission.id, { ...permission, children: [] });
+  });
+  
+  // 构建树形结构
+  const rootNodes: PermissionTree[] = [];
+  
+  permissions.forEach(permission => {
+    const permissionWithChildren = permissionMap.get(permission.id) as PermissionTree;
+    
+    if (permission.parent_id === null || permission.parent_id === undefined) {
+      // 顶级节点
+      rootNodes.push(permissionWithChildren);
+    } else {
+      // 子节点，添加到父节点的children中
+      const parentId = permission.parent_id as number; // 确保parent_id是number类型
+      const parentNode = permissionMap.get(parentId);
+      if (parentNode) {
+        if (!parentNode.children) {
+          parentNode.children = [];
+        }
+        parentNode.children.push(permissionWithChildren);
+      }
+    }
+  });
+  
+  return rootNodes;
+};
+
 // 获取权限树（树形结构）
 export const fetchPermissionTree = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/permissions/tree`, {
-      headers: getHeaders()
-    });
-    return response.data;
+    // 先获取扁平的权限列表
+    const permissions = await fetchPermissions();
+    
+    // 构建树形结构
+    return buildPermissionTree(permissions);
   } catch (error) {
     console.error('获取权限树失败', error);
     throw error;
@@ -97,6 +132,19 @@ export const fetchCurrentUserPermissions = async () => {
     return response.data;
   } catch (error) {
     console.error('获取当前用户权限失败', error);
+    throw error;
+  }
+};
+
+// 获取当前用户可访问的页面路径
+export const fetchUserPagePermissions = async () => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/permissions/user/pages`, {
+      headers: getHeaders()
+    });
+    return response.data;
+  } catch (error) {
+    console.error('获取用户页面权限失败', error);
     throw error;
   }
 }; 

@@ -27,8 +27,16 @@ class ApiInterfaceParameter(BaseModel):
 
 class ApiInterface(BaseModel):
     """API接口模型"""
-    method: str  # GET, POST, PUT, DELETE等
-    path: str
+    # 前端目前发送的字段
+    id: Optional[str] = None  # 前端使用的唯一标识符
+    name: Optional[str] = None  # 接口名称
+    type: Optional[str] = None  # 数据类型
+    required: Optional[bool] = None  # 是否必需
+    description: Optional[str] = None  # 说明
+
+    # 保留原有字段，设为可选，保证向后兼容
+    method: Optional[str] = None  # GET, POST, PUT, DELETE等
+    path: Optional[str] = None
     request_params: List[ApiInterfaceParameter] = []
     response_params: List[ApiInterfaceParameter] = []
 

@@ -21,9 +21,14 @@ async def read_permissions(
         limit: int = 1000
 ):
     """
-    获取所有权限列表（扁平结构）
+    获取所有页面权限列表（扁平结构）
     """
-    result = await db.execute(select(Permission).offset(skip).limit(limit))
+    result = await db.execute(
+        select(Permission)
+        .options(selectinload(Permission.children))
+        .offset(skip)
+        .limit(limit)
+    )
     permissions = result.scalars().all()
     return permissions
 
@@ -34,7 +39,7 @@ async def read_permissions_tree(
         current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
-    获取权限树（树形结构）
+    获取页面权限树（树形结构）
     """
     # 查询所有顶级权限
     result = await db.execute(
@@ -55,7 +60,7 @@ async def create_permission(
         current_user: Annotated[User, Depends(get_current_admin_user)]
 ):
     """
-    创建新权限
+    创建新页面权限
     """
     # 检查权限代码是否已存在
     result = await db.execute(select(Permission).where(Permission.code == permission_in.code))
@@ -63,6 +68,14 @@ async def create_permission(
         raise HTTPException(
             status_code=400,
             detail="权限代码已存在"
+        )
+
+    # 检查页面路径是否已存在
+    result = await db.execute(select(Permission).where(Permission.page_path == permission_in.page_path))
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=400,
+            detail="页面路径已存在"
         )
 
     # 如果有父权限，检查是否存在
@@ -91,7 +104,7 @@ async def read_permission(
         current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
-    获取特定权限详情
+    获取特定页面权限详情
     """
     permission = await db.get(Permission, permission_id)
     if not permission:
@@ -111,7 +124,7 @@ async def update_permission(
         current_user: Annotated[User, Depends(get_current_admin_user)]
 ):
     """
-    更新权限信息
+    更新页面权限信息
     """
     # 获取权限
     permission = await db.get(Permission, permission_id)
@@ -128,6 +141,15 @@ async def update_permission(
             raise HTTPException(
                 status_code=400,
                 detail="权限代码已存在"
+            )
+    
+    # 检查页面路径是否已存在
+    if permission_in.page_path and permission_in.page_path != permission.page_path:
+        result = await db.execute(select(Permission).where(Permission.page_path == permission_in.page_path))
+        if result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail="页面路径已存在"
             )
 
     # 如果更新了父权限，检查是否存在
@@ -164,7 +186,7 @@ async def delete_permission(
         current_user: Annotated[User, Depends(get_current_admin_user)]
 ):
     """
-    删除权限
+    删除页面权限
     """
     # 获取权限
     permission = await db.get(Permission, permission_id)
@@ -189,13 +211,42 @@ async def delete_permission(
     return None
 
 
+@router.get("/user/pages", response_model=List[str])
+async def read_current_user_pages(
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    获取当前用户可访问的所有页面路径
+    """
+    # 超级管理员可以访问所有页面
+    if current_user.is_superuser:
+        result = await db.execute(select(Permission.page_path))
+        pages = [row[0] for row in result.all()]
+        return pages
+    
+    # 查询用户角色及对应的页面权限
+    stmt = select(Permission.page_path).join(
+        Permission.roles
+    ).join(
+        "users"
+    ).filter(
+        User.id == current_user.id
+    ).distinct()
+    
+    result = await db.execute(stmt)
+    pages = [row[0] for row in result.all()]
+    
+    return pages
+
+
 @router.get("/user/current", response_model=List[str])
 async def read_current_user_permissions(
         db: Annotated[AsyncSession, Depends(get_db)],
         current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
-    获取当前用户的所有权限
+    获取当前用户的所有权限（兼容旧接口）
     """
     user_permissions = await get_user_permissions(db, current_user)
     return user_permissions 

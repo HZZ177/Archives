@@ -9,6 +9,7 @@ export interface ModuleStructureNode {
   updated_at: string;
   children: ModuleStructureNode[];
   has_content: boolean;
+  is_content_page: boolean;
 }
 
 // 数据库表字段类型
@@ -78,6 +79,7 @@ export interface ModuleStructureNodeRequest {
   name: string;
   parent_id?: number | null;
   order_index?: number;
+  is_content_page?: boolean;  // 是否作为内容页面
 }
 
 // 创建/更新模块内容的请求参数

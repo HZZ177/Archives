@@ -14,20 +14,18 @@ role_permission = Table(
 
 
 class Permission(Base):
-    """权限模型"""
+    """权限模型 - 页面级权限控制"""
     __tablename__ = "permissions"
 
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String(100), unique=True, index=True, nullable=False, comment="权限代码")
     name = Column(String(100), nullable=False, comment="权限名称")
-    type = Column(String(20), nullable=False, comment="权限类型：menu-菜单权限, operation-操作权限")
-    parent_id = Column(Integer, ForeignKey("permissions.id"), nullable=True, comment="父权限ID")
-    path = Column(String(255), nullable=True, comment="路由路径")
-    component = Column(String(255), nullable=True, comment="前端组件")
-    permission = Column(String(255), nullable=True, comment="权限标识")
+    page_path = Column(String(255), nullable=False, comment="页面路径")
     icon = Column(String(100), nullable=True, comment="图标")
     sort = Column(Integer, default=0, comment="排序")
-    visible = Column(Boolean, default=True, comment="是否可见")
+    is_visible = Column(Boolean, default=True, comment="是否在菜单中可见")
+    parent_id = Column(Integer, ForeignKey("permissions.id"), nullable=True, comment="父权限ID")
+    description = Column(String(255), nullable=True, comment="权限描述")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

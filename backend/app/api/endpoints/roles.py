@@ -1,7 +1,7 @@
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -220,15 +220,19 @@ async def update_role_permissions(
                 detail=f"权限ID {perm_id} 不存在"
             )
     
-    # 清除现有权限
-    role.permissions = []
+    # 使用SQL方式：首先删除所有现有的角色-权限关联
+    await db.execute(
+        text("DELETE FROM role_permission WHERE role_id = :role_id"),
+        {"role_id": role_id}
+    )
     
-    # 添加新权限
+    # 添加新的权限关联
     for perm_id in permissions_in.permission_ids:
-        perm = await db.get(Permission, perm_id)
-        role.permissions.append(perm)
+        await db.execute(
+            text("INSERT INTO role_permission (role_id, permission_id) VALUES (:role_id, :permission_id)"),
+            {"role_id": role_id, "permission_id": perm_id}
+        )
     
     await db.commit()
-    await db.refresh(role)
     
     return {"status": "success", "message": "权限更新成功"} 

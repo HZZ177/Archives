@@ -42,14 +42,21 @@ export const fetchModuleContent = async (moduleNodeId: number): Promise<ModuleCo
     const response = await request.get(`${API_MODULE_CONTENTS}/by-node/${moduleNodeId}`);
     return response.data;
   } catch (error: any) {
-    // 如果内容不存在，返回空对象
+    // 如果内容不存在，返回空对象，允许用户创建新内容
     if (error.response && error.response.status === 404) {
+      // 返回一个初始化的内容对象
       return {
         id: 0,
         module_node_id: moduleNodeId,
         user_id: 0,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        overview_text: '',
+        diagram_image_path: '',
+        key_tech_items_json: [],
+        database_tables_json: [],
+        related_module_ids_json: [],
+        api_interfaces_json: []
       };
     }
     throw error;
@@ -57,6 +64,7 @@ export const fetchModuleContent = async (moduleNodeId: number): Promise<ModuleCo
 };
 
 export const saveModuleContent = async (moduleNodeId: number, data: ModuleContentRequest): Promise<ModuleContent> => {
+  // 后端的PUT接口已经实现了upsert逻辑，可以直接使用
   const response = await request.put(`${API_MODULE_CONTENTS}/by-node/${moduleNodeId}`, data);
   return response.data;
 };

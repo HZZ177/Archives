@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Layout, Menu, theme, Button, Dropdown, Avatar, Breadcrumb } from 'antd';
 import {
   UserOutlined,
   TeamOutlined,
-  FileOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   LogoutOutlined,
   HomeOutlined,
   AppstoreOutlined,
   FolderOutlined,
+  FileTextOutlined
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
@@ -17,92 +17,196 @@ import { ROUTES } from '../config/constants';
 import type { MenuProps } from 'antd';
 import { fetchModuleTree } from '../apis/moduleService';
 import { ModuleStructureNode } from '../types/modules';
+import { fetchUserPagePermissions } from '../apis/permissionService';
 
 const { Header, Sider, Content } = Layout;
 
+// 定义菜单项类型，增加了page_path属性
+interface ExtendedMenuItem {
+  key: string;
+  icon?: React.ReactNode;
+  label: React.ReactNode;
+  page_path?: string;
+  children?: ExtendedMenuItem[];
+}
+
+// 静态菜单项不应该每次渲染都创建新的对象，将其移到组件外部
+const staticMenuItems: ExtendedMenuItem[] = [
+  {
+    key: '/',
+    icon: <HomeOutlined />,
+    label: '首页',
+    page_path: '/',
+  },
+  {
+    key: 'system',
+    icon: <AppstoreOutlined />,
+    label: '系统管理',
+    children: [
+      {
+        key: '/users',
+        icon: <UserOutlined />,
+        label: '用户管理',
+        page_path: '/users',
+      },
+      {
+        key: '/roles',
+        icon: <TeamOutlined />,
+        label: '角色管理',
+        page_path: '/roles',
+      },
+    ],
+  },
+  {
+    key: '/structure-management',
+    icon: <AppstoreOutlined />,
+    label: '结构管理',
+    page_path: '/structure-management',
+  },
+];
+
+// 创建一个全局事件总线，用于在不同组件间通信
+export const refreshModuleTreeEvent = new CustomEvent('refreshModuleTree');
+
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [userModules, setUserModules] = useState<ModuleStructureNode[]>([]);
   const { userState, logout } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
-  const [userModules, setUserModules] = useState<ModuleStructureNode[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const [filteredMenuItems, setFilteredMenuItems] = useState<MenuProps['items']>([]);
   
   const {
-    token: { colorBgContainer },
+    token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  // 获取用户自定义的模块结构树
+  // 从模块结构生成菜单项，根据has_content属性区分处理方式
+  const convertModuleToMenuItem = (module: ModuleStructureNode): ExtendedMenuItem => {
+    // 优先使用is_content_page字段判断节点类型，区分内容页面和普通目录节点
+    const moduleIcon = module.is_content_page ? <FileTextOutlined /> : <FolderOutlined />;
+    
+    // 如果模块被标记为内容页面类型，无论是否有子节点，都显示为内容页面
+    if (module.is_content_page) {
+      return {
+        key: `/module-content/${module.id}`,
+        icon: moduleIcon,
+        label: module.name,
+        page_path: `/module-content/${module.id}`,
+        // 内容页面类型不显示子节点，直接导航到内容页面
+      };
+    }
+    
+    // 对于普通目录节点，继续递归处理子节点
+    return {
+      key: `/module-content/${module.id}`,
+      icon: moduleIcon,
+      label: module.name,
+      page_path: `/module-content/${module.id}`,
+      children: module.children?.map(child => convertModuleToMenuItem(child)),
+    };
+  };
+
+  // 刷新用户模块树
+  const refreshModuleTree = useCallback(async () => {
+    try {
+      const data = await fetchModuleTree();
+      const modules = Array.isArray(data) ? data : data.items || [];
+      setUserModules(modules);
+      console.log('模块树已刷新');
+    } catch (error) {
+      console.error('刷新模块树失败:', error);
+    }
+  }, []);
+
+  // 监听全局刷新事件
   useEffect(() => {
-    const loadModuleTree = async () => {
+    const handleRefreshEvent = () => {
+      refreshModuleTree();
+    };
+    
+    // 添加刷新事件监听器
+    window.addEventListener('refreshModuleTree', handleRefreshEvent);
+    
+    // 清理监听器
+    return () => {
+      window.removeEventListener('refreshModuleTree', handleRefreshEvent);
+    };
+  }, [refreshModuleTree]);
+
+  // 获取用户模块
+  useEffect(() => {
+    refreshModuleTree();
+  }, [refreshModuleTree]);
+
+  // 获取用户权限
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
       try {
-        setLoading(true);
-        const response = await fetchModuleTree();
-        setUserModules(response.items);
-        setLoading(false);
+        // 获取用户可访问的页面路径
+        const pagePaths = await fetchUserPagePermissions();
+        setUserPermissions(pagePaths);
       } catch (error) {
-        console.error('加载模块结构树失败:', error);
-        setLoading(false);
+        console.error('获取用户权限失败:', error);
       }
     };
 
-    loadModuleTree();
-  }, []);
-
-  // 将模块结构树转换为菜单项
-  const convertModuleToMenuItem = (module: ModuleStructureNode): any => {
-    const menuItem: any = {
-      key: `/module-content/${module.id}`,
-      icon: <FolderOutlined />,
-      label: module.name,
-    };
-
-    if (module.children && module.children.length > 0) {
-      menuItem.children = module.children.map(child => convertModuleToMenuItem(child));
+    if (userState.isLoggedIn) {
+      fetchUserPermissions();
     }
+  }, [userState.isLoggedIn]);
 
-    return menuItem;
+  // 递归过滤菜单项函数 - 移到useEffect外部以避免每次渲染都创建新函数
+  const filterMenuItems = (items: ExtendedMenuItem[], permissions: string[]): ExtendedMenuItem[] => {
+    return items
+      .map(item => {
+        // 如果有子菜单，递归过滤子菜单
+        if (item.children && item.children.length > 0) {
+          const filteredChildren = filterMenuItems(item.children, permissions);
+          // 如果过滤后的子菜单为空，且当前项没有page_path（即仅作为目录），则不显示此项
+          if (filteredChildren.length === 0 && !item.page_path) {
+            return null;
+          }
+          return { ...item, children: filteredChildren };
+        }
+        
+        // 叶子节点，检查是否有权限访问
+        if (item.page_path) {
+          return permissions.some(path => 
+            path === item.page_path || 
+            (item.page_path && item.page_path.startsWith(path + '/'))
+          ) ? item : null;
+        }
+        
+        return item;
+      })
+      .filter(Boolean) as ExtendedMenuItem[];
   };
 
-  // 导航菜单项
-  const staticMenuItems: MenuProps['items'] = [
-    {
-      key: ROUTES.HOME,
-      icon: <HomeOutlined />,
-      label: '首页',
-    },
-    {
-      key: 'user',
-      icon: <UserOutlined />,
-      label: '用户管理',
-      children: [
-        {
-          key: ROUTES.USER_LIST,
-          label: '用户列表',
-        },
-        {
-          key: ROUTES.ROLE_LIST,
-          label: '角色管理',
-        },
-        {
-          key: ROUTES.PERMISSION_LIST,
-          label: '权限管理',
-        },
-      ],
-    },
-    {
-      key: ROUTES.STRUCTURE_MANAGEMENT,
-      icon: <AppstoreOutlined />,
-      label: '结构管理',
-    },
-  ];
+  // 过滤菜单项，只显示有权限的
+  useEffect(() => {
+    // 避免在依赖项变化前执行逻辑
+    if (!userModules.length && !userPermissions.length && !userState.currentUser) {
+      return;
+    }
+    
+    // 超级管理员可以看到所有菜单
+    if (userState.currentUser?.is_superuser) {
+      // 合并静态菜单项和用户自定义模块菜单项
+      const userModuleMenuItems = userModules.map(module => convertModuleToMenuItem(module));
+      setFilteredMenuItems([...staticMenuItems, ...userModuleMenuItems]);
+      return;
+    }
 
-  // 合并静态菜单项和用户自定义模块菜单项
-  const userModuleMenuItems = userModules.map(module => convertModuleToMenuItem(module));
-  const menuItems: MenuProps['items'] = [...staticMenuItems, ...userModuleMenuItems];
+    // 应用过滤
+    const userModuleMenuItems = userModules.map(module => convertModuleToMenuItem(module));
+    const allMenuItems = [...staticMenuItems, ...userModuleMenuItems];
+    const filtered = filterMenuItems(allMenuItems, userPermissions);
+    setFilteredMenuItems(filtered);
+  }, [userModules, userPermissions, userState.currentUser]);
 
   // 用户菜单
-  const userMenuItems: MenuProps['items'] = [
+  const userMenuItems = useMemo(() => [
     {
       key: 'profile',
       icon: <UserOutlined />,
@@ -113,14 +217,14 @@ const MainLayout: React.FC = () => {
       icon: <LogoutOutlined />,
       label: '退出登录',
     },
-  ];
+  ], []);
 
   // 处理菜单点击
-  const handleMenuClick = (key: string) => {
+  const handleMenuClick = useCallback((key: string) => {
     if (key === 'logout') {
       handleLogout();
     }
-  };
+  }, []);
 
   // 处理登出
   const handleLogout = async () => {
@@ -133,7 +237,7 @@ const MainLayout: React.FC = () => {
   };
 
   // 根据路径生成面包屑
-  const generateBreadcrumb = () => {
+  const generateBreadcrumb = useCallback(() => {
     const pathSnippets = location.pathname.split('/').filter(i => i);
     const breadcrumbItems = [
       {
@@ -146,6 +250,8 @@ const MainLayout: React.FC = () => {
     
     if (pathSnippets.includes('users')) {
       breadcrumbName = '用户管理';
+    } else if (pathSnippets.includes('roles')) {
+      breadcrumbName = '角色管理';
     } else if (pathSnippets.includes('structure-management')) {
       breadcrumbName = '结构管理';
     } else if (pathSnippets.includes('module-content')) {
@@ -156,9 +262,9 @@ const MainLayout: React.FC = () => {
           if (module.id === moduleId) {
             return module.name;
           }
-          if (module.children && module.children.length > 0) {
-            const childResult = findModuleName(module.children);
-            if (childResult) return childResult;
+          if (module.children) {
+            const name = findModuleName(module.children);
+            if (name) return name;
           }
         }
         return null;
@@ -166,7 +272,7 @@ const MainLayout: React.FC = () => {
       
       breadcrumbName = findModuleName(userModules) || '模块内容';
     }
-    
+
     if (breadcrumbName) {
       breadcrumbItems.push({
         title: <span>{breadcrumbName}</span>,
@@ -174,7 +280,7 @@ const MainLayout: React.FC = () => {
     }
 
     return breadcrumbItems;
-  };
+  }, [location.pathname, userModules]);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -190,71 +296,58 @@ const MainLayout: React.FC = () => {
           left: 0,
           top: 0,
           bottom: 0,
+          borderRight: '1px solid #f0f0f0',
         }}
       >
-        <div className="logo" style={{ 
-          height: '64px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          borderBottom: '1px solid #f0f0f0',
-          padding: '16px'
-        }}>
-          {collapsed ? (
-            <FileOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-          ) : (
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1890ff' }}>
-              资料管理系统
-            </div>
-          )}
+        <div style={{ height: 32, margin: 16, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
+          {collapsed ? '档案' : '档案管理系统'}
         </div>
         <Menu
           theme="light"
           mode="inline"
           defaultSelectedKeys={['/']}
+          defaultOpenKeys={['system']}
           selectedKeys={[location.pathname]}
-          items={menuItems}
+          items={filteredMenuItems}
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
-      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'all 0.2s' }}>
-        <Header style={{ 
-          padding: 0, 
-          background: colorBgContainer,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: '0 1px 4px rgba(0, 21, 41, 0.08)'
-        }}>
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            style={{
-              fontSize: '16px',
-              width: 64,
-              height: 64,
-            }}
-          />
-          <div style={{ marginRight: '24px' }}>
-            <Dropdown menu={{ 
-              items: userMenuItems, 
-              onClick: ({ key }) => handleMenuClick(key as string) 
-            }} placement="bottomRight">
-              <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                <Avatar icon={<UserOutlined />} style={{ marginRight: '8px' }} />
-                <span>{userState.currentUser?.username || '用户'}</span>
-              </div>
-            </Dropdown>
+      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
+        <Header style={{ padding: 0, background: colorBgContainer }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 24 }}>
+            <Button
+              type="text"
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed(!collapsed)}
+              style={{
+                fontSize: '16px',
+                width: 64,
+                height: 64,
+              }}
+            />
+            <div>
+              <Dropdown 
+                menu={{ 
+                  items: userMenuItems,
+                  onClick: ({ key }) => handleMenuClick(key),
+                }} 
+                placement="bottomRight"
+              >
+                <Button type="text" style={{ height: 64 }}>
+                  <Avatar icon={<UserOutlined />} />
+                  <span style={{ marginLeft: 8 }}>
+                    {userState.currentUser?.username || '用户'}
+                  </span>
+                </Button>
+              </Dropdown>
+            </div>
           </div>
         </Header>
-        <Content style={{ 
-          margin: '16px', 
-          padding: 24, 
-          minHeight: 280, 
-          background: colorBgContainer, 
-        }}>
-          <Breadcrumb style={{ marginBottom: '16px' }} items={generateBreadcrumb()} />
+        <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280, borderRadius: borderRadiusLG, background: colorBgContainer }}>
+          <Breadcrumb 
+            style={{ marginBottom: 16 }}
+            items={generateBreadcrumb()}
+          />
           <Outlet />
         </Content>
       </Layout>

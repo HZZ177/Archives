@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
@@ -14,6 +14,7 @@ class ModuleStructureNode(Base):
     parent_id = Column(Integer, ForeignKey("module_structure_nodes.id"), nullable=True)
     order_index = Column(Integer, default=0)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    is_content_page = Column(Boolean, default=False, nullable=False, comment="是否为内容页面类型")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

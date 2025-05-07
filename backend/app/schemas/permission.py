@@ -7,14 +7,12 @@ from datetime import datetime
 class PermissionBase(BaseModel):
     code: str
     name: str
-    type: str
+    page_path: str
     parent_id: Optional[int] = None
-    path: Optional[str] = None
-    component: Optional[str] = None
-    permission: Optional[str] = None
     icon: Optional[str] = None
     sort: Optional[int] = 0
-    visible: Optional[bool] = True
+    is_visible: Optional[bool] = True
+    description: Optional[str] = None
 
 
 # 创建权限请求模型
@@ -26,14 +24,12 @@ class PermissionCreate(PermissionBase):
 class PermissionUpdate(BaseModel):
     code: Optional[str] = None
     name: Optional[str] = None
-    type: Optional[str] = None
+    page_path: Optional[str] = None
     parent_id: Optional[int] = None
-    path: Optional[str] = None
-    component: Optional[str] = None
-    permission: Optional[str] = None
     icon: Optional[str] = None
     sort: Optional[int] = None
-    visible: Optional[bool] = None
+    is_visible: Optional[bool] = None
+    description: Optional[str] = None
 
 
 # 权限响应模型

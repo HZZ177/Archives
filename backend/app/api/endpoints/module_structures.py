@@ -53,12 +53,30 @@ async def create_module_node(
         name=node_in.name,
         parent_id=node_in.parent_id,
         order_index=node_in.order_index,
-        user_id=current_user.id
+        user_id=current_user.id,
+        is_content_page=node_in.is_content_page
     )
 
     db.add(db_node)
     await db.commit()
     await db.refresh(db_node)
+    
+    # 如果是内容页面类型，自动创建一个空的内容记录
+    has_content = False
+    if db_node.is_content_page:
+        # 创建新的内容记录
+        db_content = ModuleContent(
+            module_node_id=db_node.id,
+            user_id=current_user.id,
+            overview_text="",
+            details_text="",
+            database_tables_json=[],
+            related_module_ids_json=[],
+            api_interfaces_json=[]
+        )
+        db.add(db_content)
+        await db.commit()
+        has_content = True
 
     # 构建响应对象
     response_dict = {
@@ -67,10 +85,11 @@ async def create_module_node(
         "parent_id": db_node.parent_id,
         "order_index": db_node.order_index,
         "user_id": db_node.user_id,
+        "is_content_page": db_node.is_content_page,
         "created_at": db_node.created_at,
         "updated_at": db_node.updated_at,
         "children": [],
-        "has_content": False  # 新节点尚无内容
+        "has_content": has_content  # 如果创建了内容，则设置为True
     }
     
     return response_dict
@@ -110,6 +129,7 @@ async def read_module_tree(
             "parent_id": node.parent_id,
             "order_index": node.order_index,
             "user_id": node.user_id,
+            "is_content_page": node.is_content_page,
             "created_at": node.created_at,
             "updated_at": node.updated_at,
             "children": [],  # 初始化为空列表
@@ -176,6 +196,7 @@ async def read_module_node(
             "parent_id": child.parent_id,
             "order_index": child.order_index,
             "user_id": child.user_id,
+            "is_content_page": child.is_content_page,
             "created_at": child.created_at,
             "updated_at": child.updated_at,
             "children": [],
@@ -190,6 +211,7 @@ async def read_module_node(
         "parent_id": node.parent_id,
         "order_index": node.order_index,
         "user_id": node.user_id,
+        "is_content_page": node.is_content_page,
         "created_at": node.created_at,
         "updated_at": node.updated_at,
         "children": children_list,
@@ -254,6 +276,7 @@ async def update_module_node(
         "parent_id": node.parent_id,
         "order_index": node.order_index,
         "user_id": node.user_id,
+        "is_content_page": node.is_content_page,
         "created_at": node.created_at,
         "updated_at": node.updated_at,
         "children": [],  # 更新时不返回子节点

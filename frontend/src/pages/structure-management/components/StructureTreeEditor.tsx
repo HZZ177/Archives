@@ -12,6 +12,7 @@ import { DataNode } from 'antd/lib/tree';
 import { ModuleStructureNode } from '../../../types/modules';
 import StructureNodeModal from './StructureNodeModal';
 import { deleteModuleNode } from '../../../apis/moduleService';
+import { refreshModuleTreeEvent } from '../../../layouts/MainLayout';
 
 interface StructureTreeEditorProps {
   treeData: ModuleStructureNode[];
@@ -90,6 +91,12 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
   const [parentNode, setParentNode] = useState<ModuleStructureNode | null>(null);
   const { confirm } = Modal;
 
+  // 触发刷新事件，更新左侧导航
+  const triggerRefreshEvent = () => {
+    // 触发全局刷新事件
+    window.dispatchEvent(refreshModuleTreeEvent);
+  };
+
   // 打开添加顶级模块的模态框
   const handleAddRoot = () => {
     setModalType('add');
@@ -128,6 +135,8 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
           await deleteModuleNode(node.id);
           message.success('删除成功');
           onTreeDataChange();
+          // 触发左侧导航刷新
+          triggerRefreshEvent();
         } catch (error) {
           console.error('删除失败:', error);
           message.error('删除失败');
@@ -140,6 +149,8 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
   const handleModalComplete = () => {
     setModalVisible(false);
     onTreeDataChange();
+    // 触发左侧导航刷新
+    triggerRefreshEvent();
   };
 
   // 转换树数据

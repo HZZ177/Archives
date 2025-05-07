@@ -18,180 +18,50 @@ async def create_system_permissions(session: AsyncSession) -> None:
     """创建系统权限"""
     # 权限数据
     permissions_data = [
-        # 系统管理权限
+        # 系统管理分组 - 作为父节点，不包含实际页面路径
         {
             "code": "system",
             "name": "系统管理",
-            "type": "menu",
-            "path": "/system",
-            "component": "Layout",
-            "permission": "system:*:*",
+            "page_path": "", # 空字符串表示不是实际页面
             "sort": 100,
-            "visible": True,
+            "is_visible": True,
             "icon": "setting",
-            "parent_id": None
+            "parent_id": None,
+            "description": "系统管理模块分组"
         },
-        # 用户管理
+        # 用户管理 - 实际页面
         {
             "code": "system:user",
             "name": "用户管理",
-            "type": "menu",
-            "path": "/system/user",
-            "component": "system/user/index",
-            "permission": "system:user:*",
+            "page_path": "/users",
             "sort": 101,
-            "visible": True,
+            "is_visible": True,
             "icon": "user",
-            "parent_id": 1  # 系统管理
+            "parent_id": 1,  # 系统管理分组
+            "description": "用户管理页面"
         },
-        {
-            "code": "system:user:list",
-            "name": "用户列表",
-            "type": "operation",
-            "path": None,
-            "component": None,
-            "permission": "system:user:list",
-            "sort": 102,
-            "visible": True,
-            "icon": None,
-            "parent_id": 2  # 用户管理
-        },
-        {
-            "code": "system:user:query",
-            "name": "用户查询",
-            "type": "operation",
-            "path": None,
-            "component": None,
-            "permission": "system:user:query",
-            "sort": 103,
-            "visible": True,
-            "icon": None,
-            "parent_id": 2  # 用户管理
-        },
-        {
-            "code": "system:user:create",
-            "name": "用户创建",
-            "type": "operation",
-            "path": None,
-            "component": None,
-            "permission": "system:user:create",
-            "sort": 104,
-            "visible": True,
-            "icon": None,
-            "parent_id": 2  # 用户管理
-        },
-        {
-            "code": "system:user:update",
-            "name": "用户更新",
-            "type": "operation",
-            "path": None,
-            "component": None,
-            "permission": "system:user:update",
-            "sort": 105,
-            "visible": True,
-            "icon": None,
-            "parent_id": 2  # 用户管理
-        },
-        {
-            "code": "system:user:delete",
-            "name": "用户删除",
-            "type": "operation",
-            "path": None,
-            "component": None,
-            "permission": "system:user:delete",
-            "sort": 106,
-            "visible": True,
-            "icon": None,
-            "parent_id": 2  # 用户管理
-        },
-
-        # 角色管理
+        # 角色管理 - 实际页面
         {
             "code": "system:role",
             "name": "角色管理",
-            "type": "menu",
-            "path": "/system/role",
-            "component": "system/role/index",
-            "permission": "system:role:*",
-            "sort": 107,
-            "visible": True,
+            "page_path": "/roles",
+            "sort": 102,
+            "is_visible": True,
             "icon": "peoples",
-            "parent_id": 1  # 系统管理
+            "parent_id": 1,  # 系统管理分组
+            "description": "角色管理页面"
         },
+        # 结构管理 - 实际页面，顶级节点
         {
-            "code": "system:role:list",
-            "name": "角色列表",
-            "type": "operation",
-            "path": None,
-            "component": None,
-            "permission": "system:role:list",
-            "sort": 108,
-            "visible": True,
-            "icon": None,
-            "parent_id": 8  # 角色管理
-        },
-        {
-            "code": "system:role:query",
-            "name": "角色查询",
-            "type": "operation",
-            "path": None,
-            "component": None,
-            "permission": "system:role:query",
-            "sort": 109,
-            "visible": True,
-            "icon": None,
-            "parent_id": 8  # 角色管理
-        },
-        {
-            "code": "system:role:create",
-            "name": "角色创建",
-            "type": "operation",
-            "path": None,
-            "component": None,
-            "permission": "system:role:create",
+            "code": "system:structure",
+            "name": "结构管理",
+            "page_path": "/structure-management",
             "sort": 110,
-            "visible": True,
-            "icon": None,
-            "parent_id": 8  # 角色管理
-        },
-        {
-            "code": "system:role:update",
-            "name": "角色更新",
-            "type": "operation",
-            "path": None,
-            "component": None,
-            "permission": "system:role:update",
-            "sort": 111,
-            "visible": True,
-            "icon": None,
-            "parent_id": 8  # 角色管理
-        },
-        {
-            "code": "system:role:delete",
-            "name": "角色删除",
-            "type": "operation",
-            "path": None,
-            "component": None,
-            "permission": "system:role:delete",
-            "sort": 112,
-            "visible": True,
-            "icon": None,
-            "parent_id": 8  # 角色管理
-        },
-
-        # 权限管理
-        {
-            "code": "system:permission",
-            "name": "权限管理",
-            "type": "menu",
-            "path": "/system/permission",
-            "component": "system/permission/index",
-            "permission": "system:permission:*",
-            "sort": 113,
-            "visible": True,
-            "icon": "lock",
-            "parent_id": 1  # 系统管理
-        },
+            "is_visible": True,
+            "icon": "tree",
+            "parent_id": None,
+            "description": "结构管理页面"
+        }
     ]
 
     # 检查是否已存在权限数据

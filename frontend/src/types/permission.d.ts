@@ -2,14 +2,12 @@ export interface Permission {
   id: number;
   code: string;
   name: string;
-  type: string;
+  page_path: string;
   parent_id?: number;
-  path?: string;
-  component?: string;
-  permission?: string;
   icon?: string;
   sort?: number;
-  visible?: boolean;
+  is_visible?: boolean;
+  description?: string;
   created_at: string;
   updated_at: string;
   children?: Permission[];
@@ -18,14 +16,12 @@ export interface Permission {
 export interface PermissionFormData {
   code: string;
   name: string;
-  type: string;
+  page_path: string;
   parent_id?: number;
-  path?: string;
-  component?: string;
-  permission?: string;
   icon?: string;
   sort?: number;
-  visible?: boolean;
+  is_visible?: boolean;
+  description?: string;
 }
 
 export interface PermissionTree extends Permission {
