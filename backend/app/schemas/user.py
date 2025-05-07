@@ -54,6 +54,7 @@ class UserCreate(UserBase):
     username: str
     password: str
     email: Optional[EmailStr] = None
+    role_ids: Optional[List[int]] = None
 
 
 # 更新用户时可以修改的属性

@@ -117,8 +117,8 @@ async def get_user_permissions(
     permissions = []
     for role in roles:
         for perm in role.permissions:
-            if perm.permission and perm.permission not in permissions:
-                permissions.append(perm.permission)
+            if perm.code and perm.code not in permissions:
+                permissions.append(perm.code)
     
     return permissions
 
@@ -170,3 +170,27 @@ def require_permissions(required_permissions: List[str]):
             return await func(*args, **kwargs)
         return wrapper
     return decorator
+
+
+async def check_permissions(db: AsyncSession, user: User, required_permissions: List[str]):
+    """
+    直接检查用户权限
+    
+    :param db: 数据库会话
+    :param user: 用户对象
+    :param required_permissions: 需要的权限列表
+    :raises: HTTPException 如果用户没有所需权限
+    """
+    # 超级管理员拥有所有权限
+    if user.is_superuser:
+        return True
+    
+    # 检查权限
+    user_permissions = await get_user_permissions(db, user)
+    for permission in required_permissions:
+        if not has_permission(user_permissions, permission):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"权限不足：缺少 {permission} 权限"
+            )
+    return True

@@ -5,7 +5,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from backend.app.api.deps import get_current_active_user, get_current_admin_user, get_db, require_permissions
+from backend.app.api.deps import get_current_active_user, get_current_admin_user, get_db, require_permissions, check_permissions
 from backend.app.models.user import User, Role
 from backend.app.models.permission import Permission, role_permission
 from backend.app.schemas.role import RoleCreate, RoleResponse, RoleUpdate, RoleWithPermissions
@@ -26,10 +26,7 @@ async def read_roles(
     """
     # 权限检查
     if not current_user.is_superuser:
-        # 使用装饰器进行权限检查
-        await require_permissions(["system:role:list"])(lambda: None)(
-            db=db, current_user=current_user
-        )
+        await check_permissions(db, current_user, ["system:role:list"])
     
     result = await db.execute(select(Role).offset(skip).limit(limit))
     roles = result.scalars().all()
@@ -40,11 +37,15 @@ async def read_roles(
 async def create_role(
         role_in: RoleCreate,
         db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(get_current_admin_user)]
+        current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
     创建新角色
     """
+    # 权限检查
+    if not current_user.is_superuser:
+        await check_permissions(db, current_user, ["system:role:create"])
+    
     # 检查角色名是否已存在
     result = await db.execute(select(Role).where(Role.name == role_in.name))
     if result.scalar_one_or_none():
@@ -75,9 +76,7 @@ async def read_role(
     # 权限检查
     if not current_user.is_superuser:
         # 使用装饰器进行权限检查
-        await require_permissions(["system:role:query"])(lambda: None)(
-            db=db, current_user=current_user
-        )
+        await check_permissions(db, current_user, ["system:role:query"])
     
     # 查询角色及其权限
     result = await db.execute(
@@ -101,11 +100,15 @@ async def update_role(
         role_id: int,
         role_in: RoleUpdate,
         db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(get_current_admin_user)]
+        current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
     更新角色信息
     """
+    # 权限检查
+    if not current_user.is_superuser:
+        await check_permissions(db, current_user, ["system:role:update"])
+    
     # 获取角色
     role = await db.get(Role, role_id)
     if not role:
@@ -138,11 +141,15 @@ async def update_role(
 async def delete_role(
         role_id: int,
         db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(get_current_admin_user)]
+        current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
     删除角色
     """
+    # 权限检查
+    if not current_user.is_superuser:
+        await check_permissions(db, current_user, ["system:role:delete"])
+    
     # 获取角色
     role = await db.get(Role, role_id)
     if not role:
@@ -170,9 +177,7 @@ async def read_role_permissions(
     # 权限检查
     if not current_user.is_superuser:
         # 使用装饰器进行权限检查
-        await require_permissions(["system:role:query"])(lambda: None)(
-            db=db, current_user=current_user
-        )
+        await check_permissions(db, current_user, ["system:role:query"])
     
     # 获取角色
     role = await db.get(Role, role_id)
@@ -198,11 +203,15 @@ async def update_role_permissions(
         role_id: int,
         permissions_in: RolePermissionUpdate,
         db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(get_current_admin_user)]
+        current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
     更新角色的权限
     """
+    # 权限检查
+    if not current_user.is_superuser:
+        await check_permissions(db, current_user, ["system:role:update"])
+    
     # 获取角色
     role = await db.get(Role, role_id)
     if not role:

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_current_active_user, get_current_admin_user, get_db
+from backend.app.api.deps import get_current_active_user, get_current_admin_user, get_db, check_permissions
 from backend.app.core.security import get_password_hash
 from backend.app.models.user import User, Role, user_role
 from backend.app.schemas.user import UserCreate, UserResponse, UserUpdate
@@ -16,13 +16,17 @@ router = APIRouter()
 @router.get("/", response_model=List[UserResponse])
 async def read_users(
         db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(get_current_admin_user)],
+        current_user: Annotated[User, Depends(get_current_active_user)],
         skip: int = 0,
         limit: int = 100
 ):
     """
     获取所有用户列表
     """
+    # 权限检查
+    if not current_user.is_superuser:
+        await check_permissions(db, current_user, ["system:user:list"])
+    
     result = await db.execute(select(User).offset(skip).limit(limit))
     users = result.scalars().all()
     return users
@@ -32,11 +36,15 @@ async def read_users(
 async def create_user(
         user_in: UserCreate,
         db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(get_current_admin_user)]
+        current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
-    创建新用户
+    创建新用户，同时支持角色分配
     """
+    # 权限检查
+    if not current_user.is_superuser:
+        await check_permissions(db, current_user, ["system:user:create"])
+    
     # 检查用户名是否已存在
     result = await db.execute(select(User).where(User.username == user_in.username))
     if result.scalar_one_or_none():
@@ -65,6 +73,19 @@ async def create_user(
     )
 
     db.add(db_user)
+    
+    # 如果有角色ID，则验证并分配角色
+    if user_in.role_ids:
+        for role_id in user_in.role_ids:
+            role = await db.get(Role, role_id)
+            if not role:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"角色ID {role_id} 不存在"
+                )
+            db_user.roles.append(role)
+
+    # 完成事务
     await db.commit()
     await db.refresh(db_user)
 
@@ -107,12 +128,10 @@ async def update_user(
     """
     更新用户信息
     """
-    # 普通用户只能更新自己的信息
+    # 权限检查：超级管理员、更新自己的信息，或拥有system:user:update权限的用户
     if not current_user.is_superuser and current_user.id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有足够的权限"
-        )
+        # 非超级管理员且不是更新自己的信息，检查是否有更新权限
+        await check_permissions(db, current_user, ["system:user:update"])
 
     # 获取用户
     user = await db.get(User, user_id)
@@ -166,11 +185,15 @@ async def update_user(
 async def delete_user(
         user_id: int,
         db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(get_current_admin_user)]
+        current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
     删除用户
     """
+    # 权限检查
+    if not current_user.is_superuser:
+        await check_permissions(db, current_user, ["system:user:delete"])
+    
     # 获取用户
     user = await db.get(User, user_id)
     if not user:
@@ -202,12 +225,10 @@ async def read_user_roles(
     """
     获取用户的角色
     """
-    # 普通用户只能获取自己的信息
+    # 权限检查：超级管理员、查看自己的信息，或拥有system:user:query权限的用户
     if not current_user.is_superuser and current_user.id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有足够的权限"
-        )
+        # 非超级管理员且不是查看自己的信息，检查是否有查询权限
+        await check_permissions(db, current_user, ["system:user:query"])
 
     user = await db.get(User, user_id)
     if not user:
@@ -232,11 +253,15 @@ async def update_user_roles(
         user_id: int,
         roles_in: UserRoleUpdate,
         db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(get_current_admin_user)]
+        current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
     更新用户的角色
     """
+    # 权限检查
+    if not current_user.is_superuser:
+        await check_permissions(db, current_user, ["system:user:update"])
+    
     # 获取用户
     user = await db.get(User, user_id)
     if not user:

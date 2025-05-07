@@ -70,5 +70,11 @@ def has_permission(user_permissions: List[str], required_permission: str) -> boo
         operation_wildcard = f"{parts[0]}:{parts[1]}:*"
         if operation_wildcard in user_permissions:
             return True
+        
+        # 检查页面级别权限 module:page
+        # 如果用户拥有页面权限，则自动拥有该页面下的所有操作权限
+        page_permission = f"{parts[0]}:{parts[1]}"
+        if page_permission in user_permissions:
+            return True
     
     return False

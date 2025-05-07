@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Layout, Menu, theme, Button, Dropdown, Avatar, Breadcrumb } from 'antd';
+import type { ItemType } from 'antd/es/menu/interface';
 import {
   UserOutlined,
   TeamOutlined,
@@ -14,7 +15,6 @@ import {
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { ROUTES } from '../config/constants';
-import type { MenuProps } from 'antd';
 import { fetchModuleTree } from '../apis/moduleService';
 import { ModuleStructureNode } from '../types/modules';
 import { fetchUserPagePermissions } from '../apis/permissionService';
@@ -29,6 +29,15 @@ interface ExtendedMenuItem {
   page_path?: string;
   children?: ExtendedMenuItem[];
 }
+
+// 自定义分隔线类型
+interface MenuDivider {
+  type: 'divider';
+  key: string;
+}
+
+// 组合类型，可以是扩展菜单项或分隔线
+type MenuItemOrDivider = ExtendedMenuItem | MenuDivider;
 
 // 静态菜单项不应该每次渲染都创建新的对象，将其移到组件外部
 const staticMenuItems: ExtendedMenuItem[] = [
@@ -75,10 +84,10 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
-  const [filteredMenuItems, setFilteredMenuItems] = useState<MenuProps['items']>([]);
+  const [filteredMenuItems, setFilteredMenuItems] = useState<ItemType[]>([]);
   
   const {
-    token: { colorBgContainer, borderRadiusLG },
+    token: { colorBgContainer },
   } = theme.useToken();
 
   // 从模块结构生成菜单项，根据has_content属性区分处理方式
@@ -157,11 +166,16 @@ const MainLayout: React.FC = () => {
   }, [userState.isLoggedIn]);
 
   // 递归过滤菜单项函数 - 移到useEffect外部以避免每次渲染都创建新函数
-  const filterMenuItems = (items: ExtendedMenuItem[], permissions: string[]): ExtendedMenuItem[] => {
+  const filterMenuItems = (items: MenuItemOrDivider[], permissions: string[]): MenuItemOrDivider[] => {
     return items
       .map(item => {
+        // 如果是分隔线，直接保留
+        if ('type' in item && item.type === 'divider') {
+          return item;
+        }
+        
         // 如果有子菜单，递归过滤子菜单
-        if (item.children && item.children.length > 0) {
+        if ('children' in item && item.children && item.children.length > 0) {
           const filteredChildren = filterMenuItems(item.children, permissions);
           // 如果过滤后的子菜单为空，且当前项没有page_path（即仅作为目录），则不显示此项
           if (filteredChildren.length === 0 && !item.page_path) {
@@ -171,7 +185,7 @@ const MainLayout: React.FC = () => {
         }
         
         // 叶子节点，检查是否有权限访问
-        if (item.page_path) {
+        if ('page_path' in item && item.page_path) {
           return permissions.some(path => 
             path === item.page_path || 
             (item.page_path && item.page_path.startsWith(path + '/'))
@@ -180,7 +194,7 @@ const MainLayout: React.FC = () => {
         
         return item;
       })
-      .filter(Boolean) as ExtendedMenuItem[];
+      .filter(Boolean) as MenuItemOrDivider[];
   };
 
   // 过滤菜单项，只显示有权限的
@@ -190,17 +204,26 @@ const MainLayout: React.FC = () => {
       return;
     }
     
+    // 获取用户模块菜单项
+    const userModuleMenuItems = userModules.map(module => convertModuleToMenuItem(module));
+    
+    // 只有当存在用户模块菜单项时，才添加分割线
+    const dividerItem: MenuDivider[] = userModuleMenuItems.length > 0 ? [
+      {
+        type: 'divider',
+        key: 'system-modules-divider',
+      }
+    ] : [];
+    
     // 超级管理员可以看到所有菜单
     if (userState.currentUser?.is_superuser) {
-      // 合并静态菜单项和用户自定义模块菜单项
-      const userModuleMenuItems = userModules.map(module => convertModuleToMenuItem(module));
-      setFilteredMenuItems([...staticMenuItems, ...userModuleMenuItems]);
+      // 合并静态菜单项、分割线和用户自定义模块菜单项
+      setFilteredMenuItems([...staticMenuItems, ...dividerItem, ...userModuleMenuItems]);
       return;
     }
 
     // 应用过滤
-    const userModuleMenuItems = userModules.map(module => convertModuleToMenuItem(module));
-    const allMenuItems = [...staticMenuItems, ...userModuleMenuItems];
+    const allMenuItems = [...staticMenuItems, ...dividerItem, ...userModuleMenuItems];
     const filtered = filterMenuItems(allMenuItems, userPermissions);
     setFilteredMenuItems(filtered);
   }, [userModules, userPermissions, userState.currentUser]);
@@ -230,7 +253,8 @@ const MainLayout: React.FC = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigate(ROUTES.LOGIN);
+      // 使用window.location.href进行硬重定向，确保页面完全刷新
+      window.location.href = ROUTES.LOGIN;
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -343,7 +367,7 @@ const MainLayout: React.FC = () => {
             </div>
           </div>
         </Header>
-        <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280, borderRadius: borderRadiusLG, background: colorBgContainer }}>
+        <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280, borderRadius: 8, background: colorBgContainer }}>
           <Breadcrumb 
             style={{ marginBottom: 16 }}
             items={generateBreadcrumb()}

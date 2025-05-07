@@ -9,6 +9,7 @@ from backend.app.api.deps import get_current_active_user, get_current_admin_user
 from backend.app.models.user import User
 from backend.app.models.permission import Permission
 from backend.app.schemas.permission import PermissionCreate, PermissionResponse, PermissionUpdate, PermissionTree
+from backend.app.models.user import Role
 
 router = APIRouter()
 
@@ -229,7 +230,7 @@ async def read_current_user_pages(
     stmt = select(Permission.page_path).join(
         Permission.roles
     ).join(
-        "users"
+        Role.users
     ).filter(
         User.id == current_user.id
     ).distinct()

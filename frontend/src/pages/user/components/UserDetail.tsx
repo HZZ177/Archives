@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Spin, message, Tabs, Form, Input, Button, Switch, Card, Result } from 'antd';
+import { Spin, message, Tabs, Form, Input, Button, Switch, Card, Result, Select } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Section } from '../../../types/document';
 import FunctionOverview from '../../../components/business/SectionModules/FunctionOverview';
@@ -10,6 +10,8 @@ import RelatedModules from '../../../components/business/SectionModules/RelatedM
 import ApiInterface from '../../../components/business/SectionModules/ApiInterface';
 import axios from 'axios';
 import { API_BASE_URL } from '../../../config/constants';
+import { fetchRoles, fetchUserRoles, updateUserRoles } from '../../../apis/roleService';
+import { Role } from '../../../types/role';
 
 const UserDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,7 +21,41 @@ const UserDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState('document');
   const [form] = Form.useForm();
   
+  // 添加角色状态
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<number[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+  // 添加是否为超级管理员的状态
+  const [isSuperUser, setIsSuperUser] = useState(false);
+  
   const isNewUser = id === 'new';
+
+  // 获取所有角色列表
+  const fetchAllRoles = async () => {
+    try {
+      setLoadingRoles(true);
+      const data = await fetchRoles();
+      
+      // 处理不同格式的返回值
+      if (Array.isArray(data)) {
+        setRoles(data);
+      } else if (data.items) {
+        setRoles(data.items);
+      } else {
+        setRoles([]);
+      }
+      setLoadingRoles(false);
+    } catch (error) {
+      console.error('获取角色列表失败:', error);
+      message.error('获取角色列表失败');
+      setLoadingRoles(false);
+    }
+  };
+
+  // 初始化时获取角色列表
+  useEffect(() => {
+    fetchAllRoles();
+  }, []);
 
   // 获取用户数据或文档内容
   useEffect(() => {
@@ -49,6 +85,24 @@ const UserDetail: React.FC = () => {
           is_active: response.data.is_active,
           is_superuser: response.data.is_superuser,
         });
+        
+        // 更新超级管理员状态
+        setIsSuperUser(response.data.is_superuser);
+        
+        // 获取用户的角色
+        try {
+          const userRoles = await fetchUserRoles(Number(id));
+          const roleIds = userRoles.map((role: Role) => role.id);
+          setSelectedRoleIds(roleIds);
+          
+          // 更新表单中的角色字段
+          form.setFieldsValue({
+            role_ids: roleIds
+          });
+        } catch (error) {
+          console.error('获取用户角色失败:', error);
+          message.error('获取用户角色失败');
+        }
         
         setLoading(false);
       } catch (error) {
@@ -259,14 +313,25 @@ const UserDetail: React.FC = () => {
       };
       
       if (isNewUser) {
-        // 创建新用户
+        // 创建新用户，直接提交所有数据，包括角色ID
         await axios.post(`${API_BASE_URL}/users`, values, { headers });
         message.success('用户创建成功');
         navigate('/users');
       } else {
-        // 更新用户
+        // 更新用户基本信息
         await axios.put(`${API_BASE_URL}/users/${id}`, values, { headers });
-        message.success('用户更新成功');
+        
+        // 更新用户角色
+        try {
+          await updateUserRoles(Number(id), values.role_ids || []);
+        } catch (error) {
+          console.error('更新角色失败:', error);
+          message.warning('用户信息更新成功，但角色更新失败');
+          setLoading(false);
+          return;
+        }
+        
+        message.success('用户信息和角色更新成功');
         navigate('/users');
       }
       
@@ -339,7 +404,34 @@ const UserDetail: React.FC = () => {
             label="是否管理员"
             valuePropName="checked"
           >
-            <Switch />
+            <Switch onChange={handleSuperUserChange} />
+          </Form.Item>
+          
+          <Form.Item
+            name="role_ids"
+            label="角色"
+            help={isSuperUser ? "当前用户已设置为管理员，无须选择角色" : "请选择用户角色"}
+            rules={[
+              {
+                required: !isSuperUser,
+                message: '请至少选择一个角色'
+              }
+            ]}
+          >
+            <Select
+              mode="multiple"
+              placeholder={isSuperUser ? "当前用户已设置为管理员，无须选择角色" : "请选择角色"}
+              loading={loadingRoles}
+              style={{ width: '100%' }}
+              optionFilterProp="label"
+              disabled={isSuperUser}
+            >
+              {roles.map(role => (
+                <Select.Option key={role.id} value={role.id} label={role.name}>
+                  {role.name}
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
           
           <Form.Item>
@@ -460,6 +552,16 @@ const UserDetail: React.FC = () => {
       content: '',
       display_order: 0
     };
+  };
+
+  // 处理超级管理员切换
+  const handleSuperUserChange = (checked: boolean) => {
+    setIsSuperUser(checked);
+    
+    // 如果切换为管理员，清空角色选择
+    if (checked) {
+      form.setFieldValue('role_ids', []);
+    }
   };
 
   if (loading) {

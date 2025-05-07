@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Input, Space, Card, Popconfirm, message, Tag, Modal, Form, Switch } from 'antd';
+import { Table, Button, Input, Space, Card, Popconfirm, message, Tag, Modal, Form, Switch, Select } from 'antd';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../../types/user';
 import { ROUTES } from '../../config/constants';
 import axios from 'axios';
 import { API_BASE_URL } from '../../config/constants';
+import { fetchUserRoles, fetchRoles } from '../../apis/roleService';
+import { Role } from '../../types/role';
 
 const { Search } = Input;
 
@@ -20,8 +22,37 @@ const UserList: React.FC = () => {
   const [addUserModalVisible, setAddUserModalVisible] = useState(false);
   const [addUserForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  // 用户角色缓存
+  const [userRolesMap, setUserRolesMap] = useState<Record<number, Role[]>>({});
+  // 角色列表状态
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+  // 是否为超级管理员的状态
+  const [isSuperUser, setIsSuperUser] = useState(false);
   
   const navigate = useNavigate();
+
+  // 获取所有角色列表
+  const fetchAllRoles = async () => {
+    try {
+      setLoadingRoles(true);
+      const data = await fetchRoles();
+      
+      // 处理不同格式的返回值
+      if (Array.isArray(data)) {
+        setRoles(data);
+      } else if (data.items) {
+        setRoles(data.items);
+      } else {
+        setRoles([]);
+      }
+      setLoadingRoles(false);
+    } catch (error) {
+      console.error('获取角色列表失败:', error);
+      message.error('获取角色列表失败');
+      setLoadingRoles(false);
+    }
+  };
 
   // 获取用户列表
   const fetchUsers = async (page = current, size = page_size, keyword = searchKeyword) => {
@@ -45,10 +76,12 @@ const UserList: React.FC = () => {
       });
       
       // 检查响应格式，适配直接返回数组的情况
+      let processedUsers: User[] = [];
+      
       if (Array.isArray(response.data)) {
         // API直接返回了用户数组，没有包装在items字段中
         // 处理后端返回的用户数据，确保兼容性
-        const processedUsers = response.data.map((user: any) => ({
+        processedUsers = response.data.map((user: any) => ({
           ...user,
           // 如果有is_active但没有status，根据is_active添加status
           status: user.status !== undefined ? user.status : (user.is_active ? 1 : 0)
@@ -58,7 +91,7 @@ const UserList: React.FC = () => {
       } else {
         // 使用标准的分页响应格式
         // 处理用户数据确保兼容性
-        const processedUsers = response.data.items.map((user: any) => ({
+        processedUsers = response.data.items.map((user: any) => ({
           ...user,
           // 如果有is_active但没有status，根据is_active添加status
           status: user.status !== undefined ? user.status : (user.is_active ? 1 : 0)
@@ -66,6 +99,9 @@ const UserList: React.FC = () => {
         setUsers(processedUsers);
         setTotal(response.data.total);
       }
+      
+      // 获取用户角色信息
+      fetchUserRolesInfo(processedUsers);
       
       setCurrent(page);
       setPageSize(size);
@@ -76,11 +112,39 @@ const UserList: React.FC = () => {
       setLoading(false);
     }
   };
+  
+  // 获取用户角色信息
+  const fetchUserRolesInfo = async (userList: User[]) => {
+    const newUserRolesMap: Record<number, Role[]> = {};
+    
+    for (const user of userList) {
+      try {
+        const roles = await fetchUserRoles(user.id);
+        newUserRolesMap[user.id] = roles;
+      } catch (error) {
+        console.error(`获取用户ID=${user.id}的角色失败:`, error);
+        newUserRolesMap[user.id] = [];
+      }
+    }
+    
+    setUserRolesMap(newUserRolesMap);
+  };
 
   // 显示添加用户模态框
   const showAddUserModal = () => {
     addUserForm.resetFields(); // 重置表单
+    setIsSuperUser(false); // 重置超级管理员状态
     setAddUserModalVisible(true);
+  };
+
+  // 处理超级管理员切换
+  const handleSuperUserChange = (checked: boolean) => {
+    setIsSuperUser(checked);
+    
+    // 如果切换为管理员，清空角色选择
+    if (checked) {
+      addUserForm.setFieldValue('role_ids', []);
+    }
   };
 
   // 关闭添加用户模态框
@@ -100,7 +164,7 @@ const UserList: React.FC = () => {
         Authorization: `Bearer ${token}`
       };
       
-      // 调用创建用户API
+      // 直接提交所有数据，包括角色ID
       await axios.post(`${API_BASE_URL}/users`, values, { headers });
       
       message.success('用户创建成功');
@@ -117,6 +181,7 @@ const UserList: React.FC = () => {
   // 初始加载
   useEffect(() => {
     fetchUsers();
+    fetchAllRoles(); // 加载角色数据
   }, []);
 
   // 处理搜索
@@ -179,6 +244,25 @@ const UserList: React.FC = () => {
         return isActive ? 
           <Tag color="green">启用</Tag> : 
           <Tag color="red">禁用</Tag>;
+      },
+    },
+    {
+      title: '角色',
+      key: 'roles',
+      render: (_: any, record: User) => {
+        const roles = userRolesMap[record.id] || [];
+        if (roles.length === 0) {
+          return <span style={{ color: '#999' }}>无角色</span>;
+        }
+        return (
+          <Space size={[0, 4]} wrap>
+            {roles.map(role => (
+              <Tag color="blue" key={role.id}>
+                {role.name}
+              </Tag>
+            ))}
+          </Space>
+        );
       },
     },
     {
@@ -326,7 +410,34 @@ const UserList: React.FC = () => {
             label="是否管理员"
             valuePropName="checked"
           >
-            <Switch />
+            <Switch onChange={handleSuperUserChange} />
+          </Form.Item>
+          
+          <Form.Item
+            name="role_ids"
+            label="角色"
+            help={isSuperUser ? "当前用户已设置为管理员，无须选择角色" : "请选择用户角色"}
+            rules={[
+              {
+                required: !isSuperUser,
+                message: '请至少选择一个角色'
+              }
+            ]}
+          >
+            <Select
+              mode="multiple"
+              placeholder={isSuperUser ? "当前用户已设置为管理员，无须选择角色" : "请选择角色"}
+              loading={loadingRoles}
+              style={{ width: '100%' }}
+              optionFilterProp="label"
+              disabled={isSuperUser}
+            >
+              {roles.map(role => (
+                <Select.Option key={role.id} value={role.id} label={role.name}>
+                  {role.name}
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
         </Form>
       </Modal>
