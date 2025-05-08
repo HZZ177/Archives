@@ -8,6 +8,7 @@ export interface Role {
   status?: boolean;
   created_at: string;
   updated_at: string;
+  permissions?: Permission[];
 }
 
 export interface RoleWithPermissions extends Role {

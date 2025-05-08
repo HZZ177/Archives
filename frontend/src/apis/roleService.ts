@@ -3,14 +3,9 @@ import { Role, RoleFormData, RoleQueryParams, RoleWithPermissions } from '../typ
 import request from '../utils/request';
 
 // 获取角色列表
-export const fetchRoles = async (params?: RoleQueryParams): Promise<{ items: Role[], total: number }> => {
-  try {
-    const response = await request.get(`/roles`, { params });
-    return response.data;
-  } catch (error) {
-    console.error('获取角色列表失败:', error);
-    throw error;
-  }
+export const fetchRoles = async (): Promise<Role[]> => {
+  const response = await request.get('/roles/');
+  return response.data;
 };
 
 // 获取单个角色详情
@@ -25,79 +20,73 @@ export const fetchRoleById = async (id: number): Promise<RoleWithPermissions> =>
 };
 
 // 创建角色
-export const createRole = async (roleData: RoleFormData): Promise<Role> => {
-  try {
-    const response = await request.post(`/roles`, roleData);
-    return response.data;
-  } catch (error) {
-    console.error('创建角色失败:', error);
-    throw error;
-  }
+export const createRole = async (roleData: {
+  name: string;
+  description?: string;
+  status?: boolean;
+  permission_ids?: number[];
+}): Promise<Role> => {
+  const response = await request.post('/roles/', roleData);
+  return response.data;
 };
 
 // 更新角色
-export const updateRole = async (id: number, roleData: RoleFormData): Promise<Role> => {
-  try {
-    const response = await request.put(`/roles/${id}`, roleData);
-    return response.data;
-  } catch (error) {
-    console.error(`更新角色ID=${id}失败:`, error);
-    throw error;
+export const updateRole = async (
+  roleId: number,
+  roleData: {
+    name?: string;
+    description?: string;
+    status?: boolean;
+    permission_ids?: number[];
   }
+): Promise<Role> => {
+  const response = await request.put(`/roles/${roleId}/`, roleData);
+  return response.data;
 };
 
 // 删除角色
-export const deleteRole = async (id: number): Promise<void> => {
-  try {
-    await request.delete(`/roles/${id}`);
-  } catch (error) {
-    console.error(`删除角色ID=${id}失败:`, error);
-    throw error;
-  }
+export const deleteRole = async (roleId: number): Promise<{success: boolean; message: string}> => {
+  const response = await request.delete(`/roles/${roleId}/`);
+  return response.data;
 };
 
-// 为角色分配权限
-export const assignPermissionsToRole = async (roleId: number, permissionIds: number[]): Promise<void> => {
-  try {
-    await request.put(`/roles/${roleId}/permissions`, { permission_ids: permissionIds });
-  } catch (error) {
-    console.error(`为角色ID=${roleId}分配权限失败:`, error);
-    throw error;
-  }
-};
-
-// 获取角色的权限列表
+// 获取角色权限
 export const fetchRolePermissions = async (roleId: number): Promise<number[]> => {
-  try {
-    const response = await request.get(`/roles/${roleId}/permissions`);
-    return response.data;
-  } catch (error) {
-    console.error(`获取角色ID=${roleId}的权限列表失败:`, error);
-    throw error;
-  }
+  const response = await request.get(`/roles/${roleId}/permissions/`);
+  return response.data;
 };
 
-// 获取用户的角色
-export const fetchUserRoles = async (userId: number) => {
-  try {
-    const response = await request.get(`/users/${userId}/roles`);
-    return response.data;
-  } catch (error) {
-    console.error(`获取用户ID:${userId}的角色失败`, error);
-    throw error;
-  }
+// 分配权限给角色
+export const assignPermissionsToRole = async (
+  roleId: number,
+  permissionIds: number[]
+): Promise<void> => {
+  await request.post(`/roles/${roleId}/permissions/`, {
+    permission_ids: permissionIds,
+  });
+};
+
+// 获取用户角色
+export const fetchUserRoles = async (userId: number): Promise<Role[]> => {
+  const response = await request.get(`/users/${userId}/roles/`);
+  return response.data;
 };
 
 // 更新用户角色
 export const updateUserRoles = async (userId: number, roleIds: number[]) => {
-  try {
-    const response = await request.put(
-      `/users/${userId}/roles`, 
-      { role_ids: roleIds }
-    );
-    return response.data;
-  } catch (error) {
-    console.error(`更新用户ID:${userId}的角色失败`, error);
-    throw error;
+  const response = await request.put(
+    `/users/${userId}/roles/`, 
+    { role_ids: roleIds }
+  );
+  
+  // 处理新的响应格式
+  const result = response.data;
+  
+  // 如果请求成功但业务逻辑失败（如权限不足）
+  if (result && typeof result === 'object' && result.success === false) {
+    throw new Error(result.message || '更新角色失败');
   }
+  
+  // 返回角色列表或原始结果
+  return result.roles || result;
 }; 

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { ModuleStructureNode, ModuleTreeResponse } from '../types/modules';
 import { fetchModuleTree } from '../apis/moduleService';
+import { useUser } from './UserContext';
 
 // 模块上下文类型
 interface ModuleContextType {
@@ -25,6 +26,8 @@ interface ModuleProviderProps {
 
 // 模块上下文提供者组件
 export const ModuleProvider: React.FC<ModuleProviderProps> = ({ children }) => {
+  // 从UserContext获取用户登录状态
+  const { userState } = useUser();
   // 加载状态
   const [loading, setLoading] = useState<boolean>(false);
   // 模块树数据
@@ -46,6 +49,12 @@ export const ModuleProvider: React.FC<ModuleProviderProps> = ({ children }) => {
 
   // 获取模块树数据
   const fetchModules = useCallback(async (forceRefresh = false): Promise<ModuleStructureNode[]> => {
+    // 如果用户未登录，不执行请求
+    if (!userState.isLoggedIn) {
+      console.log('ModuleContext: 用户未登录，跳过模块树获取');
+      return [];
+    }
+    
     // 如果已经在加载中，直接返回现有模块
     if (loading) {
       console.log('ModuleContext: 正在加载中，返回现有模块');
@@ -86,15 +95,16 @@ export const ModuleProvider: React.FC<ModuleProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [loading, modules]);
+  }, [loading, modules, userState.isLoggedIn]);
 
   // 初始加载模块树
   useEffect(() => {
-    if (modules.length === 0) {
-      console.log('ModuleContext: 初始模块树为空，自动获取');
+    // 只有用户已登录且模块树为空时才获取
+    if (userState.isLoggedIn && modules.length === 0) {
+      console.log('ModuleContext: 初始模块树为空且用户已登录，自动获取');
       fetchModules();
     }
-  }, [fetchModules, modules.length]);
+  }, [fetchModules, modules.length, userState.isLoggedIn]);
 
   // 监听刷新事件
   useEffect(() => {
@@ -111,6 +121,16 @@ export const ModuleProvider: React.FC<ModuleProviderProps> = ({ children }) => {
       window.removeEventListener('refreshModuleTree', handleRefreshEvent);
     };
   }, [fetchModules]);
+
+  // 监听用户登录状态变化
+  useEffect(() => {
+    // 当用户退出登录时，清空模块缓存
+    if (!userState.isLoggedIn) {
+      console.log('ModuleContext: 用户已退出登录，清空模块树数据');
+      setModules([]);
+      sessionStorage.removeItem('userModules');
+    }
+  }, [userState.isLoggedIn]);
 
   return (
     <ModuleContext.Provider

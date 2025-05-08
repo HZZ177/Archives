@@ -14,7 +14,7 @@ class RoleBase(BaseModel):
 
 # 创建角色请求模型
 class RoleCreate(RoleBase):
-    pass
+    permission_ids: Optional[List[int]] = None
 
 
 # 更新角色请求模型
@@ -23,6 +23,7 @@ class RoleUpdate(BaseModel):
     description: Optional[str] = None
     is_default: Optional[bool] = None
     status: Optional[bool] = None
+    permission_ids: Optional[List[int]] = None
 
 
 # 角色响应模型
@@ -38,6 +39,9 @@ class RoleResponse(RoleBase):
 # 带权限的角色响应模型
 class RoleWithPermissions(RoleResponse):
     permissions: List[PermissionResponse] = []
+
+    class Config:
+        from_attributes = True
 
 
 # 用户分配角色

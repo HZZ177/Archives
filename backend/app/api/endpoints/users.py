@@ -1,14 +1,16 @@
-from typing import Annotated, List
+from typing import Annotated, List, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from backend.app.api.deps import get_current_active_user, get_current_admin_user, get_db, check_permissions
+from backend.app.core.logger import logger
 from backend.app.core.security import get_password_hash
 from backend.app.models.user import User, Role, user_role
+from backend.app.schemas.role import RoleResponse, UserRoleUpdate
 from backend.app.schemas.user import UserCreate, UserResponse, UserUpdate
-from backend.app.schemas.role import UserRoleUpdate, RoleResponse
 
 router = APIRouter()
 
@@ -266,7 +268,7 @@ async def read_user_roles(
     return roles
 
 
-@router.put("/{user_id}/roles", response_model=List[RoleResponse])
+@router.put("/{user_id}/roles", response_model=Any)
 async def update_user_roles(
         user_id: int,
         roles_in: UserRoleUpdate,
@@ -276,44 +278,87 @@ async def update_user_roles(
     """
     更新用户的角色
     """
-    # 权限检查
-    if not current_user.is_superuser:
-        await check_permissions(db, current_user, ["system:user:update"])
-    
-    # 获取用户
-    user = await db.get(User, user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="用户不存在"
-        )
-
-    # 查询角色是否存在
-    for role_id in roles_in.role_ids:
-        role = await db.get(Role, role_id)
-        if not role:
+    try:
+        # 权限检查
+        if not current_user.is_superuser:
+            # 检查目标用户是否为超级管理员或其他特殊用户
+            target_user = await db.get(User, user_id)
+            if target_user and target_user.is_superuser:
+                # 返回200状态码和明确的错误消息，而不是抛出403异常
+                return {
+                    "success": False,
+                    "message": "权限不足：普通用户不能修改管理员用户的角色",
+                    "roles": []
+                }
+            
+            # 检查是否有更新权限
+            try:
+                await check_permissions(db, current_user, ["system:user:update"])
+            except HTTPException as e:
+                if e.status_code == status.HTTP_403_FORBIDDEN:
+                    # 返回200状态码和明确的错误消息，而不是抛出403异常
+                    return {
+                        "success": False,
+                        "message": e.detail,
+                        "roles": []
+                    }
+                raise e
+        
+        # 获取用户
+        user = await db.get(User, user_id)
+        if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"角色ID {role_id} 不存在"
+                detail="用户不存在"
             )
 
-    # 清除现有角色
-    user.roles = []
+        # 查询所有角色是否存在
+        roles = []
+        for role_id in roles_in.role_ids:
+            role = await db.get(Role, role_id)
+            if not role:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"角色ID {role_id} 不存在"
+                )
+            roles.append(role)
+        
+        # 定义一个同步函数来处理关系
+        def update_user_roles_sync(session, user_obj, roles_list):
+            # 清空用户的当前角色
+            user_obj.roles = []
+            # 添加新的角色
+            for role in roles_list:
+                user_obj.roles.append(role)
+        
+        # 使用run_sync在同步上下文中执行关系操作
+        await db.run_sync(lambda session: update_user_roles_sync(session, user, roles))
+        
+        # 提交事务
+        await db.commit()
+        await db.refresh(user)
 
-    # 添加新角色
-    for role_id in roles_in.role_ids:
-        role = await db.get(Role, role_id)
-        user.roles.append(role)
-
-    await db.commit()
-    await db.refresh(user)
-
-    # 获取更新后的角色
-    result = await db.execute(
-        select(Role)
-        .join(user_role, Role.id == user_role.c.role_id)
-        .where(user_role.c.user_id == user_id)
-    )
-    roles = result.scalars().all()
-
-    return roles
+        # 查询更新后的用户角色
+        result = await db.execute(
+            select(Role)
+            .join(user_role, Role.id == user_role.c.role_id)
+            .where(user_role.c.user_id == user_id)
+        )
+        updated_roles = result.scalars().all()
+        
+        return {
+            "success": True,
+            "message": "角色更新成功",
+            "roles": updated_roles
+        }
+    
+    except HTTPException:
+        # 重新抛出HTTP异常
+        raise
+    except Exception as e:
+        # 记录并包装其他异常
+        logger.error(f"更新用户角色失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"更新用户角色失败: {str(e)}"
+        )

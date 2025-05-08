@@ -51,6 +51,18 @@ request.interceptors.response.use(
       console.error('错误响应头:', error.response.headers);
       console.error('错误响应数据:', error.response.data);
       
+      // 尝试获取详细错误消息
+      let errorMessage = '';
+      if (error.response.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
       switch (status) {
         case 401:
           // 未授权，跳转到登录页面
@@ -61,13 +73,14 @@ request.interceptors.response.use(
           window.location.href = ROUTES.LOGIN;
           break;
         case 403:
-          message.error('没有权限访问');
+          // 使用后端返回的详细错误信息，如果没有则使用默认消息
+          message.error(errorMessage || '没有权限执行此操作');
           break;
         case 500:
-          message.error('服务器错误');
+          message.error(errorMessage || '服务器错误');
           break;
         default:
-          message.error(error.response.data?.message || '请求失败');
+          message.error(errorMessage || '请求失败');
       }
     } else {
       console.error('网络错误:', error.message);

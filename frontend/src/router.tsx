@@ -5,6 +5,7 @@ import LoginPage from './pages/login/LoginPage';
 import MainLayout from './layouts/MainLayout';
 import { ROUTES } from './config/constants';
 import PrivateRoute from './components/common/PrivateRoute';
+import { useUser } from './contexts/UserContext';
 
 // 使用React.lazy进行代码分割，减少初始加载时间
 const UserList = lazy(() => import('./pages/user/UserList'));
@@ -43,9 +44,17 @@ const HomePage = () => <div>首页内容</div>;
 // 无权限页面
 const NoPermissionPage = () => {
   const navigate = useNavigate();
+  const { logout } = useUser();
   
-  const handleBackToHome = () => {
-    navigate(ROUTES.HOME, { replace: true });
+  const handleBackToLogin = async () => {
+    try {
+      await logout();
+      navigate(ROUTES.LOGIN, { replace: true });
+    } catch (error) {
+      console.error('登出失败:', error);
+      // 即使登出失败，也强制跳转到登录页
+      navigate(ROUTES.LOGIN, { replace: true });
+    }
   };
   
   return (
@@ -61,8 +70,8 @@ const NoPermissionPage = () => {
         您没有权限访问此页面
       </Typography.Title>
       <Space>
-        <Button type="primary" onClick={handleBackToHome}>
-          返回首页
+        <Button type="primary" onClick={handleBackToLogin}>
+          返回登录页
         </Button>
       </Space>
     </div>

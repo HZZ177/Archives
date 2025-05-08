@@ -6,7 +6,7 @@ import { User } from '../../types/user';
 import { ROUTES } from '../../config/constants';
 import axios from 'axios';
 import { API_BASE_URL } from '../../config/constants';
-import { fetchUserRoles, fetchRoles } from '../../apis/roleService';
+import { fetchUserRoles, fetchRoles, updateUserRoles } from '../../apis/roleService';
 import { Role } from '../../types/role';
 import { formatDate } from '../../utils/dateUtils';
 
@@ -42,15 +42,7 @@ const UserList: React.FC = () => {
     try {
       setLoadingRoles(true);
       const data = await fetchRoles();
-      
-      // 处理不同格式的返回值
-      if (Array.isArray(data)) {
-        setRoles(data);
-      } else if (data.items) {
-        setRoles(data.items);
-      } else {
-        setRoles([]);
-      }
+      setRoles(data);
       setLoadingRoles(false);
     } catch (error) {
       console.error('获取角色列表失败:', error);
@@ -235,9 +227,20 @@ const UserList: React.FC = () => {
             ...prev,
             [userId]: roles
           }));
-        } catch (error) {
+        } catch (error: any) {
           console.error('获取用户角色失败:', error);
-          message.error('获取用户角色失败');
+          // 提取详细错误信息
+          let errorMessage = '获取用户角色失败';
+          if (error.response && error.response.data) {
+            if (typeof error.response.data === 'string') {
+              errorMessage = error.response.data;
+            } else if (error.response.data.detail) {
+              errorMessage = error.response.data.detail;
+            } else if (error.response.data.message) {
+              errorMessage = error.response.data.message;
+            }
+          }
+          message.error(errorMessage);
         }
       } else {
         // 使用缓存的角色数据
@@ -246,9 +249,20 @@ const UserList: React.FC = () => {
       }
       
       setEditUserModalVisible(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('加载用户数据失败:', error);
-      message.error('加载用户数据失败');
+      // 提取详细错误信息
+      let errorMessage = '加载用户数据失败';
+      if (error.response && error.response.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      message.error(errorMessage);
     }
   };
   
@@ -264,17 +278,55 @@ const UserList: React.FC = () => {
         Authorization: `Bearer ${token}`
       };
       
-      // 更新用户数据
-      await axios.put(`${API_BASE_URL}/users/${editingUserId}`, values, { headers });
+      // 提取角色ID
+      const roleIds = values.role_ids || [];
       
-      message.success('用户更新成功');
-      setEditUserModalVisible(false);
-      setEditingUserId(null);
-      fetchUsers(); // 刷新用户列表
+      // 移除角色ID，只更新基本用户信息
+      const userUpdateData = { ...values };
+      delete userUpdateData.role_ids;
+      
+      try {
+        // 1. 更新用户基本信息
+        await axios.put(`${API_BASE_URL}/users/${editingUserId}`, userUpdateData, { headers });
+        
+        // 2. 更新用户角色
+        if (!isSuperUser) {  // 如果是超级管理员，不需要更新角色
+          try {
+            await updateUserRoles(editingUserId!, roleIds);
+          } catch (error: any) {
+            // 处理角色更新失败的情况，但不中断流程
+            console.error('更新用户角色失败:', error);
+            // 如果有错误消息，显示给用户
+            if (error.message) {
+              message.warning(`用户信息已更新，但角色更新失败: ${error.message}`);
+            } else {
+              message.warning('用户信息已更新，但角色更新失败');
+            }
+            setEditUserModalVisible(false);
+            setEditingUserId(null);
+            fetchUsers(); // 刷新用户列表
+            setSubmitting(false);
+            return;
+          }
+        }
+        
+        message.success('用户信息更新成功');
+        setEditUserModalVisible(false);
+        setEditingUserId(null);
+        fetchUsers(); // 刷新用户列表
+      } catch (error: any) {
+        console.error('更新用户失败:', error);
+        if (error.response && error.response.data && error.response.data.detail) {
+          message.error(`更新用户失败: ${error.response.data.detail}`);
+        } else {
+          message.error('更新用户失败');
+        }
+      }
+      
       setSubmitting(false);
     } catch (error) {
-      console.error('更新用户失败:', error);
-      message.error('更新用户失败');
+      console.error('表单验证失败:', error);
+      message.error('表单验证失败，请检查输入');
       setSubmitting(false);
     }
   };

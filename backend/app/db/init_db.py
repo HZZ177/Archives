@@ -46,7 +46,7 @@ async def create_system_permissions(session: AsyncSession) -> None:
             "sort": 101,
             "is_visible": True,
             "icon": "user",
-            "parent_id": 1,  # 系统管理分组
+            "parent_id": 2,  # 系统管理分组
             "description": "用户管理页面"
         },
         # 角色管理 - 实际页面
@@ -57,7 +57,7 @@ async def create_system_permissions(session: AsyncSession) -> None:
             "sort": 102,
             "is_visible": True,
             "icon": "peoples",
-            "parent_id": 1,  # 系统管理分组
+            "parent_id": 2,  # 系统管理分组
             "description": "角色管理页面"
         },
         # 结构管理 - 实际页面，顶级节点
