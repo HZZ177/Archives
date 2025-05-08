@@ -12,17 +12,22 @@ from backend.app.core.security import create_access_token, verify_password
 from backend.app.models.user import User
 from backend.app.schemas.token import Token
 from backend.app.schemas.user import UserResponse
+from backend.app.schemas.response import APIResponse, LoginResult
 
 router = APIRouter()
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=APIResponse[LoginResult])
 async def login_access_token(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
         db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """
-    获取OAuth2兼容的token
+    用户登录接口
+    
+    返回:
+        - 成功: {"success": true, "message": "登录成功", "data": {"access_token": "...", "token_type": "bearer"}}
+        - 失败: {"success": false, "message": "错误信息", "error_code": "AUTH_ERROR"}
     """
     # 查询用户
     result = await db.execute(select(User).where(User.username == form_data.username))
@@ -30,17 +35,18 @@ async def login_access_token(
 
     # 验证用户和密码
     if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户名或密码错误",
-            headers={"WWW-Authenticate": "Bearer"},
+        return APIResponse(
+            success=False,
+            message="用户名或密码错误",
+            error_code="AUTH_FAILED"
         )
 
     # 验证用户是否激活
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="用户未激活"
+        return APIResponse(
+            success=False, 
+            message="用户未激活",
+            error_code="USER_INACTIVE"
         )
 
     # 创建访问令牌
@@ -50,10 +56,14 @@ async def login_access_token(
         expires_delta=access_token_expires
     )
 
-    return {
+    return APIResponse(
+        success=True,
+        message="登录成功",
+        data={
         "access_token": access_token,
         "token_type": "bearer"
     }
+    )
 
 
 @router.get("/profile", response_model=UserResponse)

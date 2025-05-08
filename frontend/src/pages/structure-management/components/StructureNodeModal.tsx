@@ -20,6 +20,7 @@ const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
   onCancel,
   onComplete,
 }) => {
+  // 确保form实例在组件渲染时已创建
   const [form] = Form.useForm();
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -29,7 +30,7 @@ const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
       if (type === 'edit' && node) {
         form.setFieldsValue({
           name: node.name,
-          module_type: node.has_content ? 'content_page' : 'structure_node',
+          module_type: node.is_content_page ? 'content_page' : 'structure_node',
         });
       } else {
         form.resetFields();
@@ -79,6 +80,13 @@ const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
     }
   };
 
+  // 处理关闭模态框
+  const handleCancel = () => {
+    // 关闭模态框时重置表单，避免表单状态残留
+    form.resetFields();
+    onCancel();
+  };
+
   return (
     <Modal
       title={type === 'add' 
@@ -88,13 +96,16 @@ const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
         : `编辑模块"${node?.name}"`}
       open={visible}
       onOk={handleSubmit}
-      onCancel={onCancel}
+      onCancel={handleCancel}
       confirmLoading={loading}
       maskClosable={false}
+      destroyOnClose={true}
     >
       <Form
         form={form}
         layout="vertical"
+        name="structure_node_form"
+        preserve={false}
       >
         <Form.Item
           name="name"

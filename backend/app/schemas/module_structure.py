@@ -32,6 +32,7 @@ class ModuleStructureNodeResponse(ModuleStructureNodeBase):
     updated_at: datetime
     children: List["ModuleStructureNodeResponse"] = []
     has_content: bool = False
+    permission_id: Optional[int] = None
 
     class Config:
         from_attributes = True

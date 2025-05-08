@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select
 from typing import List, Dict, Any
 from sqlalchemy.orm import selectinload
-
+from backend.app.core.logger import logger
 from backend.app.core.security import get_password_hash
 from backend.app.db.base import Base
 from backend.app.db.session import engine
@@ -11,13 +11,22 @@ from backend.app.models.user import User, Role
 from backend.app.models.permission import Permission
 from backend.app.models.document import Document, Template, Section, Image, Relation
 
-logger = logging.getLogger(__name__)
-
 
 async def create_system_permissions(session: AsyncSession) -> None:
     """创建系统权限"""
     # 权限数据
     permissions_data = [
+        # 首页 - 顶级页面
+        {
+            "code": "dashboard",
+            "name": "首页",
+            "page_path": "/",
+            "sort": 1,
+            "is_visible": True,
+            "icon": "home",
+            "parent_id": None,
+            "description": "系统首页"
+        },
         # 系统管理分组 - 作为父节点，不包含实际页面路径
         {
             "code": "system",
@@ -180,7 +189,6 @@ async def init_db() -> None:
                 admin_user = User(
                     username="admin",
                     email="admin@example.com",
-                    full_name="Administrator",
                     hashed_password=get_password_hash("admin123"),
                     is_active=True,
                     is_superuser=True

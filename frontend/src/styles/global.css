@@ -86,3 +86,55 @@ h1, h2, h3, h4, h5 {
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 } 
+
+/* 页面过渡动画 - 淡入淡出和滑动效果结合 */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(15px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+.page-transition-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-transition-exit-active {
+  opacity: 0;
+  transform: translateY(-15px);
+  transition: opacity 150ms ease-in, transform 150ms ease-in;
+}
+
+/* 内容区域过渡效果 */
+.main-content {
+  position: relative;
+  min-height: 200px; /* 确保区域高度一致，防止布局跳动 */
+}
+
+/* 通用布局样式 */
+.page-container {
+  padding: 16px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.page-subtitle {
+  color: #999;
+  font-size: 14px;
+  margin-left: 12px;
+}
+
+/* 添加平滑滚动效果 */
+html {
+  scroll-behavior: smooth;
+} 

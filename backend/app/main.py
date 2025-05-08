@@ -1,5 +1,4 @@
 import os
-import logging
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,19 +6,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
-
 from backend.app.api.endpoints import auth, users, documents, templates, images
 from backend.app.api.endpoints import module_structures, module_contents
 from backend.app.api.endpoints import roles, permissions
 from backend.app.core.config import settings
+from backend.app.core.logger import logger
 from backend.app.db.init_db import init_db
-
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:

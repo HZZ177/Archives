@@ -222,8 +222,8 @@ async def read_current_user_pages(
     """
     # 超级管理员可以访问所有页面
     if current_user.is_superuser:
-        result = await db.execute(select(Permission.page_path))
-        pages = [row[0] for row in result.all()]
+        result = await db.execute(select(Permission.page_path).where(Permission.page_path.is_not(None)))
+        pages = [row[0] for row in result.all() if row[0] and row[0].strip()]
         return pages
     
     # 查询用户角色及对应的页面权限
@@ -232,11 +232,12 @@ async def read_current_user_pages(
     ).join(
         Role.users
     ).filter(
-        User.id == current_user.id
+        User.id == current_user.id,
+        Permission.page_path.is_not(None)  # 确保页面路径不为空
     ).distinct()
     
     result = await db.execute(stmt)
-    pages = [row[0] for row in result.all()]
+    pages = [row[0] for row in result.all() if row[0] and row[0].strip()]
     
     return pages
 

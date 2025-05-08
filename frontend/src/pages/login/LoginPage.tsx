@@ -28,7 +28,12 @@ const LoginPage: React.FC = () => {
       await login(values);
       console.log('LoginPage: 登录成功，准备跳转');
       message.success('登录成功');
-      navigate(ROUTES.HOME);
+      
+      // 添加短暂延迟，等待权限加载完成
+      setTimeout(() => {
+        console.log('LoginPage: 延迟后跳转到首页');
+        navigate(ROUTES.HOME, { replace: true });
+      }, 300);
     } catch (error: any) {
       console.error('LoginPage: 登录失败', error);
       message.error(error.response?.data?.detail || '登录失败，请检查用户名和密码');
@@ -42,7 +47,7 @@ const LoginPage: React.FC = () => {
       <div className={styles.loginBox}>
         <Card bordered={false} className={styles.loginCard}>
           <div className={styles.logoContainer}>
-            <img src="/logo.png" alt="Logo" className={styles.logo} />
+            <img src="/logo.svg" alt="Logo" className={styles.logo} />
             <Title level={3}>资料管理系统</Title>
           </div>
           <Form

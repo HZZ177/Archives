@@ -3,6 +3,7 @@ export interface User {
   username: string;
   email?: string;
   mobile?: string;
+  full_name?: string;
   status?: number;
   is_active?: boolean;
   is_superuser?: boolean;
@@ -52,4 +53,5 @@ export interface UserContextType {
   login: (params: LoginParams) => Promise<void>;
   logout: () => Promise<void>;
   updateUserInfo: (user: User) => void;
+  refreshUserInfo: () => Promise<void>;
 } 

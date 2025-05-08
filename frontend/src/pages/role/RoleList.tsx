@@ -5,6 +5,7 @@ import { Role } from '../../types/role';
 import { fetchRoles, createRole, updateRole, deleteRole } from '../../apis/roleService';
 import RolePermissionForm from './components/RolePermissionForm';
 import { DEFAULT_PAGE_SIZE } from '../../config/constants';
+import { formatDate } from '../../utils/dateUtils';
 
 const { Search } = Input;
 
@@ -91,7 +92,6 @@ const RoleList: React.FC = () => {
     roleForm.setFieldsValue({
       name: role.name,
       description: role.description,
-      is_default: role.is_default,
       status: role.status,
     });
     setRoleModalVisible(true);
@@ -175,14 +175,6 @@ const RoleList: React.FC = () => {
       key: 'description',
     },
     {
-      title: '默认角色',
-      dataIndex: 'is_default',
-      key: 'is_default',
-      render: (isDefault: boolean) => (
-        isDefault ? <Tag color="blue">是</Tag> : <Tag color="default">否</Tag>
-      ),
-    },
-    {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
@@ -194,6 +186,7 @@ const RoleList: React.FC = () => {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
+      render: (text: string) => formatDate(text)
     },
     {
       title: '操作',
@@ -292,7 +285,6 @@ const RoleList: React.FC = () => {
           form={roleForm}
           layout="vertical"
           initialValues={{
-            is_default: false,
             status: true
           }}
         >
@@ -309,15 +301,6 @@ const RoleList: React.FC = () => {
             label="角色描述"
           >
             <Input.TextArea placeholder="请输入角色描述" />
-          </Form.Item>
-          
-          <Form.Item
-            name="is_default"
-            label="默认角色"
-            valuePropName="checked"
-            tooltip="设为默认角色后，新注册用户将自动获得此角色"
-          >
-            <Switch />
           </Form.Item>
           
           <Form.Item

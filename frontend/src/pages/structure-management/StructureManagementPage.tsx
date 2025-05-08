@@ -1,24 +1,100 @@
 import React, { useState, useEffect } from 'react';
-import { Card, message } from 'antd';
+import { Card, message, Row, Col, Typography } from 'antd';
 import StructureTreeEditor from './components/StructureTreeEditor';
+import NodeDetailPanel from './components/NodeDetailPanel';
 import { ModuleStructureNode } from '../../types/modules';
-import { fetchModuleTree } from '../../apis/moduleService';
+import { fetchModuleTree, fetchModuleNode } from '../../apis/moduleService';
+import { useSearchParams } from 'react-router-dom';
+import { useModules } from '../../contexts/ModuleContext';
+import './components/treeStyles.css';
 
-const StructureManagementPage: React.FC = () => {
+const { Title } = Typography;
+
+// 使用React.memo优化StructureManagementPage组件，减少不必要的重渲染
+const StructureManagementPage: React.FC = React.memo(() => {
   const [loading, setLoading] = useState<boolean>(false);
-  const [treeData, setTreeData] = useState<ModuleStructureNode[]>([]);
+  // 不再使用本地treeData，而是使用ModuleContext中的modules
+  const { modules, loading: modulesLoading, fetchModules } = useModules();
+  const [searchParams] = useSearchParams();
+  const urlNodeId = searchParams.get('nodeId');
+  
+  // 当前选中的节点
+  const [selectedNode, setSelectedNode] = useState<ModuleStructureNode | null>(null);
+  // 节点加载状态
+  const [nodeLoading, setNodeLoading] = useState<boolean>(false);
 
-  // 获取模块结构树
+  // 添加组件生命周期日志
+  useEffect(() => {
+    console.log('StructureManagementPage: 组件挂载');
+    console.trace('StructureManagementPage挂载调用栈');
+    
+    return () => {
+      console.log('StructureManagementPage: 组件卸载');
+      console.trace('StructureManagementPage卸载调用栈');
+    };
+  }, []); // 仅在组件挂载和卸载时执行
+
+  // 获取模块结构树 - 使用ModuleContext的fetchModules方法
   const loadModuleTree = async () => {
     try {
       setLoading(true);
-      const response = await fetchModuleTree();
-      setTreeData(response.items);
+      // 明确使用ModuleContext，避免不必要的请求
+      console.log('StructureManagementPage: 加载模块树 (通过ModuleContext)');
+      await fetchModules(false); // 使用缓存数据
       setLoading(false);
+      
+      // 如果URL中有nodeId参数，加载该节点信息
+      if (urlNodeId) {
+        await loadNodeDetail(parseInt(urlNodeId));
+      }
     } catch (error) {
       console.error('加载模块结构树失败:', error);
       message.error('加载模块结构树失败');
       setLoading(false);
+    }
+  };
+
+  // 加载节点详情
+  const loadNodeDetail = async (nodeId: number) => {
+    try {
+      setNodeLoading(true);
+      const nodeData = await fetchModuleNode(nodeId);
+      setSelectedNode(nodeData);
+      setNodeLoading(false);
+    } catch (error) {
+      console.error('加载节点详情失败:', error);
+      message.error('加载节点详情失败');
+      setNodeLoading(false);
+    }
+  };
+
+  // 处理节点选择
+  const handleNodeSelect = async (node: ModuleStructureNode) => {
+    setSelectedNode(node);
+    // 也可以在这里重新加载节点详情，以确保数据最新
+    await loadNodeDetail(node.id);
+  };
+
+  // 节点更新后的处理
+  const handleNodeUpdated = () => {
+    console.log('StructureManagementPage: 节点已更新，重新加载模块树');
+    // 由于节点已更新，需要强制刷新模块树缓存
+    const refreshWithForce = async () => {
+      try {
+        setLoading(true);
+        await fetchModules(true); // 强制刷新
+        setLoading(false);
+      } catch (error) {
+        console.error('强制刷新模块树失败:', error);
+        setLoading(false);
+      }
+    };
+    
+    refreshWithForce();
+    
+    // 如果有选中的节点，刷新节点详情
+    if (selectedNode) {
+      loadNodeDetail(selectedNode.id);
     }
   };
 
@@ -28,20 +104,45 @@ const StructureManagementPage: React.FC = () => {
   }, []);
 
   return (
-    <div>
+    <div className="structure-management-container">
       <Card 
-        title="结构管理" 
+        title={
+          <div className="page-header">
+            <Title level={4} style={{ margin: 0 }}>结构管理</Title>
+            <span className="page-subtitle">管理文档结构和内容</span>
+          </div>
+        }
         bordered={false}
-        extra={<div>管理资料结构树</div>}
+        className="structure-management-card"
       >
+        <Row gutter={16} className="structure-management-row">
+          {/* 左侧树结构区域 */}
+          <Col span={9} className="tree-column">
+            <div className="tree-panel">
         <StructureTreeEditor 
-          treeData={treeData} 
-          loading={loading} 
+                treeData={modules} // 使用ModuleContext中的modules
+                loading={loading || modulesLoading} // 合并加载状态
           onTreeDataChange={loadModuleTree} 
-        />
+                focusNodeId={urlNodeId ? parseInt(urlNodeId) : (selectedNode?.id || undefined)}
+                onNodeSelect={handleNodeSelect}
+              />
+            </div>
+          </Col>
+          
+          {/* 右侧节点详情区域 */}
+          <Col span={15} className="detail-column">
+            <div className="detail-panel">
+              <NodeDetailPanel
+                node={selectedNode}
+                loading={nodeLoading}
+                onNodeUpdated={handleNodeUpdated}
+              />
+            </div>
+          </Col>
+        </Row>
       </Card>
     </div>
   );
-};
+});
 
 export default StructureManagementPage; 

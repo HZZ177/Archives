@@ -62,12 +62,21 @@ async def create_user(
                 detail="邮箱已存在"
             )
 
+    # 检查手机号是否已存在
+    if user_in.mobile:
+        result = await db.execute(select(User).where(User.mobile == user_in.mobile))
+        if result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail="手机号已存在"
+            )
+
     # 创建新用户
     db_user = User(
         username=user_in.username,
         email=user_in.email,
+        mobile=user_in.mobile,
         hashed_password=get_password_hash(user_in.password),
-        full_name=user_in.full_name,
         is_active=user_in.is_active,
         is_superuser=user_in.is_superuser
     )
@@ -157,6 +166,15 @@ async def update_user(
             raise HTTPException(
                 status_code=400,
                 detail="邮箱已存在"
+            )
+
+    # 检查手机号是否已存在
+    if user_in.mobile and user_in.mobile != user.mobile:
+        result = await db.execute(select(User).where(User.mobile == user_in.mobile))
+        if result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail="手机号已存在"
             )
 
     # 更新用户数据

@@ -9,6 +9,7 @@ from backend.app.api.deps import get_current_active_user, get_db
 from backend.app.models.module_structure import ModuleStructureNode
 from backend.app.models.module_content import ModuleContent
 from backend.app.models.user import User
+from backend.app.models.permission import Permission
 from backend.app.schemas.module_structure import (
     ModuleStructureNodeCreate,
     ModuleStructureNodeResponse,
@@ -47,6 +48,33 @@ async def create_module_node(
         )
         max_order = max_order_result.scalar()
         node_in.order_index = max_order + 1
+        
+    # 首先为模块创建权限记录
+    page_path = f"/module-content/"  # 完整路径会在模块创建后更新
+    
+    # 如果有父模块，查找父模块对应的权限记录
+    permission_parent_id = None
+    if node_in.parent_id:
+        # 查询父模块
+        parent_node = await db.get(ModuleStructureNode, node_in.parent_id)
+        if parent_node and parent_node.permission_id:
+            # 设置权限记录的parent_id为父模块的权限ID
+            permission_parent_id = parent_node.permission_id
+    
+    db_permission = Permission(
+        code=f"module:{node_in.name.lower().replace(' ', '_')}",
+        name=f"{node_in.name}",
+        page_path=page_path,
+        is_visible=True,
+        description=f"访问用户自定义模块: {node_in.name}",
+        parent_id=permission_parent_id  # 设置权限的父级ID
+    )
+    
+    db.add(db_permission)
+    await db.flush()  # 获取权限记录ID，但不提交事务
+    
+    # 确保权限记录已分配ID
+    await db.refresh(db_permission)
 
     # 创建新节点
     db_node = ModuleStructureNode(
@@ -54,12 +82,17 @@ async def create_module_node(
         parent_id=node_in.parent_id,
         order_index=node_in.order_index,
         user_id=current_user.id,
-        is_content_page=node_in.is_content_page
+        is_content_page=node_in.is_content_page,
+        permission_id=db_permission.id  # 关联权限记录
     )
 
     db.add(db_node)
-    await db.commit()
+    await db.flush()  # 获取节点ID，但不提交事务
     await db.refresh(db_node)
+    
+    # 更新权限记录中的页面路径
+    db_permission.page_path = f"/module-content/{db_node.id}"
+    db_permission.code = f"module:{db_node.id}"
     
     # 如果是内容页面类型，自动创建一个空的内容记录
     has_content = False
@@ -75,8 +108,12 @@ async def create_module_node(
             api_interfaces_json=[]
         )
         db.add(db_content)
-        await db.commit()
         has_content = True
+    
+    # 提交所有更改
+    await db.commit()
+    await db.refresh(db_node)
+    await db.refresh(db_permission)
 
     # 构建响应对象
     response_dict = {
@@ -89,7 +126,8 @@ async def create_module_node(
         "created_at": db_node.created_at,
         "updated_at": db_node.updated_at,
         "children": [],
-        "has_content": has_content  # 如果创建了内容，则设置为True
+        "has_content": has_content,  # 如果创建了内容，则设置为True
+        "permission_id": db_node.permission_id  # 在响应中包含权限ID
     }
     
     return response_dict
@@ -257,9 +295,55 @@ async def update_module_node(
             )
 
     # 更新节点
-    update_data = node_in.dict(exclude_unset=True)
+    update_data = node_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(node, key, value)
+    
+    # 如果模块名称更新了，同时更新其关联的权限记录
+    if node.permission_id:
+        permission = await db.get(Permission, node.permission_id)
+        if permission:
+            # 更新名称
+            if "name" in update_data:
+                permission.name = f"模块: {node.name}"
+                permission.description = f"访问用户自定义模块: {node.name}"
+            
+            # 更新parent_id，需要同步更新权限记录的parent_id
+            if "parent_id" in update_data:
+                # 查找新父模块对应的权限
+                permission_parent_id = None
+                if node.parent_id:
+                    parent_node = await db.get(ModuleStructureNode, node.parent_id)
+                    if parent_node and parent_node.permission_id:
+                        permission_parent_id = parent_node.permission_id
+                
+                # 更新权限记录的parent_id
+                permission.parent_id = permission_parent_id
+    
+    # 如果模块没有关联的权限记录，创建一个
+    if not node.permission_id:
+        # 找出权限的parent_id
+        permission_parent_id = None
+        if node.parent_id:
+            parent_node = await db.get(ModuleStructureNode, node.parent_id)
+            if parent_node and parent_node.permission_id:
+                permission_parent_id = parent_node.permission_id
+        
+        # 创建权限记录
+        db_permission = Permission(
+            code=f"module:{node.id}",
+            name=f"模块: {node.name}",
+            page_path=f"/module-content/{node.id}",
+            is_visible=True,
+            description=f"访问用户自定义模块: {node.name}",
+            parent_id=permission_parent_id
+        )
+        db.add(db_permission)
+        await db.flush()
+        await db.refresh(db_permission)
+        
+        # 更新模块的权限关联
+        node.permission_id = db_permission.id
 
     await db.commit()
     await db.refresh(node)
@@ -280,7 +364,8 @@ async def update_module_node(
         "created_at": node.created_at,
         "updated_at": node.updated_at,
         "children": [],  # 更新时不返回子节点
-        "has_content": has_content
+        "has_content": has_content,
+        "permission_id": node.permission_id  # 在响应中包含权限ID
     }
 
     return response_dict
@@ -320,9 +405,16 @@ async def delete_module_node(
 
     # 删除相关内容和节点
     for id_to_delete in all_ids:
-        # 内容会通过级联删除自动处理
+        # 获取节点信息
         node_to_delete = await db.get(ModuleStructureNode, id_to_delete)
         if node_to_delete:
+            # 删除关联的权限记录
+            if node_to_delete.permission_id:
+                permission_to_delete = await db.get(Permission, node_to_delete.permission_id)
+                if permission_to_delete:
+                    await db.delete(permission_to_delete)
+            
+            # 删除节点（内容会通过级联删除自动处理）
             await db.delete(node_to_delete)
 
     await db.commit()

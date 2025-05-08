@@ -82,6 +82,7 @@ const UserDetail: React.FC = () => {
         form.setFieldsValue({
           username: response.data.username,
           email: response.data.email,
+          mobile: response.data.mobile,
           is_active: response.data.is_active,
           is_superuser: response.data.is_superuser,
         });
@@ -385,10 +386,13 @@ const UserDetail: React.FC = () => {
           </Form.Item>
           
           <Form.Item
-            name="full_name"
-            label="姓名"
+            name="mobile"
+            label="手机号"
+            rules={[
+              { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' }
+            ]}
           >
-            <Input placeholder="请输入姓名" />
+            <Input placeholder="请输入手机号" />
           </Form.Item>
           
           <Form.Item

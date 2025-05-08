@@ -10,11 +10,91 @@ import {
 const API_MODULE_STRUCTURES = '/module-structures';
 const API_MODULE_CONTENTS = '/module-contents';
 
+// 模块树缓存
+let moduleTreeCache: {
+  data: ModuleTreeResponse | null;
+  timestamp: number;
+  loading: boolean;
+  pendingPromise: Promise<ModuleTreeResponse> | null;
+} = {
+  data: null,
+  timestamp: 0,
+  loading: false,
+  pendingPromise: null
+};
+
+// 缓存失效时间，单位：毫秒（默认3分钟）
+const CACHE_TTL = 180000;
+
+// 刷新缓存函数
+export const invalidateModuleTreeCache = () => {
+  moduleTreeCache.data = null;
+  moduleTreeCache.timestamp = 0;
+  moduleTreeCache.loading = false;
+  moduleTreeCache.pendingPromise = null;
+  console.log('模块树缓存已清空');
+};
+
 // 模块结构树API
-export const fetchModuleTree = async (parentId?: number): Promise<ModuleTreeResponse> => {
-  const params = parentId ? { parent_id: parentId } : {};
-  const response = await request.get(API_MODULE_STRUCTURES, { params });
-  return response.data;
+export const fetchModuleTree = async (parentId?: number, forceRefresh = false): Promise<ModuleTreeResponse> => {
+  const now = Date.now();
+  
+  // 改进缓存验证逻辑：添加更严格的类型检查
+  const isCacheValid = 
+    moduleTreeCache.data !== null && 
+    typeof moduleTreeCache.timestamp === 'number' && 
+    (now - moduleTreeCache.timestamp < CACHE_TTL) && 
+    !forceRefresh;
+
+  // 如果缓存有效，直接返回缓存数据
+  if (isCacheValid && moduleTreeCache.data) {
+    console.log(`使用模块树缓存数据，缓存时间：${new Date(moduleTreeCache.timestamp).toLocaleTimeString()}，强制刷新：${forceRefresh}`);
+    return moduleTreeCache.data;
+  }
+
+  // 记录无效缓存原因
+  if (forceRefresh) {
+    console.log('模块树缓存：强制刷新，忽略现有缓存');
+  } else if (!moduleTreeCache.data) {
+    console.log('模块树缓存：缓存为空，需要获取新数据');
+  } else if (now - moduleTreeCache.timestamp >= CACHE_TTL) {
+    console.log(`模块树缓存：缓存已过期（${Math.floor((now - moduleTreeCache.timestamp)/1000)}秒前），需要刷新`);
+  }
+
+  // 如果已经在加载中，复用同一个请求
+  if (moduleTreeCache.loading && moduleTreeCache.pendingPromise) {
+    console.log('复用模块树正在进行的请求');
+    return moduleTreeCache.pendingPromise;
+  }
+
+  // 发起新请求
+  console.log(`发起新的模块树请求，forceRefresh=${forceRefresh}`);
+  moduleTreeCache.loading = true;
+
+  const fetchPromise = async (): Promise<ModuleTreeResponse> => {
+    try {
+      const params = parentId ? { parent_id: parentId } : {};
+      const response = await request.get(API_MODULE_STRUCTURES, { params });
+      
+      // 更新缓存
+      moduleTreeCache.data = response.data;
+      moduleTreeCache.timestamp = Date.now();
+      moduleTreeCache.loading = false;
+      moduleTreeCache.pendingPromise = null;
+      
+      console.log(`模块树数据已更新到缓存，时间：${new Date(moduleTreeCache.timestamp).toLocaleTimeString()}`);
+      return response.data;
+    } catch (error) {
+      // 请求失败，重置加载状态
+      moduleTreeCache.loading = false;
+      moduleTreeCache.pendingPromise = null;
+      console.error('获取模块树失败:', error);
+      throw error;
+    }
+  };
+
+  moduleTreeCache.pendingPromise = fetchPromise();
+  return moduleTreeCache.pendingPromise;
 };
 
 export const fetchModuleNode = async (nodeId: number): Promise<ModuleStructureNode> => {
@@ -24,16 +104,22 @@ export const fetchModuleNode = async (nodeId: number): Promise<ModuleStructureNo
 
 export const createModuleNode = async (data: ModuleStructureNodeRequest): Promise<ModuleStructureNode> => {
   const response = await request.post(API_MODULE_STRUCTURES, data);
+  // 新建节点后清除缓存
+  invalidateModuleTreeCache();
   return response.data;
 };
 
 export const updateModuleNode = async (nodeId: number, data: ModuleStructureNodeRequest): Promise<ModuleStructureNode> => {
   const response = await request.put(`${API_MODULE_STRUCTURES}/${nodeId}`, data);
+  // 更新节点后清除缓存
+  invalidateModuleTreeCache();
   return response.data;
 };
 
 export const deleteModuleNode = async (nodeId: number): Promise<void> => {
   await request.delete(`${API_MODULE_STRUCTURES}/${nodeId}`);
+  // 删除节点后清除缓存
+  invalidateModuleTreeCache();
 };
 
 // 模块内容API

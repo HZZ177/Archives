@@ -41,7 +41,7 @@ class UserBase(BaseModel):
     """
     username: Optional[str] = None
     email: Optional[EmailStr] = None
-    full_name: Optional[str] = None
+    mobile: Optional[str] = None
     is_active: Optional[bool] = True
     is_superuser: Optional[bool] = False
 
@@ -54,6 +54,7 @@ class UserCreate(UserBase):
     username: str
     password: str
     email: Optional[EmailStr] = None
+    mobile: Optional[str] = None
     role_ids: Optional[List[int]] = None
 
 
@@ -83,6 +84,8 @@ class UserResponse(UserBase):
     用户响应模型
     """
     id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         orm_mode = True

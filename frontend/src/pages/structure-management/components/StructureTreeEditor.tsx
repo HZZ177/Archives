@@ -1,23 +1,30 @@
-import React, { useState } from 'react';
-import { Tree, Button, Space, Dropdown, Menu, Modal, message, Spin } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Tree, Button, Space, Dropdown, Menu, Modal, message, Spin, Tooltip } from 'antd';
 import { 
   PlusOutlined, 
   EditOutlined, 
   DeleteOutlined, 
-  EllipsisOutlined, 
+  MoreOutlined, 
   DownOutlined, 
-  ExclamationCircleOutlined 
+  ExclamationCircleOutlined,
+  FolderOutlined,
+  FileOutlined
 } from '@ant-design/icons';
 import { DataNode } from 'antd/lib/tree';
 import { ModuleStructureNode } from '../../../types/modules';
 import StructureNodeModal from './StructureNodeModal';
 import { deleteModuleNode } from '../../../apis/moduleService';
 import { refreshModuleTreeEvent } from '../../../layouts/MainLayout';
+import { useModules } from '../../../contexts/ModuleContext';
+import { Key } from 'rc-tree/lib/interface';
+import './treeStyles.css'; // 新增样式文件引用
 
 interface StructureTreeEditorProps {
   treeData: ModuleStructureNode[];
   loading: boolean;
   onTreeDataChange: () => void;
+  focusNodeId?: number;
+  onNodeSelect?: (node: ModuleStructureNode) => void; // 新增节点选择回调
 }
 
 // 将ModuleStructureNode转换为Tree组件的DataNode
@@ -25,75 +32,190 @@ const convertToTreeNode = (
   nodes: ModuleStructureNode[], 
   onEdit: (node: ModuleStructureNode) => void,
   onAddChild: (parentNode: ModuleStructureNode) => void,
-  onDelete: (node: ModuleStructureNode) => void
+  onDelete: (node: ModuleStructureNode) => void,
+  onSelect?: (node: ModuleStructureNode) => void // 新增节点选择回调
 ): DataNode[] => {
   return nodes.map(node => ({
     key: node.id.toString(),
+    icon: node.is_content_page ? <FileOutlined /> : <FolderOutlined />,
     title: (
-      <Space>
-        <span>{node.name}</span>
-        <Dropdown
-          overlay={
-            <Menu>
-              <Menu.Item 
-                key="add" 
-                icon={<PlusOutlined />}
+      <div 
+        className="tree-node-wrapper"
                 onClick={(e) => {
-                  e.domEvent.stopPropagation();
-                  onAddChild(node);
+          // 点击节点时触发选择回调（如果提供了）
+          if (onSelect) {
+            e.stopPropagation();
+            onSelect(node);
+          }
                 }}
               >
-                添加子模块
-              </Menu.Item>
-              <Menu.Item 
-                key="edit" 
-                icon={<EditOutlined />}
+        {node.name}
+        
+        {/* 操作按钮区域 - 只有非内容页面节点才显示添加按钮 */}
+        <div className="node-actions" onClick={e => e.stopPropagation()}>
+          {/* 只有当节点不是内容页面时才显示添加按钮 */}
+          {!node.is_content_page && (
+          <Tooltip title="添加子模块" placement="top">
+            <Button 
+              type="text" 
+              size="small" 
+              icon={<PlusOutlined />} 
+              className="node-action-btn"
                 onClick={(e) => {
-                  e.domEvent.stopPropagation();
-                  onEdit(node);
+                e.stopPropagation();
+                onAddChild(node);
                 }}
-              >
-                编辑
-              </Menu.Item>
-              <Menu.Item 
-                key="delete" 
+            />
+          </Tooltip>
+          )}
+          
+          <Tooltip title="删除" placement="top">
+            <Button 
+              type="text" 
+              size="small" 
                 icon={<DeleteOutlined />}
+              className="node-action-btn"
                 danger
                 onClick={(e) => {
-                  e.domEvent.stopPropagation();
+                e.stopPropagation();
                   onDelete(node);
                 }}
-              >
-                删除
-              </Menu.Item>
-            </Menu>
-          }
-          trigger={['click']}
-        >
-          <EllipsisOutlined onClick={(e) => e.stopPropagation()} />
-        </Dropdown>
-      </Space>
+            />
+          </Tooltip>
+        </div>
+      </div>
     ),
     children: node.children && node.children.length > 0 
-      ? convertToTreeNode(node.children, onEdit, onAddChild, onDelete) 
+      ? convertToTreeNode(node.children, onEdit, onAddChild, onDelete, onSelect) 
       : undefined,
+    // 保存原始节点信息，方便后续使用
+    originNode: node,
   }));
+};
+
+// 递归获取树中所有节点的key
+const getAllTreeKeys = (treeData: DataNode[]): Key[] => {
+  let keys: Key[] = [];
+  
+  treeData.forEach(node => {
+    keys.push(node.key);
+    if (node.children) {
+      keys = keys.concat(getAllTreeKeys(node.children));
+    }
+  });
+  
+  return keys;
+};
+
+// 递归查找指定ID的节点
+const findNodeById = (nodes: ModuleStructureNode[], id: number): ModuleStructureNode | null => {
+  for (const node of nodes) {
+    if (node.id === id) {
+      return node;
+    }
+    if (node.children && node.children.length > 0) {
+      const found = findNodeById(node.children, id);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
 };
 
 const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({ 
   treeData, 
   loading, 
-  onTreeDataChange 
+  onTreeDataChange,
+  focusNodeId,
+  onNodeSelect
 }) => {
+  // 获取ModuleContext，以便直接刷新模块数据
+  const { fetchModules } = useModules();
   const [modalVisible, setModalVisible] = useState<boolean>(false);
   const [currentNode, setCurrentNode] = useState<ModuleStructureNode | null>(null);
   const [modalType, setModalType] = useState<'add' | 'edit'>('add');
   const [parentNode, setParentNode] = useState<ModuleStructureNode | null>(null);
+  const [expandedKeys, setExpandedKeys] = useState<Key[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const { confirm } = Modal;
+
+  // 当树数据变化时，更新展开的节点
+  useEffect(() => {
+    if (treeData.length > 0) {
+      const treeNodes = convertToTreeNode(
+        treeData,
+        handleEdit,
+        handleAddChild,
+        handleDelete,
+        handleNodeSelect
+      );
+      // 获取所有节点的key，默认全部展开
+      const allKeys = getAllTreeKeys(treeNodes);
+      setExpandedKeys(allKeys);
+    }
+  }, [treeData]);
+
+  // 当focusNodeId变化时，设置选中的节点
+  useEffect(() => {
+    if (focusNodeId) {
+      setSelectedKeys([focusNodeId.toString()]);
+      
+      // 确保包含该节点的父节点也展开
+      if (treeData.length > 0) {
+        // 先获取所有节点的key，确保该节点可见
+        const treeNodes = convertToTreeNode(
+          treeData,
+          handleEdit,
+          handleAddChild,
+          handleDelete,
+          handleNodeSelect
+        );
+        const allKeys = getAllTreeKeys(treeNodes);
+        setExpandedKeys(allKeys);
+        
+        // 找到节点并触发选择回调
+        if (onNodeSelect) {
+          const node = findNodeById(treeData, focusNodeId);
+          if (node) {
+            onNodeSelect(node);
+          }
+        }
+      }
+    } else {
+      setSelectedKeys([]);
+    }
+  }, [focusNodeId, treeData]);
+
+  // 处理节点展开/折叠
+  const handleExpand = (keys: Key[]) => {
+    setExpandedKeys(keys);
+  };
+
+  // 处理节点选择
+  const handleNodeSelect = (node: ModuleStructureNode) => {
+    setSelectedKeys([node.id.toString()]);
+    // 调用父组件传入的选择回调
+    if (onNodeSelect) {
+      onNodeSelect(node);
+    }
+  };
+
+  // 处理树节点选择事件
+  const handleTreeSelect = (selectedKeys: Key[], info: any) => {
+    if (selectedKeys.length > 0 && info.node.originNode) {
+      handleNodeSelect(info.node.originNode);
+    }
+  };
 
   // 触发刷新事件，更新左侧导航
   const triggerRefreshEvent = () => {
-    // 触发全局刷新事件
+    console.log('StructureTreeEditor: 触发全局刷新事件 (通过ModuleContext和刷新事件)');
+    // 使用ModuleContext直接刷新
+    fetchModules(true).then(() => {
+      console.log('StructureTreeEditor: ModuleContext数据已强制刷新');
+    });
+    // 同时触发全局刷新事件，保持兼容性
     window.dispatchEvent(refreshModuleTreeEvent);
   };
 
@@ -107,6 +229,12 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
 
   // 打开添加子模块的模态框
   const handleAddChild = (parent: ModuleStructureNode) => {
+    // 如果父节点是内容页面类型，则不允许添加子模块
+    if (parent.is_content_page) {
+      message.warning('内容页面节点不能添加子模块');
+      return;
+    }
+    
     setModalType('add');
     setCurrentNode(null);
     setParentNode(parent);
@@ -145,11 +273,13 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
     });
   };
 
-  // 模态框完成回调
+  // 处理模态框完成事件
   const handleModalComplete = () => {
     setModalVisible(false);
+    // 刷新树数据
+    console.log('StructureTreeEditor: 节点修改完成，刷新树数据');
     onTreeDataChange();
-    // 触发左侧导航刷新
+    // 同时通知全局刷新
     triggerRefreshEvent();
   };
 
@@ -158,34 +288,43 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
     treeData,
     handleEdit,
     handleAddChild,
-    handleDelete
+    handleDelete,
+    handleNodeSelect
   );
 
   return (
-    <div>
-      <div style={{ marginBottom: 16 }}>
+    <div className="structure-tree-container">
+      <div className="tree-header">
         <Button
           type="primary"
           icon={<PlusOutlined />}
           onClick={handleAddRoot}
+          className="add-root-button"
         >
           新增顶级模块
         </Button>
       </div>
       
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: 24 }}>
-          <Spin />
-        </div>
-      ) : (
+      <Spin spinning={loading}>
+        {treeNodes.length > 0 ? (
         <Tree
-          showLine={true}
-          showIcon={false}
-          defaultExpandAll={true}
+            showLine
+            showIcon
           switcherIcon={<DownOutlined />}
+            expandedKeys={expandedKeys}
+            selectedKeys={selectedKeys}
+            onExpand={handleExpand}
+            onSelect={handleTreeSelect}
           treeData={treeNodes}
+            className="modern-tree"
         />
+        ) : (
+          <div className="empty-tree-placeholder">
+            <FolderOutlined style={{ fontSize: '32px', opacity: 0.5 }} />
+            <p>暂无模块数据</p>
+          </div>
       )}
+      </Spin>
       
       <StructureNodeModal
         visible={modalVisible}

@@ -17,8 +17,10 @@ class ModuleStructureNode(Base):
     is_content_page = Column(Boolean, default=False, nullable=False, comment="是否为内容页面类型")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    permission_id = Column(Integer, ForeignKey("permissions.id"), nullable=True, comment="关联的权限ID")
 
     # 关系
     parent = relationship("ModuleStructureNode", remote_side=[id], backref="children")
     creator = relationship("User", foreign_keys=[user_id])
-    content = relationship("ModuleContent", back_populates="module_node", uselist=False, cascade="all, delete-orphan") 
+    content = relationship("ModuleContent", back_populates="module_node", uselist=False, cascade="all, delete-orphan")
+    permission = relationship("Permission", foreign_keys=[permission_id]) 

@@ -1,12 +1,27 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User, UserState, UserContextType, LoginParams } from '../types/user';
 import authAPI from '../apis/auth';
 import { STORAGE_TOKEN_KEY, STORAGE_USER_KEY } from '../config/constants';
 import { message } from 'antd';
 
+// 从localStorage获取初始用户信息
+const getUserFromLocalStorage = (): User | null => {
+  try {
+    const userJson = localStorage.getItem(STORAGE_USER_KEY);
+    if (userJson) {
+      return JSON.parse(userJson);
+    }
+  } catch (error) {
+    console.error('解析本地存储的用户信息失败:', error);
+    // 如果解析失败，清除可能损坏的数据
+    localStorage.removeItem(STORAGE_USER_KEY);
+  }
+  return null;
+};
+
 // 默认状态
 const initialUserState: UserState = {
-  currentUser: null,
+  currentUser: getUserFromLocalStorage(),
   token: localStorage.getItem(STORAGE_TOKEN_KEY),
   roles: [],
   isLoggedIn: !!localStorage.getItem(STORAGE_TOKEN_KEY),
@@ -18,6 +33,30 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 // Context Provider组件
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [userState, setUserState] = useState<UserState>(initialUserState);
+
+  // 在组件挂载时从服务器刷新用户信息
+  useEffect(() => {
+    const refreshUserInfo = async () => {
+      // 只有当有token但没有用户信息时，才需要刷新
+      if (userState.token && (!userState.currentUser || Object.keys(userState.currentUser).length === 0)) {
+        try {
+          console.log('正在刷新用户信息...');
+          const userInfo = await authAPI.getCurrentUser();
+          updateUserInfo(userInfo);
+          console.log('用户信息刷新成功');
+        } catch (error: any) {
+          console.error('刷新用户信息失败:', error);
+          // 如果获取用户信息失败，可能是token已失效
+          if (error.response && error.response.status === 401) {
+            // 清理无效的认证状态
+            logout();
+          }
+        }
+      }
+    };
+
+    refreshUserInfo();
+  }, []);
 
   // 登录
   const login = async (params: LoginParams): Promise<void> => {
@@ -37,8 +76,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // token 和用户信息已经在 authAPI.login 中存储到 localStorage
       
       console.log('UserContext: 状态更新完成');
-      message.success('登录成功');
-    } catch (error) {
+    } catch (error: any) {
       console.error('UserContext: 登录失败', error);
       throw error;
     }
@@ -72,12 +110,28 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
   };
 
+  // 刷新用户信息
+  const refreshUserInfo = async (): Promise<void> => {
+    try {
+      if (!userState.token) return;
+      
+      const userInfo = await authAPI.getCurrentUser();
+      updateUserInfo(userInfo);
+    } catch (error: any) {
+      console.error('刷新用户信息失败:', error);
+      if (error.response && error.response.status === 401) {
+        logout();
+      }
+    }
+  };
+
   // 提供Context值
   const contextValue: UserContextType = {
     userState,
     login,
     logout,
     updateUserInfo,
+    refreshUserInfo
   };
 
   return (

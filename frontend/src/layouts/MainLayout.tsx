@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Layout, Menu, theme, Button, Dropdown, Avatar, Breadcrumb } from 'antd';
 import type { ItemType } from 'antd/es/menu/interface';
 import {
@@ -14,12 +14,35 @@ import {
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { useModules } from '../contexts/ModuleContext';
 import { ROUTES } from '../config/constants';
 import { fetchModuleTree } from '../apis/moduleService';
 import { ModuleStructureNode } from '../types/modules';
 import { fetchUserPagePermissions } from '../apis/permissionService';
+// 使用新的PageTransition组件
+import PageTransition from '../components/common/PageTransition';
 
 const { Header, Sider, Content } = Layout;
+
+// 防抖函数实现
+const debounce = <F extends (...args: any[]) => any>(
+  func: F, 
+  wait: number
+): ((...args: Parameters<F>) => void) => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  
+  return function(...args: Parameters<F>) {
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
+
+// 侧边栏宽度常量
+const DEFAULT_SIDER_WIDTH = 250;
+const MIN_SIDER_WIDTH = 150;
+const MAX_SIDER_WIDTH = 500;
 
 // 定义菜单项类型，增加了page_path属性
 interface ExtendedMenuItem {
@@ -77,10 +100,20 @@ const staticMenuItems: ExtendedMenuItem[] = [
 // 创建一个全局事件总线，用于在不同组件间通信
 export const refreshModuleTreeEvent = new CustomEvent('refreshModuleTree');
 
+// 当前路由路径记录，用于跟踪路由变化
+let previousPath = '';
+
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const [userModules, setUserModules] = useState<ModuleStructureNode[]>([]);
-  const { userState, logout } = useUser();
+  // 使用ModuleContext代替本地状态
+  const { modules: userModules, loading: modulesLoading, fetchModules } = useModules();
+  const [siderWidth, setSiderWidth] = useState(() => {
+    const savedWidth = localStorage.getItem('siderWidth');
+    return savedWidth ? parseInt(savedWidth) : DEFAULT_SIDER_WIDTH;
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
+  const { userState, logout, refreshUserInfo } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
@@ -89,6 +122,74 @@ const MainLayout: React.FC = () => {
   const {
     token: { colorBgContainer },
   } = theme.useToken();
+
+  // 在组件挂载时记录日志，包括组件挂载原因
+  useEffect(() => {
+    const currentPath = location.pathname;
+    console.log(`MainLayout: 组件挂载 - 当前路径: ${currentPath}, 上一路径: ${previousPath}`);
+    console.trace('组件挂载调用栈');
+    
+    // 记录组件挂载时的路由路径
+    previousPath = currentPath;
+    
+    // 组件卸载时执行清理，记录卸载日志
+    return () => {
+      const unmountPath = location.pathname;
+      console.log(`MainLayout: 组件卸载 - 卸载时路径: ${unmountPath}, 挂载时路径: ${currentPath}`);
+      console.trace('组件卸载调用栈');
+    };
+  }, []); // 仅在组件挂载和卸载时执行
+
+  // 刷新用户模块树 - 使用ModuleContext的fetchModules方法
+  const refreshModuleTree = useCallback(async () => {
+    console.log('MainLayout: 刷新模块树 (通过ModuleContext)');
+    await fetchModules();
+  }, [fetchModules]);
+
+  // 监听全局刷新事件 - 不再需要，ModuleContext已经处理刷新事件
+  // 不过我们仍然保留这个注释，以便理解，但相关代码已移除
+
+  // 获取用户模块 - 确保模块已加载
+  useEffect(() => {
+    console.log('MainLayout: 组件挂载，初始化加载模块树 (通过ModuleContext)');
+    if (userModules.length === 0 && !modulesLoading) {
+      refreshModuleTree();
+    }
+  }, [refreshModuleTree, userModules.length, modulesLoading]);
+
+  // 添加鼠标样式效果
+  useEffect(() => {
+    if (isDragging) {
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+    
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging]);
+
+  // 获取用户权限
+  useEffect(() => {
+    const fetchUserPermissions = async () => {
+      try {
+        // 获取用户可访问的页面路径
+        const pagePaths = await fetchUserPagePermissions();
+        console.log('获取到用户页面权限:', pagePaths);
+        setUserPermissions(pagePaths);
+      } catch (error) {
+        console.error('获取用户权限失败:', error);
+      }
+    };
+
+    if (userState.isLoggedIn) {
+      fetchUserPermissions();
+    }
+  }, [userState.isLoggedIn]);
 
   // 从模块结构生成菜单项，根据has_content属性区分处理方式
   const convertModuleToMenuItem = (module: ModuleStructureNode): ExtendedMenuItem => {
@@ -116,57 +217,14 @@ const MainLayout: React.FC = () => {
     };
   };
 
-  // 刷新用户模块树
-  const refreshModuleTree = useCallback(async () => {
-    try {
-      const data = await fetchModuleTree();
-      const modules = Array.isArray(data) ? data : data.items || [];
-      setUserModules(modules);
-      console.log('模块树已刷新');
-    } catch (error) {
-      console.error('刷新模块树失败:', error);
-    }
-  }, []);
-
-  // 监听全局刷新事件
-  useEffect(() => {
-    const handleRefreshEvent = () => {
-      refreshModuleTree();
-    };
-    
-    // 添加刷新事件监听器
-    window.addEventListener('refreshModuleTree', handleRefreshEvent);
-    
-    // 清理监听器
-    return () => {
-      window.removeEventListener('refreshModuleTree', handleRefreshEvent);
-    };
-  }, [refreshModuleTree]);
-
-  // 获取用户模块
-  useEffect(() => {
-    refreshModuleTree();
-  }, [refreshModuleTree]);
-
-  // 获取用户权限
-  useEffect(() => {
-    const fetchUserPermissions = async () => {
-      try {
-        // 获取用户可访问的页面路径
-        const pagePaths = await fetchUserPagePermissions();
-        setUserPermissions(pagePaths);
-      } catch (error) {
-        console.error('获取用户权限失败:', error);
-      }
-    };
-
-    if (userState.isLoggedIn) {
-      fetchUserPermissions();
-    }
-  }, [userState.isLoggedIn]);
-
-  // 递归过滤菜单项函数 - 移到useEffect外部以避免每次渲染都创建新函数
-  const filterMenuItems = (items: MenuItemOrDivider[], permissions: string[]): MenuItemOrDivider[] => {
+  /**
+   * 递归过滤菜单项函数
+   * @param items 要过滤的菜单项
+   * @param permissions 用户拥有的权限列表
+   * @param isSystemMenu 是否为系统菜单（系统菜单和模块菜单有不同的过滤规则）
+   * @returns 过滤后的菜单项
+   */
+  const filterMenuItems = (items: MenuItemOrDivider[], permissions: string[], isSystemMenu: boolean = false): MenuItemOrDivider[] => {
     return items
       .map(item => {
         // 如果是分隔线，直接保留
@@ -174,38 +232,85 @@ const MainLayout: React.FC = () => {
           return item;
         }
         
-        // 如果有子菜单，递归过滤子菜单
-        if ('children' in item && item.children && item.children.length > 0) {
-          const filteredChildren = filterMenuItems(item.children, permissions);
-          // 如果过滤后的子菜单为空，且当前项没有page_path（即仅作为目录），则不显示此项
-          if (filteredChildren.length === 0 && !item.page_path) {
-            return null;
-          }
-          return { ...item, children: filteredChildren };
-        }
-        
-        // 叶子节点，检查是否有权限访问
+        // 检查当前项是否有直接权限
+        let hasDirectPermission = false;
         if ('page_path' in item && item.page_path) {
-          return permissions.some(path => 
+          hasDirectPermission = permissions.some(path => 
             path === item.page_path || 
             (item.page_path && item.page_path.startsWith(path + '/'))
-          ) ? item : null;
+          );
         }
         
-        return item;
+        // 如果有子菜单，递归过滤子菜单
+        if ('children' in item && item.children && item.children.length > 0) {
+          const filteredChildren = filterMenuItems(item.children, permissions, isSystemMenu);
+          
+          // 是否有权访问的子项
+          const hasAccessibleChildren = filteredChildren.length > 0;
+          
+          if (isSystemMenu) {
+            // 系统菜单处理逻辑：保持原有的宽松权限策略
+            if (filteredChildren.length === 0 && !('page_path' in item && item.page_path)) {
+              return null;
+            }
+            return { ...item, children: filteredChildren };
+          } else {
+            // 模块菜单处理逻辑：修改为兼顾可用性的策略
+            // 只要有子节点有权限，也显示当前节点（作为导航路径）
+            if (hasDirectPermission || hasAccessibleChildren) {
+              return { ...item, children: filteredChildren };
+            }
+            return null;
+          }
+        }
+        
+        // 叶子节点权限判断
+        return hasDirectPermission ? item : null;
       })
       .filter(Boolean) as MenuItemOrDivider[];
   };
 
+  // 侧边栏拖动相关函数
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    
+    const startX = e.clientX;
+    const startWidth = siderWidth;
+    
+    const handleDragMove = (moveEvent: MouseEvent) => {
+      const newWidth = startWidth + (moveEvent.clientX - startX);
+      // 限制宽度在合理范围内
+      if (newWidth >= MIN_SIDER_WIDTH && newWidth <= MAX_SIDER_WIDTH) {
+        setSiderWidth(newWidth);
+      }
+    };
+    
+    const handleDragEnd = () => {
+      setIsDragging(false);
+      // 保存宽度到localStorage
+      localStorage.setItem('siderWidth', String(siderWidth));
+      document.removeEventListener('mousemove', handleDragMove);
+      document.removeEventListener('mouseup', handleDragEnd);
+    };
+    
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
+  }, [siderWidth]);
+
   // 过滤菜单项，只显示有权限的
   useEffect(() => {
     // 避免在依赖项变化前执行逻辑
-    if (!userModules.length && !userPermissions.length && !userState.currentUser) {
+    if (!userPermissions.length && !userState.currentUser) {
       return;
     }
     
     // 获取用户模块菜单项
     const userModuleMenuItems = userModules.map(module => convertModuleToMenuItem(module));
+    
+    // 调试日志
+    console.log('用户模块树:', userModules);
+    console.log('转换后的模块菜单项:', userModuleMenuItems);
     
     // 只有当存在用户模块菜单项时，才添加分割线
     const dividerItem: MenuDivider[] = userModuleMenuItems.length > 0 ? [
@@ -223,9 +328,33 @@ const MainLayout: React.FC = () => {
     }
 
     // 应用过滤
-    const allMenuItems = [...staticMenuItems, ...dividerItem, ...userModuleMenuItems];
-    const filtered = filterMenuItems(allMenuItems, userPermissions);
-    setFilteredMenuItems(filtered);
+    // 对静态菜单项和模块菜单项分别过滤，传入不同的isSystemMenu参数
+    const filteredStaticItems = filterMenuItems(staticMenuItems, userPermissions, true);
+    
+    // 自定义模块权限检查
+    // 如果有任何模块的page_path存在于用户权限中，则显示该模块
+    const filteredModuleItems = userModuleMenuItems.length > 0
+      ? filterMenuItems(userModuleMenuItems, userPermissions, false)
+      : [];
+    
+    // 只有当筛选后的模块菜单项不为空时，才包含分隔线
+    const finalDividerItem = filteredModuleItems.length > 0 ? dividerItem : [];
+    
+    // 合并过滤后的菜单项
+    const finalMenuItems = [...filteredStaticItems, ...finalDividerItem, ...filteredModuleItems];
+    
+    // 如果用户只有模块权限而没有系统权限，至少确保首页菜单可见
+    if (filteredStaticItems.length === 0 && filteredModuleItems.length > 0) {
+      // 添加首页菜单项
+      finalMenuItems.unshift({
+        key: '/',
+        icon: <HomeOutlined />,
+        label: '首页',
+        page_path: '/',
+      });
+    }
+    
+    setFilteredMenuItems(finalMenuItems);
   }, [userModules, userPermissions, userState.currentUser]);
 
   // 用户菜单
@@ -306,8 +435,39 @@ const MainLayout: React.FC = () => {
     return breadcrumbItems;
   }, [location.pathname, userModules]);
 
+  // 添加菜单预加载功能，在鼠标悬停时预加载组件
+  const handleMenuHover = (key: string) => {
+    // 通过路径判断应该预加载哪个组件
+    switch(key) {
+      case '/roles':
+        import('../utils/preloadRegistry').then(module => {
+          module.preloadComponentByName('RoleList');
+        });
+        break;
+      case '/users':
+        import('../utils/preloadRegistry').then(module => {
+          module.preloadComponentByName('UserList');
+        });
+        break;
+      case '/structure-management':
+        import('../utils/preloadRegistry').then(module => {
+          module.preloadComponentByName('StructureManagementPage');
+        });
+        break;
+      default:
+        // 对于模块内容页面
+        if (key.startsWith('/module-content/')) {
+          import('../utils/preloadRegistry').then(module => {
+            module.preloadComponentByName('ModuleContentPage');
+          });
+        }
+        break;
+    }
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      {/* 主菜单侧边栏 */}
       <Sider 
         trigger={null} 
         collapsible 
@@ -321,7 +481,10 @@ const MainLayout: React.FC = () => {
           top: 0,
           bottom: 0,
           borderRight: '1px solid #f0f0f0',
+          zIndex: 2,
+          transition: isDragging ? 'none' : 'width 0.2s'
         }}
+        width={collapsed ? 80 : siderWidth}
       >
         <div style={{ height: 32, margin: 16, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
           {collapsed ? '档案' : '档案管理系统'}
@@ -333,10 +496,100 @@ const MainLayout: React.FC = () => {
           defaultOpenKeys={['system']}
           selectedKeys={[location.pathname]}
           items={filteredMenuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={async (info) => {
+            // 防止重复导航到当前路径，避免不必要的组件重新加载
+            if (info.key === location.pathname) {
+              return;
+            }
+            
+            console.log('菜单点击: 导航到', info.key);
+            
+            // 在导航前预加载目标组件
+            try {
+              const preloadRegistry = await import('../utils/preloadRegistry');
+              // 根据路径预加载对应组件
+              switch(info.key) {
+                case '/roles':
+                  preloadRegistry.preloadComponentByName('RoleList');
+                  break;
+                case '/users':
+                  preloadRegistry.preloadComponentByName('UserList');
+                  break;
+                case '/structure-management':
+                  preloadRegistry.preloadComponentByName('StructureManagementPage');
+                  break;
+                default:
+                  // 对于模块内容页面
+                  if (info.key.startsWith('/module-content/')) {
+                    preloadRegistry.preloadComponentByName('ModuleContentPage');
+                  }
+                  break;
+              }
+            } catch (error) {
+              console.error('预加载组件失败:', error);
+            }
+            
+            // 执行导航
+            navigate(info.key);
+          }}
+          onMouseEnter={(event) => {
+            // 获取鼠标所在菜单项的key（路径）
+            const targetMenuItem = event.target as HTMLElement;
+            const menuItemKey = targetMenuItem.closest('li[data-menu-id]')?.getAttribute('data-menu-id');
+            
+            if (menuItemKey) {
+              // 提取实际路径（去掉前缀）
+              const pathKey = menuItemKey.replace(/^.+:/, '');
+              handleMenuHover(pathKey);
+            }
+          }}
+          style={{
+            // 禁用可能的内部过渡效果
+            transition: isDragging ? 'none' : undefined
+          }}
         />
       </Sider>
-      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
+      
+      {/* 添加拖动手柄 */}
+      {!collapsed && (
+        <div
+          ref={dragHandleRef}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: siderWidth,
+            width: '5px',
+            height: '100%',
+            backgroundColor: 'transparent',
+            cursor: 'col-resize',
+            zIndex: 100,
+            transition: isDragging ? 'none' : 'left 0.2s'
+          }}
+          onMouseDown={handleDragStart}
+        >
+          {/* 添加可视提示，在鼠标悬停时显示 */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              backgroundColor: '#e6e6e6',
+              opacity: isDragging ? 0.5 : 0,
+              transition: 'opacity 0.2s'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.opacity = '0.5'; }}
+            onMouseOut={(e) => { if (!isDragging) e.currentTarget.style.opacity = '0'; }}
+          />
+        </div>
+      )}
+
+      {/* 主内容区域 */}
+      <Layout style={{ 
+        marginLeft: collapsed ? 80 : siderWidth, 
+        transition: isDragging ? 'none' : 'margin-left 0.2s'
+      }}>
         <Header style={{ padding: 0, background: colorBgContainer }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 24 }}>
             <Button
@@ -372,11 +625,14 @@ const MainLayout: React.FC = () => {
             style={{ marginBottom: 16 }}
             items={generateBreadcrumb()}
           />
-          <Outlet />
+          <div className="main-content">
+            <PageTransition />
+          </div>
         </Content>
       </Layout>
     </Layout>
   );
 };
 
-export default MainLayout; 
+// 使用React.memo包装MainLayout组件，减少不必要的重渲染
+export default React.memo(MainLayout); 

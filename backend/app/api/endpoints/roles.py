@@ -1,11 +1,10 @@
 from typing import Annotated, List
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-
 from backend.app.api.deps import get_current_active_user, get_current_admin_user, get_db, require_permissions, check_permissions
+from backend.app.core.logger import logger
 from backend.app.models.user import User, Role
 from backend.app.models.permission import Permission, role_permission
 from backend.app.schemas.role import RoleCreate, RoleResponse, RoleUpdate, RoleWithPermissions
@@ -40,7 +39,7 @@ async def create_role(
         current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
-    创建新角色
+    创建新角色，并自动分配首页权限
     """
     # 权限检查
     if not current_user.is_superuser:
@@ -58,6 +57,18 @@ async def create_role(
     db_role = Role(**role_in.model_dump())
 
     db.add(db_role)
+    
+    # 查询首页权限（dashboard）
+    result = await db.execute(select(Permission).where(Permission.code == "dashboard"))
+    dashboard_permission = result.scalar_one_or_none()
+    
+    if dashboard_permission:
+        # 分配首页权限给新角色
+        db_role.permissions.append(dashboard_permission)
+    else:
+        # 如果首页权限不存在，记录警告日志
+        logger.warning("首页权限(dashboard)不存在，无法自动分配给新角色。请检查权限配置。")
+    
     await db.commit()
     await db.refresh(db_role)
 

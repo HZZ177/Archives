@@ -115,7 +115,7 @@ const ModuleContentEditor: React.FC<ModuleContentEditorProps> = ({ moduleNodeId 
         </Button>
       </div>
       
-      <Collapse defaultActiveKey={['1']}>
+      <Collapse defaultActiveKey={['1', '2', '3', '4', '5', '6']}>
         <Panel 
           header="模块功能概述" 
           key="1"

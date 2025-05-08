@@ -3,6 +3,14 @@ import { message } from 'antd';
 import { STORAGE_TOKEN_KEY, STORAGE_USER_KEY } from '../config/constants';
 import request from '../utils/request';
 
+// 统一API响应类型
+interface APIResponse<T> {
+  success: boolean;
+  message: string;
+  data: T | null;
+  error_code?: string;
+}
+
 const authAPI = {
   /**
    * 用户登录
@@ -16,7 +24,7 @@ const authAPI = {
       formData.append('password', params.password);
 
       // 第一步：登录获取token
-      const response = await request.post('/auth/login', formData, {
+      const response = await request.post<APIResponse<{ access_token: string; token_type: string }>>('/auth/login', formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -24,8 +32,18 @@ const authAPI = {
 
       console.log('Login response:', response.data);
 
-      // 提取token (后端返回格式为 { access_token, token_type })
-      const token = response.data.access_token;
+      // 验证响应是否成功
+      if (!response.data.success) {
+        // 如果后端返回失败信息，将其作为错误抛出
+        throw new Error(response.data.message || '登录失败');
+      }
+
+      // 提取token (后端返回格式为 { data: { access_token, token_type } })
+      if (!response.data.data) {
+        throw new Error('登录响应数据格式错误');
+      }
+      
+      const token = response.data.data.access_token;
       
       // 存储token
       localStorage.setItem(STORAGE_TOKEN_KEY, token);
@@ -44,9 +62,30 @@ const authAPI = {
         token,
         userinfo: userInfo
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      message.error('登录失败，请检查用户名和密码');
+      
+      // 增强错误对象，添加详细错误信息
+      if (!error.response) {
+        error.response = {
+          data: {
+            detail: error.message || '网络错误，请检查您的网络连接'
+          }
+        };
+      } else if (error.response.status === 401) {
+        // 401 Unauthorized，通常是用户名或密码错误
+        error.response.data = {
+          detail: '用户名或密码错误，请重试'
+        };
+      } else if (!error.response.data || !error.response.data.detail) {
+        // 确保response.data.detail字段存在
+        error.response.data = {
+          ...(error.response.data || {}),
+          detail: error.message || '登录失败，请检查用户名和密码'
+        };
+      }
+      
+      // 不在此处显示错误消息，而是让调用者处理
       throw error;
     }
   },

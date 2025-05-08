@@ -8,6 +8,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../config/constants';
 import { fetchUserRoles, fetchRoles } from '../../apis/roleService';
 import { Role } from '../../types/role';
+import { formatDate } from '../../utils/dateUtils';
 
 const { Search } = Input;
 
@@ -22,6 +23,10 @@ const UserList: React.FC = () => {
   const [addUserModalVisible, setAddUserModalVisible] = useState(false);
   const [addUserForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  // 编辑用户模态框控制状态
+  const [editUserModalVisible, setEditUserModalVisible] = useState(false);
+  const [editUserForm] = Form.useForm();
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
   // 用户角色缓存
   const [userRolesMap, setUserRolesMap] = useState<Record<number, Role[]>>({});
   // 角色列表状态
@@ -147,6 +152,17 @@ const UserList: React.FC = () => {
     }
   };
 
+  // 处理编辑模式下的超级管理员切换
+  const handleEditSuperUserChange = (checked: boolean) => {
+    // 更新本地状态，用于控制角色选择是否禁用
+    setIsSuperUser(checked);
+    
+    // 如果切换为超级管理员，清空角色选择
+    if (checked) {
+      editUserForm.setFieldValue('role_ids', []);
+    }
+  };
+
   // 关闭添加用户模态框
   const handleAddUserCancel = () => {
     setAddUserModalVisible(false);
@@ -174,6 +190,91 @@ const UserList: React.FC = () => {
     } catch (error) {
       console.error('创建用户失败:', error);
       message.error('创建用户失败');
+      setSubmitting(false);
+    }
+  };
+
+  // 显示编辑用户模态框
+  const showEditUserModal = async (userId: number) => {
+    try {
+      setEditingUserId(userId);
+      
+      // 获取用户数据
+      const token = localStorage.getItem('token');
+      const headers = {
+        Authorization: `Bearer ${token}`
+      };
+      
+      // 获取用户数据
+      const response = await axios.get(`${API_BASE_URL}/users/${userId}`, { headers });
+      const userData = response.data;
+      
+      // 更新超级管理员状态
+      setIsSuperUser(userData.is_superuser);
+      
+      // 设置表单初始值
+      editUserForm.setFieldsValue({
+        username: userData.username,
+        mobile: userData.mobile,
+        email: userData.email,
+        is_active: userData.is_active,
+        is_superuser: userData.is_superuser
+      });
+      
+      // 获取用户角色
+      if (!userRolesMap[userId] || userRolesMap[userId].length === 0) {
+        try {
+          const roles = await fetchUserRoles(userId);
+          const roleIds = roles.map((role: Role) => role.id);
+          
+          // 更新表单角色字段
+          editUserForm.setFieldValue('role_ids', roleIds);
+          
+          // 更新本地缓存
+          setUserRolesMap(prev => ({
+            ...prev,
+            [userId]: roles
+          }));
+        } catch (error) {
+          console.error('获取用户角色失败:', error);
+          message.error('获取用户角色失败');
+        }
+      } else {
+        // 使用缓存的角色数据
+        const roleIds = userRolesMap[userId].map(role => role.id);
+        editUserForm.setFieldValue('role_ids', roleIds);
+      }
+      
+      setEditUserModalVisible(true);
+    } catch (error) {
+      console.error('加载用户数据失败:', error);
+      message.error('加载用户数据失败');
+    }
+  };
+  
+  // 处理编辑用户提交
+  const handleEditUserSubmit = async () => {
+    try {
+      // 表单验证
+      const values = await editUserForm.validateFields();
+      setSubmitting(true);
+      
+      const token = localStorage.getItem('token');
+      const headers = {
+        Authorization: `Bearer ${token}`
+      };
+      
+      // 更新用户数据
+      await axios.put(`${API_BASE_URL}/users/${editingUserId}`, values, { headers });
+      
+      message.success('用户更新成功');
+      setEditUserModalVisible(false);
+      setEditingUserId(null);
+      fetchUsers(); // 刷新用户列表
+      setSubmitting(false);
+    } catch (error) {
+      console.error('更新用户失败:', error);
+      message.error('更新用户失败');
       setSubmitting(false);
     }
   };
@@ -269,6 +370,7 @@ const UserList: React.FC = () => {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
+      render: (text: string) => formatDate(text)
     },
     {
       title: '操作',
@@ -278,7 +380,9 @@ const UserList: React.FC = () => {
           <Button 
             type="link" 
             icon={<EditOutlined />} 
-            onClick={() => navigate(`/users/${record.id}`)}
+            onClick={() => {
+              showEditUserModal(record.id);
+            }}
           >
             编辑
           </Button>
@@ -381,6 +485,17 @@ const UserList: React.FC = () => {
           </Form.Item>
           
           <Form.Item
+            name="mobile"
+            label="手机号"
+            rules={[
+              { required: true, message: '请输入手机号' },
+              { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' }
+            ]}
+          >
+            <Input placeholder="请输入手机号" />
+          </Form.Item>
+          
+          <Form.Item
             name="email"
             label="邮箱"
             rules={[
@@ -388,13 +503,6 @@ const UserList: React.FC = () => {
             ]}
           >
             <Input placeholder="请输入邮箱" />
-          </Form.Item>
-          
-          <Form.Item
-            name="full_name"
-            label="姓名"
-          >
-            <Input placeholder="请输入姓名" />
           </Form.Item>
           
           <Form.Item
@@ -411,6 +519,110 @@ const UserList: React.FC = () => {
             valuePropName="checked"
           >
             <Switch onChange={handleSuperUserChange} />
+          </Form.Item>
+          
+          <Form.Item
+            name="role_ids"
+            label="角色"
+            help={isSuperUser ? "当前用户已设置为管理员，无须选择角色" : "请选择用户角色"}
+            rules={[
+              {
+                required: !isSuperUser,
+                message: '请至少选择一个角色'
+              }
+            ]}
+          >
+            <Select
+              mode="multiple"
+              placeholder={isSuperUser ? "当前用户已设置为管理员，无须选择角色" : "请选择角色"}
+              loading={loadingRoles}
+              style={{ width: '100%' }}
+              optionFilterProp="label"
+              disabled={isSuperUser}
+            >
+              {roles.map(role => (
+                <Select.Option key={role.id} value={role.id} label={role.name}>
+                  {role.name}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 编辑用户模态框 */}
+      <Modal
+        title="编辑用户"
+        open={editUserModalVisible}
+        onCancel={() => {
+          setEditUserModalVisible(false);
+          setEditingUserId(null);
+        }}
+        footer={[
+          <Button key="back" onClick={() => {
+            setEditUserModalVisible(false);
+            setEditingUserId(null);
+          }}>
+            取消
+          </Button>,
+          <Button 
+            key="submit" 
+            type="primary" 
+            loading={submitting}
+            onClick={handleEditUserSubmit}
+          >
+            提交
+          </Button>,
+        ]}
+        maskClosable={false}
+      >
+        <Form
+          form={editUserForm}
+          layout="vertical"
+        >
+          <Form.Item
+            name="username"
+            label="用户名"
+            rules={[{ required: true, message: '请输入用户名' }]}
+          >
+            <Input placeholder="请输入用户名" />
+          </Form.Item>
+          
+          <Form.Item
+            name="mobile"
+            label="手机号"
+            rules={[
+              { required: true, message: '请输入手机号' },
+              { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' }
+            ]}
+          >
+            <Input placeholder="请输入手机号" />
+          </Form.Item>
+          
+          <Form.Item
+            name="email"
+            label="邮箱"
+            rules={[
+              { type: 'email', message: '邮箱格式不正确' }
+            ]}
+          >
+            <Input placeholder="请输入邮箱" />
+          </Form.Item>
+          
+          <Form.Item
+            name="is_active"
+            label="是否启用"
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          
+          <Form.Item
+            name="is_superuser"
+            label="是否管理员"
+            valuePropName="checked"
+          >
+            <Switch onChange={handleEditSuperUserChange} />
           </Form.Item>
           
           <Form.Item
