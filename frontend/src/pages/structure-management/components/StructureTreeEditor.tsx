@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Tree, Button, Space, Dropdown, Menu, Modal, message, Spin, Tooltip } from 'antd';
 import { 
   PlusOutlined, 
@@ -12,7 +12,7 @@ import {
 } from '@ant-design/icons';
 import { DataNode } from 'antd/lib/tree';
 import { ModuleStructureNode } from '../../../types/modules';
-import StructureNodeModal from './StructureNodeModal';
+import { StructureNodeModal } from './StructureNodeModal';
 import { deleteModuleNode } from '../../../apis/moduleService';
 import { refreshModuleTreeEvent } from '../../../layouts/MainLayout';
 import { useModules } from '../../../contexts/ModuleContext';
@@ -39,16 +39,7 @@ const convertToTreeNode = (
     key: node.id.toString(),
     icon: node.is_content_page ? <FileOutlined /> : <FolderOutlined />,
     title: (
-      <div 
-        className="tree-node-wrapper"
-                onClick={(e) => {
-          // 点击节点时触发选择回调（如果提供了）
-          if (onSelect) {
-            e.stopPropagation();
-            onSelect(node);
-          }
-                }}
-              >
+      <div className="tree-node-wrapper">
         {node.name}
         
         {/* 操作按钮区域 - 只有非内容页面节点才显示添加按钮 */}
@@ -123,6 +114,30 @@ const findNodeById = (nodes: ModuleStructureNode[], id: number): ModuleStructure
   return null;
 };
 
+// 查找从根节点到目标节点的路径
+const findPathToNode = (nodes: ModuleStructureNode[], targetId: number, path: number[] = []): number[] | null => {
+  for (const node of nodes) {
+    // 尝试当前节点路径
+    const currentPath = [...path, node.id];
+    
+    // 如果找到目标节点，返回路径
+    if (node.id === targetId) {
+      return currentPath;
+    }
+    
+    // 如果有子节点，递归搜索
+    if (node.children && node.children.length > 0) {
+      const foundPath = findPathToNode(node.children, targetId, currentPath);
+      if (foundPath) {
+        return foundPath;
+      }
+    }
+  }
+  
+  // 没找到返回null
+  return null;
+};
+
 const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({ 
   treeData, 
   loading, 
@@ -140,50 +155,42 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
   const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
   const { confirm } = Modal;
 
-  // 当树数据变化时，更新展开的节点
+  // 添加一个ref标记是否是首次渲染
+  const isFirstRender = useRef(true);
+
+  // 当树数据变化时，只在首次渲染时设置展开的节点
   useEffect(() => {
-    if (treeData.length > 0) {
-      const treeNodes = convertToTreeNode(
-        treeData,
-        handleEdit,
-        handleAddChild,
-        handleDelete,
-        handleNodeSelect
-      );
-      // 获取所有节点的key，默认全部展开
-      const allKeys = getAllTreeKeys(treeNodes);
-      setExpandedKeys(allKeys);
+    if (treeData.length > 0 && isFirstRender.current) {
+      // 只在首次渲染时展开第一级
+      const firstLevelKeys = treeData.map(node => node.id.toString());
+      setExpandedKeys(firstLevelKeys);
+      // 标记首次渲染已完成
+      isFirstRender.current = false;
     }
   }, [treeData]);
 
   // 当focusNodeId变化时，设置选中的节点
   useEffect(() => {
-    if (focusNodeId) {
+    if (focusNodeId && treeData.length > 0) {
       setSelectedKeys([focusNodeId.toString()]);
       
-      // 确保包含该节点的父节点也展开
-      if (treeData.length > 0) {
-        // 先获取所有节点的key，确保该节点可见
-        const treeNodes = convertToTreeNode(
-          treeData,
-          handleEdit,
-          handleAddChild,
-          handleDelete,
-          handleNodeSelect
-        );
-        const allKeys = getAllTreeKeys(treeNodes);
-        setExpandedKeys(allKeys);
+      // 找到从根节点到选中节点的路径
+      const nodePath = findPathToNode(treeData, focusNodeId);
+      
+      if (nodePath) {
+        // 只展开路径上的节点，而不是所有节点
+        const pathKeys = nodePath.map(id => id.toString());
         
-        // 找到节点并触发选择回调
-        if (onNodeSelect) {
-          const node = findNodeById(treeData, focusNodeId);
-          if (node) {
-            onNodeSelect(node);
-          }
-        }
+        // 保留用户已手动展开的节点，并添加到选中节点的路径
+        setExpandedKeys(prevKeys => {
+          // 创建一个Set来去除重复的key
+          const keySet = new Set([...prevKeys, ...pathKeys]);
+          return Array.from(keySet);
+        });
       }
-    } else {
+    } else if (!focusNodeId) {
       setSelectedKeys([]);
+      // 不重置expandedKeys，保持当前展开状态
     }
   }, [focusNodeId, treeData]);
 
@@ -276,9 +283,12 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
   // 处理模态框完成事件
   const handleModalComplete = () => {
     setModalVisible(false);
+    
     // 刷新树数据
+    // 注意：由于修改了useEffect钩子，这里刷新树数据不会重置展开状态
     console.log('StructureTreeEditor: 节点修改完成，刷新树数据');
     onTreeDataChange();
+    
     // 同时通知全局刷新
     triggerRefreshEvent();
   };
@@ -317,6 +327,7 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
             onSelect={handleTreeSelect}
           treeData={treeNodes}
             className="modern-tree"
+            motion={false}
         />
         ) : (
           <div className="empty-tree-placeholder">

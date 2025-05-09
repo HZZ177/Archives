@@ -144,14 +144,31 @@
   right: 8px; /* 调整为在容器内侧边缘 */
   top: 50%;
   transform: translateY(-50%);
-  background-color: rgba(255, 255, 255, 0.7); /* 轻微透明背景 */
+  background-color: rgba(255, 255, 255, 0.85); /* 提高不透明度 */
   border-radius: 4px;
   padding: 2px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* 弱化阴影 */
-  z-index: 2; /* 确保按钮在文本上方 */
+  z-index: 10; /* 提高层级，确保按钮始终在最上层 */
   height: 28px; /* 设置固定高度，与节点高度接近 */
-  display: flex;
   align-items: center;
+  will-change: transform; /* 优化动画性能 */
+  transition: none; /* 禁用过渡效果，避免按钮跟随树节点动画 */
+  pointer-events: auto; /* 确保可点击 */
+  max-width: 70px; /* 限制最大宽度 */
+  min-width: 60px; /* 设置最小宽度 */
+}
+
+/* 确保按钮区域在树节点变化过程中保持稳定 */
+.modern-tree .ant-tree-treenode-motion,
+.modern-tree .ant-tree-treenode-motion-expand {
+  overflow: visible !important;
+}
+
+/* 修复树动画过程中的按钮位置 */
+.modern-tree .ant-tree-list-holder-inner,
+.modern-tree .ant-tree-treenode,
+.modern-tree .ant-tree-node-content-wrapper {
+  overflow: visible !important;
 }
 
 /* 悬停时高亮按钮区域 */
@@ -233,7 +250,7 @@
 
 /* 分栏容器行 */
 .structure-management-row {
-  min-height: 640px; /* 调整为适中高度 */
+  min-height: 620px; /* 从640px降低到620px */
   display: flex; /* 确保flex布局 */
 }
 
@@ -243,7 +260,7 @@
   padding-right: 16px;
   transition: all 0.3s;
   position: relative;
-  height: 640px; /* 调整为适中高度 */
+  height: 620px; /* 从640px降低到620px */
   overflow: hidden; /* 防止自身滚动 */
 }
 
@@ -259,7 +276,7 @@
 .detail-column {
   padding-left: 24px; /* 增加左边距 */
   transition: all 0.3s;
-  height: 640px; /* 调整为适中高度 */
+  height: 620px; /* 从640px降低到620px */
   overflow: hidden; /* 防止自身滚动 */
 }
 

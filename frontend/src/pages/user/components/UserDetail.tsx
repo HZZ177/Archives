@@ -39,10 +39,8 @@ const UserDetail: React.FC = () => {
       // 处理不同格式的返回值
       if (Array.isArray(data)) {
         setRoles(data);
-      } else if (data.items) {
-        setRoles(data.items);
       } else {
-        setRoles([]);
+        setRoles((data as any)?.items ?? []);
       }
       setLoadingRoles(false);
     } catch (error) {
@@ -83,7 +81,6 @@ const UserDetail: React.FC = () => {
           username: response.data.username,
           email: response.data.email,
           mobile: response.data.mobile,
-          is_active: response.data.is_active,
           is_superuser: response.data.is_superuser,
         });
         
@@ -303,7 +300,7 @@ const UserDetail: React.FC = () => {
     }
   };
 
-  // 提交表单
+  // 处理表单提交
   const handleSubmit = async (values: any) => {
     try {
       setLoading(true);
@@ -313,34 +310,46 @@ const UserDetail: React.FC = () => {
         Authorization: `Bearer ${token}`
       };
       
+      // 移除角色ID，只提交用户基本信息
+      const userUpdateData = { ...values };
+      delete userUpdateData.role_ids;
+      
       if (isNewUser) {
-        // 创建新用户，直接提交所有数据，包括角色ID
-        await axios.post(`${API_BASE_URL}/users`, values, { headers });
+        // 创建用户
+        const response = await axios.post(`${API_BASE_URL}/users`, values, { headers });
         message.success('用户创建成功');
-        navigate('/users');
+        // 导航到新创建的用户详情页
+        navigate(`/user/${response.data.id}`);
       } else {
-        // 更新用户基本信息
-        await axios.put(`${API_BASE_URL}/users/${id}`, values, { headers });
+        // 更新用户
+        await axios.post(`${API_BASE_URL}/users/update/${id}`, userUpdateData, { headers });
         
         // 更新用户角色
-        try {
-          await updateUserRoles(Number(id), values.role_ids || []);
-        } catch (error) {
-          console.error('更新角色失败:', error);
-          message.warning('用户信息更新成功，但角色更新失败');
-          setLoading(false);
-          return;
+        if (values.role_ids && !isSuperUser) {
+          await updateUserRoles(Number(id), values.role_ids);
         }
         
-        message.success('用户信息和角色更新成功');
-        navigate('/users');
+        message.success('用户信息更新成功');
       }
       
       setLoading(false);
-    } catch (error) {
-      console.error('Failed to save user:', error);
-      message.error('保存用户失败');
+    } catch (error: any) {
       setLoading(false);
+      console.error('提交用户数据失败:', error);
+      
+      // 提取错误信息
+      let errorMessage = '操作失败';
+      if (error.response && error.response.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      message.error(errorMessage);
     }
   };
 
@@ -353,7 +362,6 @@ const UserDetail: React.FC = () => {
           layout="vertical"
           onFinish={handleSubmit}
           initialValues={{
-            is_active: true,
             is_superuser: false
           }}
         >
@@ -396,16 +404,8 @@ const UserDetail: React.FC = () => {
           </Form.Item>
           
           <Form.Item
-            name="is_active"
-            label="是否启用"
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-          
-          <Form.Item
             name="is_superuser"
-            label="是否管理员"
+            label="是否超级管理员"
             valuePropName="checked"
           >
             <Switch onChange={handleSuperUserChange} />
@@ -460,7 +460,7 @@ const UserDetail: React.FC = () => {
       };
       
       // 发送更新请求
-      await axios.put(`${API_BASE_URL}/sections/${sectionId}`, {
+      await axios.post(`${API_BASE_URL}/sections/update/${sectionId}`, {
         content
       }, { headers });
       

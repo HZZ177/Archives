@@ -1,7 +1,7 @@
 from typing import Annotated, List, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -10,7 +10,7 @@ from backend.app.core.logger import logger
 from backend.app.core.security import get_password_hash
 from backend.app.models.user import User, Role, user_role
 from backend.app.schemas.role import RoleResponse, UserRoleUpdate
-from backend.app.schemas.user import UserCreate, UserResponse, UserUpdate
+from backend.app.schemas.user import UserCreate, UserResponse, UserUpdate, UserStatusUpdate
 
 router = APIRouter()
 
@@ -20,17 +20,43 @@ async def read_users(
         db: Annotated[AsyncSession, Depends(get_db)],
         current_user: Annotated[User, Depends(get_current_active_user)],
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        keyword: str = None
 ):
     """
-    获取所有用户列表
+    获取所有用户列表，支持根据用户名、邮箱或手机号搜索
+    
+    参数:
+    - skip: 跳过条数
+    - limit: 返回限制
+    - keyword: 搜索关键词（可搜索用户名、邮箱、手机号）
     """
     # 权限检查
     if not current_user.is_superuser:
         await check_permissions(db, current_user, ["system:user:list"])
     
-    result = await db.execute(select(User).offset(skip).limit(limit))
+    # 构建查询
+    query = select(User)
+    
+    # 如果有关键词，添加搜索条件
+    if keyword:
+        # 使用 ilike 进行不区分大小写的模糊匹配，使用 or_ 连接多个搜索条件
+        search_pattern = f"%{keyword}%"
+        query = query.where(
+            or_(
+                User.username.ilike(search_pattern),  # 用户名匹配
+                User.email.ilike(search_pattern),     # 邮箱匹配
+                User.mobile.ilike(search_pattern)     # 手机号匹配
+            )
+        )
+    
+    # 添加分页
+    query = query.offset(skip).limit(limit)
+    
+    # 执行查询
+    result = await db.execute(query)
     users = result.scalars().all()
+    
     return users
 
 
@@ -73,13 +99,13 @@ async def create_user(
                 detail="手机号已存在"
             )
 
-    # 创建新用户
+    # 创建新用户 - 默认设置is_active为True
     db_user = User(
         username=user_in.username,
         email=user_in.email,
         mobile=user_in.mobile,
         hashed_password=get_password_hash(user_in.password),
-        is_active=user_in.is_active,
+        is_active=True,  # 默认启用用户
         is_superuser=user_in.is_superuser
     )
 
@@ -129,7 +155,7 @@ async def read_user(
     return user
 
 
-@router.put("/{user_id}", response_model=UserResponse)
+@router.post("/update/{user_id}", response_model=UserResponse)
 async def update_user(
         user_id: int,
         user_in: UserUpdate,
@@ -201,7 +227,45 @@ async def update_user(
     return user
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/update_status/{user_id}", response_model=UserResponse)
+async def update_user_status(
+        user_id: int,
+        status_update: UserStatusUpdate,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    更新用户状态（启用/禁用）
+    """
+    # 权限检查
+    if not current_user.is_superuser:
+        await check_permissions(db, current_user, ["system:user:update"])
+    
+    # 获取用户
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+    
+    # 不能禁用当前登录用户
+    if user.id == current_user.id and not status_update.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="不能禁用当前登录用户"
+        )
+    
+    # 更新用户状态
+    user.is_active = status_update.is_active
+    
+    await db.commit()
+    await db.refresh(user)
+    
+    return user
+
+
+@router.post("/delete/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
         user_id: int,
         db: Annotated[AsyncSession, Depends(get_db)],
@@ -268,7 +332,7 @@ async def read_user_roles(
     return roles
 
 
-@router.put("/{user_id}/roles", response_model=Any)
+@router.post("/{user_id}/update_roles", response_model=Any)
 async def update_user_roles(
         user_id: int,
         roles_in: UserRoleUpdate,
@@ -346,10 +410,13 @@ async def update_user_roles(
         )
         updated_roles = result.scalars().all()
         
+        # 转换为可序列化的字典列表
+        serialized_roles = [{"id": role.id, "name": role.name} for role in updated_roles]
+        
         return {
             "success": True,
             "message": "角色更新成功",
-            "roles": updated_roles
+            "roles": serialized_roles
         }
     
     except HTTPException:

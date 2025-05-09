@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_active_user, get_db
@@ -25,19 +25,28 @@ async def login_access_token(
     """
     用户登录接口
     
+    支持使用用户名或手机号登录
+    
     返回:
         - 成功: {"success": true, "message": "登录成功", "data": {"access_token": "...", "token_type": "bearer"}}
         - 失败: {"success": false, "message": "错误信息", "error_code": "AUTH_ERROR"}
     """
-    # 查询用户
-    result = await db.execute(select(User).where(User.username == form_data.username))
+    # 查询用户（支持用户名或手机号）
+    result = await db.execute(
+        select(User).where(
+            or_(
+                User.username == form_data.username,
+                User.mobile == form_data.username
+            )
+        )
+    )
     user = result.scalar_one_or_none()
 
     # 验证用户和密码
     if not user or not verify_password(form_data.password, user.hashed_password):
         return APIResponse(
             success=False,
-            message="用户名或密码错误",
+            message="用户名/手机号或密码错误",
             error_code="AUTH_FAILED"
         )
 

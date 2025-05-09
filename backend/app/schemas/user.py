@@ -56,6 +56,7 @@ class UserCreate(UserBase):
     email: Optional[EmailStr] = None
     mobile: Optional[str] = None
     role_ids: Optional[List[int]] = None
+    is_superuser: Optional[bool] = False  # 保留超级管理员标志，但移除is_active
 
 
 # 更新用户时可以修改的属性
@@ -122,3 +123,9 @@ class UserDetail(UserResponse):
 
     class Config:
         orm_mode = True
+
+
+# 用户状态更新模型
+class UserStatusUpdate(BaseModel):
+    """更新用户状态（启用/禁用）"""
+    is_active: bool

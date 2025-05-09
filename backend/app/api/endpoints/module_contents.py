@@ -58,7 +58,7 @@ async def read_module_content(
     return content
 
 
-@router.put("/by-node/{module_node_id}", response_model=ModuleContentResponse)
+@router.post("/update/by-node/{module_node_id}", response_model=ModuleContentResponse)
 async def upsert_module_content(
         module_node_id: int,
         content_in: ModuleContentUpdate,

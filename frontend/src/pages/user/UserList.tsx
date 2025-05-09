@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Input, Space, Card, Popconfirm, message, Tag, Modal, Form, Switch, Select } from 'antd';
+import { Table, Button, Input, Space, Card, Popconfirm, message, Tag, Modal, Form, Switch, Select, Tooltip } from 'antd';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../../types/user';
@@ -11,6 +11,57 @@ import { Role } from '../../types/role';
 import { formatDate } from '../../utils/dateUtils';
 
 const { Search } = Input;
+
+// 添加EllipsisTooltip组件
+const EllipsisTooltip: React.FC<{ 
+  children: React.ReactNode; 
+  title: string;
+  widthLimit?: number; 
+}> = ({ children, title, widthLimit }) => {
+  const [isEllipsis, setIsEllipsis] = useState(false);
+  const textRef = React.useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const checkEllipsis = () => {
+      const element = textRef.current;
+      if (element) {
+        // 如果元素实际宽度大于可见宽度，说明有截断
+        setIsEllipsis(element.scrollWidth > element.clientWidth);
+      }
+    };
+
+    checkEllipsis();
+    window.addEventListener('resize', checkEllipsis);
+    return () => window.removeEventListener('resize', checkEllipsis);
+  }, [title]);
+
+  // 应用样式使文本在必要时截断
+  const style: React.CSSProperties = {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    display: 'inline-block',
+    width: widthLimit ? `${widthLimit}px` : '100%'
+  };
+
+  // 只在有截断时使用Tooltip
+  if (isEllipsis) {
+    return (
+      <Tooltip placement="topLeft" title={title}>
+        <span ref={textRef} style={style}>
+          {children}
+        </span>
+      </Tooltip>
+    );
+  }
+
+  // 没有截断时直接显示文本
+  return (
+    <span ref={textRef} style={style}>
+      {children}
+    </span>
+  );
+};
 
 const UserList: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -179,9 +230,22 @@ const UserList: React.FC = () => {
       setAddUserModalVisible(false);
       fetchUsers(); // 刷新用户列表
       setSubmitting(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('创建用户失败:', error);
-      message.error('创建用户失败');
+      
+      // 提取详细错误信息
+      let errorMessage = '创建用户失败';
+      if (error.response && error.response.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      
+      message.error(errorMessage);
       setSubmitting(false);
     }
   };
@@ -209,7 +273,6 @@ const UserList: React.FC = () => {
         username: userData.username,
         mobile: userData.mobile,
         email: userData.email,
-        is_active: userData.is_active,
         is_superuser: userData.is_superuser
       });
       
@@ -287,7 +350,7 @@ const UserList: React.FC = () => {
       
       try {
         // 1. 更新用户基本信息
-        await axios.put(`${API_BASE_URL}/users/${editingUserId}`, userUpdateData, { headers });
+        await axios.post(`${API_BASE_URL}/users/update/${editingUserId}`, userUpdateData, { headers });
         
         // 2. 更新用户角色
         if (!isSuperUser) {  // 如果是超级管理员，不需要更新角色
@@ -331,6 +394,47 @@ const UserList: React.FC = () => {
     }
   };
 
+  // 处理用户状态切换
+  const handleUserStatusChange = async (userId: number, checked: boolean) => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = {
+        Authorization: `Bearer ${token}`
+      };
+      
+      // 调用更新状态接口
+      await axios.post(`${API_BASE_URL}/users/update_status/${userId}`, 
+        { is_active: checked }, 
+        { headers }
+      );
+      
+      // 更新本地数据
+      setUsers(prev => 
+        prev.map(user => 
+          user.id === userId 
+            ? { ...user, is_active: checked } 
+            : user
+        )
+      );
+      
+      message.success(`用户${checked ? '启用' : '禁用'}成功`);
+    } catch (error: any) {
+      console.error('更新用户状态失败:', error);
+      // 提取错误信息
+      let errorMessage = '更新用户状态失败';
+      if (error.response && error.response.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      message.error(errorMessage);
+    }
+  };
+
   // 初始加载
   useEffect(() => {
     fetchUsers();
@@ -356,7 +460,7 @@ const UserList: React.FC = () => {
         Authorization: `Bearer ${token}`
       };
       
-      await axios.delete(`${API_BASE_URL}/users/${id}`, { headers });
+      await axios.post(`${API_BASE_URL}/users/delete/${id}`, {}, { headers });
       message.success('删除用户成功');
       fetchUsers();
     } catch (error) {
@@ -370,51 +474,80 @@ const UserList: React.FC = () => {
       title: 'ID',
       dataIndex: 'id',
       key: 'id',
-      width: 80,
+      width: 70,
+      align: 'center' as 'center',
     },
     {
       title: '用户名',
       dataIndex: 'username',
       key: 'username',
+      width: 120,
+      render: (username: string) => (
+        <EllipsisTooltip title={username} widthLimit={110}>
+          {username}
+        </EllipsisTooltip>
+      ),
     },
     {
       title: '邮箱',
       dataIndex: 'email',
       key: 'email',
+      width: 160,
+      render: (email: string) => (
+        <EllipsisTooltip title={email || '-'} widthLimit={150}>
+          {email || '-'}
+        </EllipsisTooltip>
+      ),
     },
     {
       title: '手机号',
       dataIndex: 'mobile',
       key: 'mobile',
+      width: 100,
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
+      width: 90,
+      align: 'center' as 'center',
       render: (_: any, record: User) => {
-        // 优先使用is_active字段，如果不存在则使用status字段
+        // 优先使用is_active字段
         const isActive = record.is_active !== undefined ? record.is_active : record.status === 1;
-        return isActive ? 
-          <Tag color="green">启用</Tag> : 
-          <Tag color="red">禁用</Tag>;
+        
+        return (
+          <Switch
+            checked={isActive}
+            onChange={(checked) => handleUserStatusChange(record.id, checked)}
+            checkedChildren="启用"
+            unCheckedChildren="禁用"
+          />
+        );
       },
     },
     {
       title: '角色',
       key: 'roles',
+      width: 100,
       render: (_: any, record: User) => {
         const roles = userRolesMap[record.id] || [];
         if (roles.length === 0) {
           return <span style={{ color: '#999' }}>无角色</span>;
         }
+        
+        // 生成角色名称字符串用于Tooltip
+        const roleNames = roles.map(role => role.name).join(', ');
+        
         return (
-          <Space size={[0, 4]} wrap>
-            {roles.map(role => (
-              <Tag color="blue" key={role.id}>
-                {role.name}
-              </Tag>
-            ))}
-          </Space>
+          <EllipsisTooltip title={roleNames} widthLimit={90}>
+            <Space size={[0, 4]} wrap style={{ display: 'inline-flex' }}>
+              {roles.map(role => (
+                <Tag color="blue" key={role.id}>
+                  {role.name}
+                </Tag>
+              ))}
+            </Space>
+          </EllipsisTooltip>
         );
       },
     },
@@ -422,11 +555,14 @@ const UserList: React.FC = () => {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
+      width: 160,
       render: (text: string) => formatDate(text)
     },
     {
       title: '操作',
       key: 'action',
+      width: 180,
+      fixed: 'right' as 'right',
       render: (_: any, record: User) => (
         <Space size="middle">
           <Button 
@@ -453,8 +589,17 @@ const UserList: React.FC = () => {
     },
   ];
 
+  // 添加表头居中的样式
+  const centerHeaderStyle = `
+    .center-header .ant-table-thead th {
+      text-align: center !important;
+    }
+  `;
+
   return (
     <div>
+      {/* 添加内联样式 */}
+      <style>{centerHeaderStyle}</style>
       <Card bordered={false}>
         <div style={{ marginBottom: 16 }}>
           <Space>
@@ -476,6 +621,7 @@ const UserList: React.FC = () => {
           </Space>
         </div>
         <Table
+          className="center-header"
           columns={columns}
           dataSource={users}
           rowKey="id"
@@ -516,7 +662,6 @@ const UserList: React.FC = () => {
           form={addUserForm}
           layout="vertical"
           initialValues={{
-            is_active: true,
             is_superuser: false
           }}
         >
@@ -558,16 +703,8 @@ const UserList: React.FC = () => {
           </Form.Item>
           
           <Form.Item
-            name="is_active"
-            label="是否启用"
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-          
-          <Form.Item
             name="is_superuser"
-            label="是否管理员"
+            label="是否超级管理员"
             valuePropName="checked"
           >
             <Switch onChange={handleSuperUserChange} />
@@ -662,16 +799,8 @@ const UserList: React.FC = () => {
           </Form.Item>
           
           <Form.Item
-            name="is_active"
-            label="是否启用"
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-          
-          <Form.Item
             name="is_superuser"
-            label="是否管理员"
+            label="是否超级管理员"
             valuePropName="checked"
           >
             <Switch onChange={handleEditSuperUserChange} />

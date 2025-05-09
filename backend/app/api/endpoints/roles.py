@@ -156,7 +156,7 @@ async def read_role(
         )
 
 
-@router.put("/{role_id}", response_model=RoleResponse)
+@router.post("/update/{role_id}", response_model=RoleResponse)
 async def update_role(
         role_id: int,
         role_in: RoleUpdate,
@@ -217,7 +217,7 @@ async def update_role(
     return role
 
 
-@router.delete("/{role_id}", status_code=status.HTTP_200_OK)
+@router.post("/delete/{role_id}", status_code=status.HTTP_200_OK)
 async def delete_role(
         role_id: int,
         db: Annotated[AsyncSession, Depends(get_db)],
@@ -302,7 +302,7 @@ async def read_role_permissions(
     return [perm.id for perm in role.permissions]
 
 
-@router.put("/{role_id}/permissions", status_code=status.HTTP_200_OK)
+@router.post("/{role_id}/update_permissions", status_code=status.HTTP_200_OK)
 async def update_role_permissions(
         role_id: int,
         permissions_in: RolePermissionUpdate,

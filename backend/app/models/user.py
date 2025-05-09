@@ -3,6 +3,7 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, T
 from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
+from backend.app.db.utils import get_local_time
 from backend.app.models.permission import role_permission
 
 # 用户角色关联表
@@ -25,8 +26,8 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_time)
+    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
 
     # 关系
     roles = relationship("Role", secondary=user_role, back_populates="users")
@@ -43,8 +44,8 @@ class Role(Base):
     description = Column(String(255), nullable=True)
     is_default = Column(Boolean, default=False, comment="是否为默认角色")
     status = Column(Boolean, default=True, comment="状态：True-启用，False-禁用")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_time)
+    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
 
     # 关系
     users = relationship("User", secondary=user_role, back_populates="roles")

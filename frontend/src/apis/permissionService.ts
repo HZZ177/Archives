@@ -100,7 +100,7 @@ export const createPermission = async (permissionData: any) => {
 // 更新权限
 export const updatePermission = async (id: number, permissionData: any) => {
   try {
-    const response = await axios.put(`${API_BASE_URL}/permissions/${id}`, permissionData, {
+    const response = await axios.post(`${API_BASE_URL}/permissions/update/${id}`, permissionData, {
       headers: getHeaders()
     });
     return response.data;
@@ -113,7 +113,7 @@ export const updatePermission = async (id: number, permissionData: any) => {
 // 删除权限
 export const deletePermission = async (id: number) => {
   try {
-    const response = await axios.delete(`${API_BASE_URL}/permissions/${id}`, {
+    const response = await axios.post(`${API_BASE_URL}/permissions/delete/${id}`, {}, {
       headers: getHeaders()
     });
     return response.data;

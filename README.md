@@ -2,6 +2,14 @@
 
 内部资料管理系统，用于标准化数据录入框架，支持模块化文档管理和图片上传。
 
+## 项目目标
+
+- 建立标准化的资料填充框架，允许企业内部人员自主填充内容。
+- 支持资料的多模块化管理和内容编辑。
+- 提供友好的用户界面和高效的编辑体验。
+- 实现完善的用户、角色及权限管理体系。
+- (远期) 为后期RAG（Retrieval Augmented Generation）系统集成打下坚实的数据基础。
+
 ## 项目架构
 
 本项目采用前后端分离架构：
@@ -39,7 +47,7 @@ Archives/
 │   │   ├── hooks/        # 自定义Hooks
 │   │   ├── layouts/      # 布局
 │   │   ├── pages/        # 页面
-│   │   ├── router/       # 路由配置
+│   │   ├── router.tsx    # 路由配置
 │   │   ├── styles/       # 样式
 │   │   ├── types/        # TypeScript类型
 │   │   ├── utils/        # 工具函数
@@ -66,8 +74,9 @@ Archives/
 #### 数据模型 (`backend/app/models/`)
 
 - **`__init__.py`** - 模型初始化文件
-- **`user.py`** - 用户和角色模型
-- **`document.py`** - 文档、模板、部分、图片和关系模型
+- **`user.py`** - 用户模型 (含 `mobile`, `is_superuser`) 及角色模型 (`Role` 包含 `is_default`, `status` 字段，并关联权限)
+- **`document.py`** - 文档、模板、部分 (含多种类型如 `OVERVIEW`, `FLOW`, `CONTENT`, `DATABASE`, `API`, `CODE`, `CUSTOM` via `SectionTypeEnum`)、图片和关系模型
+- **`permission.py`** - 权限模型 (`Permission` 控制页面级访问，含 `code`, `name`, `page_path`, `icon`, `sort`, `parent_id` 等字段，支持层级结构) 及角色权限关联 (新增)
 
 #### API接口 (`backend/app/api/`)
 
@@ -82,128 +91,85 @@ Archives/
 - **`documents.py`** - 文档管理接口（文档及部分的增删改查）
 - **`templates.py`** - 模板管理接口（增删改查）
 - **`images.py`** - 图片管理接口（上传、获取、删除）
+- **`module_structures.py`** - 模块结构管理接口 (新增)
+- **`module_contents.py`** - 模块内容管理接口 (新增)
+- **`roles.py`** - 角色管理接口 (新增)
+- **`permissions.py`** - 权限管理接口 (新增)
 
 #### Pydantic模型 (`backend/app/schemas/`)
 
-- **`__init__.py`** - 模型初始化文件
-- **`token.py`** - 令牌相关模型
-- **`user.py`** - 用户相关请求和响应模型
-- **`document.py`** - 文档相关请求和响应模型
-- **`template.py`** - 模板相关请求和响应模型
-- **`image.py`** - 图片相关请求和响应模型
-
-#### 应用入口 (`backend/app/main.py`)
-
-- 应用初始化、中间件配置、路由注册
+- **`user.py`** - 用户和角色模型
+- **`document.py`** - 文档、模板、部分、图片和关系模型
 
 ### 前端结构
 
-#### API请求 (`frontend/src/apis/`)
-
-- 封装后端API调用，处理数据请求和响应
-
-#### 组件 (`frontend/src/components/`)
-
-- **公共组件** - 可复用的UI组件
-  - **基础通用组件** - 基础UI元素
-  - **业务通用组件** - 特定业务功能的组件
-
-#### 上下文 (`frontend/src/contexts/`)
-
-- 状态管理，主要用于用户认证和全局状态
-
-#### 自定义Hooks (`frontend/src/hooks/`)
-
-- 封装可复用的逻辑
-
 #### 布局 (`frontend/src/layouts/`)
-
-- **MainLayout** - 主布局组件，包含侧边栏和内容区
-- **SideNav** - 侧边导航组件
-- **Header** - 顶部导航和用户信息
 
 #### 页面 (`frontend/src/pages/`)
 
 - **LoginPage** - 用户登录页面
-- **DocumentList** - 文档列表页面
-- **DocumentEdit** - 文档编辑页面
-- **TemplateList** - 模板列表页面
-- **TemplateEdit** - 模板编辑页面
+- **HomePage** - 主页/仪表盘 (示例)
+- **NoPermissionPage** - 无权限提示页面 (新增)
+- **UserList**, **UserDetail** - 用户列表及详情/编辑页面 (新增)
+- **RoleList** - 角色列表页面 (新增)
+- **PermissionList** - 权限列表页面 (新增)
+- **DocumentList**, **DocumentEdit** - 文档列表及编辑/新建页面
+- **StructureManagementPage** - 模块结构管理页面 (新增)
+- **ModuleContentPage** - 模块内容填充页面 (新增)
+- **TemplateList**, **TemplateEdit** - 模板管理功能目前主要通过API和文档创建流程支持，独立的前端管理页面正在规划中或已整合。
 
-#### 路由 (`frontend/src/router/`)
+#### 路由 (`frontend/src/router.tsx`)
 
-- 路由配置，使用React Router 6，支持路由懒加载
+- `router.tsx`    # 路由配置，使用React Router 6，支持代码分割和私有路由
 
 #### 样式 (`frontend/src/styles/`)
 
-- 全局样式和主题配置
-
-#### 工具函数 (`frontend/src/utils/`)
-
-- 常用工具函数和辅助方法
-
-## 技术栈详情
-
-### 后端
-
-- **框架**: FastAPI
-- **数据库**: SQLite
-- **ORM**: SQLAlchemy
-- **认证**: JWT (JSON Web Tokens)
-- **文档**: OpenAPI (Swagger)
-- **测试**: Pytest
-- **部署**: Docker (可选)
-
-### 前端
-
-- **框架**: React 18
-- **语言**: TypeScript
-- **UI组件**: Ant Design 5.x
-- **路由**: React Router 6
-- **HTTP客户端**: Axios
-- **状态管理**: React Context API
-- **富文本编辑器**: Quill.js
-- **构建工具**: Vite
-
 ## 功能模块
 
-1. **用户认证与授权**
-   - 登录认证
-   - 基于角色的权限控制
-   - JWT令牌管理
+1. **用户、角色与权限管理** (原"用户认证与授权")
+   - 用户登录认证 (JWT令牌管理)
+   - 基于角色的访问控制 (RBAC): 
+     - `User` (用户), `Role` (角色), `Permission` (权限) 模型协同工作。
+     - 角色分配给用户，权限分配给角色。
+   - 页面级权限控制: 
+     - `Permission` 模型定义具体页面或操作的权限代码 (如 `user:create`, `document:edit`)。
+     - 可控制前端菜单的动态显示和路由访问。
+     - 支持权限的层级结构 (父子权限)。
+   - 超级管理员 (`is_superuser`) 拥有所有权限。
 
 2. **用户管理**
-   - 用户信息CRUD
-   - 角色管理
+   - 用户信息CRUD (包括 `username`, `mobile`, `email`, `is_active`, `is_superuser` 等字段)
+   - 用户角色分配
 
 3. **文档管理**
    - 文档创建、查询、更新、删除
-   - 文档内容的模块化管理
+   - 文档内容的模块化管理：每个文档可由多个"部分 (`Section`)"组成，每个部分可以有不同的类型 (`SectionTypeEnum`：如 `OVERVIEW`, `FLOW`, `CONTENT`, `DATABASE`, `API`, `CODE`, `CUSTOM`)，允许高度结构化和多样化的内容组织。
    - 文档间关联关系
 
 4. **模板管理**
-   - 模板创建与应用
-   - 结构化模板定义
+   - 模板通过API提供创建、查询、更新、删除功能。
+   - 主要用于在创建文档时提供结构化的起点，帮助用户快速建立符合规范的文档框架。
+   - 独立的前端模板管理界面目前部分集成于文档创建流程或正在进一步规划完善中。
 
-5. **图片管理**
-   - 图片上传
-   - 图片与文档/部分关联
-   - 图片显示与删除
+5. **(新增模块) 模块化结构管理**
+   - 允许管理员通过 `module_structures` API 定义标准化的文档模块/章节结构 (例如：项目背景、需求分析、系统设计、接口定义等)。
+   - 用户随后可以通过 `module_contents` API 及对应的前端页面 (`StructureManagementPage`, `ModuleContentPage`) 填充这些预定义模块的内容。
+   - 旨在提高文档编写的规范性和一致性。
 
-6. **内容编辑**
-   - 富文本编辑
-   - 模块化内容组织
-   - 内容版本管理
+6. **图片管理**
 
 ## 数据模型关系
 
-- **用户(User)** - 拥有多个文档，可以有多个角色
-- **角色(Role)** - 定义用户权限
-- **文档(Document)** - 包含多个部分，属于一个用户，可以基于模板
-- **模板(Template)** - 定义文档结构，由用户创建
-- **部分(Section)** - 文档的内容单元，可以包含图片
-- **图片(Image)** - 属于文档和部分
-- **关系(Relation)** - 定义文档间的引用关系
+- **用户(User)** - 系统操作者，可以创建文档和模板，并被分配一个或多个角色。
+  - 与 **角色(Role)**: 多对多关系 (`user_role` 关联表)。
+- **角色(Role)** - 定义一组权限集合。一个角色可以包含多个权限，也可以被分配给多个用户。
+  - 与 **权限(Permission)**: 多对多关系 (`role_permission` 关联表)。
+- **权限(Permission)** - 定义对特定资源或操作的访问许可（例如页面访问、功能操作）。权限可以具有层级关系（通过 `parent_id` 实现父子权限）。
+- **文档(Document)** - 核心数据实体，包含多个部分 (`Section`)，属于一个用户 (`creator`)，可以选择性地基于一个模板 (`Template`) 创建。
+- **模板(Template)** - 定义文档的结构框架，由用户创建，可用于快速生成具有统一格式的文档。
+- **部分(Section)** - 文档的内容单元，具有特定类型 (`type`)，可以包含文本内容和图片 (`Image`)。
+- **图片(Image)** - 存储图片信息，关联到文档和可选的特定部分。
+- **关系(Relation)** - 定义文档之间的引用或关联关系 (例如，一个文档引用另一个文档)。
 
 ## 安装与运行
 
@@ -241,7 +207,7 @@ alembic upgrade head  # 初始化数据库
 4. 启动服务
 
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 前端
@@ -275,26 +241,27 @@ npm run preview
 
 启动后端服务器后，可通过以下地址访问API文档：
 
-- Swagger UI: http://localhost:8000/api/v1/docs
-- ReDoc: http://localhost:8000/api/v1/redoc
+- Swagger UI: `http://localhost:8000/api/v1/docs`
+- ReDoc: `http://localhost:8000/api/v1/redoc`
 
 ## 开发规范
 
 ### 后端
 
-1. 代码风格遵循PEP 8
-2. 所有功能需要编写单元测试
-3. API设计遵循RESTful原则
-4. 使用类型注解
-5. 保持文档的更新
+1. 代码风格遵循PEP 8。
+2. 推荐编写单元测试。
+3. API接口设计注重路径语义，通过POST和GET请求实现操作，以路由的具体含义区分功能。
+4. 使用类型注解。
+5. 保持文档的更新。
 
 ### 前端
 
-1. 所有组件使用函数式组件
-2. 使用TypeScript进行类型检查
-3. 使用ESLint进行代码质量控制
+1. 所有组件推荐使用函数式组件及Hooks。
+2. 使用TypeScript进行类型检查。
+3. 使用ESLint和Prettier进行代码质量和风格控制。
 4. 文件命名规范：
-   - 组件文件：PascalCase
-   - 工具函数文件：camelCase
-   - 类型定义文件：camelCase.d.ts
-5. 路由使用懒加载以提高性能
+   - 组件文件：PascalCase (`MyComponent.tsx`)
+   - 工具函数/Hooks/类型等：camelCase (`myUtils.ts`, `useMyHook.ts`, `myTypes.d.ts`)
+5. 路由使用懒加载以提高性能。
+6. 状态管理优先使用React Context API，复杂状态可考虑 Zustand 或 Redux Toolkit。
+7. CSS方案推荐使用CSS Modules或Styled Components，并配合Ant Design的样式系统。

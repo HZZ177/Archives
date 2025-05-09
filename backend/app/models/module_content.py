@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, JSON
 from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
+from backend.app.db.utils import get_local_time
 
 
 class ModuleContent(Base):
@@ -18,8 +19,8 @@ class ModuleContent(Base):
     related_module_ids_json = Column(JSON, nullable=True)  # 关联模块
     api_interfaces_json = Column(JSON, nullable=True)  # 涉及接口
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # 最后修改者
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_time)
+    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
 
     # 关系
     module_node = relationship("ModuleStructureNode", back_populates="content")

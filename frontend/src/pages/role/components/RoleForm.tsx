@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Form, Input, Switch, Tree, Button, Space, Spin, message, Typography, Card, Tooltip } from 'antd';
+import { Form, Input, Switch, Tree, Button, Space, Spin, message, Typography, Card, Tooltip, Row, Col } from 'antd';
 import { fetchPermissionTree } from '../../../apis/permissionService';
 import { PermissionTree } from '../../../types/permission';
 import type { TreeProps } from 'antd';
@@ -38,14 +38,8 @@ const RoleForm: React.FC<RoleFormProps> = ({
 
   // 获取权限树数据
   const loadPermissionData = async () => {
-    // 检查是否是同一个角色，如果是同一个角色且已加载数据，则不重新加载
+    // 记录当前角色ID
     const currentRoleId = role?.id || null;
-    if (roleIdRef.current === currentRoleId && checkedKeys.length > 0) {
-      console.log('相同角色ID，使用已加载的数据:', currentRoleId);
-      return;
-    }
-    
-    // 更新当前角色ID引用
     roleIdRef.current = currentRoleId;
     console.log('加载权限数据，角色ID:', currentRoleId);
     
@@ -139,6 +133,23 @@ const RoleForm: React.FC<RoleFormProps> = ({
       }
     }
   }, [role?.id]); // 仅在role.id变化时触发
+
+  // 添加新的useEffect，监听role变化并重置表单值
+  useEffect(() => {
+    // 当role发生变化时，重置表单字段值
+    if (role) {
+      form.setFieldsValue({
+        name: role.name || '',
+        description: role.description || '',
+      });
+    } else {
+      // 如果是创建新角色，则重置为空值
+      form.setFieldsValue({
+        name: '',
+        description: '',
+      });
+    }
+  }, [role, form]); // 依赖role整个对象和form实例
 
   // 处理权限选择变更
   const handleCheck: TreeProps['onCheck'] = (checked: any, info: any) => {
@@ -274,86 +285,117 @@ const RoleForm: React.FC<RoleFormProps> = ({
     }
   };
 
+  // 重置权限选择状态
+  const resetPermissions = () => {
+    // 如果角色存在且有权限数据，重置为原始权限
+    if (role && role.permissions) {
+      const originalPermissions = role.permissions.map(perm => perm.id.toString());
+      // 确保首页权限被选中
+      const resetKeys = [...originalPermissions];
+      if (homePagePermissionId && !resetKeys.includes(homePagePermissionId)) {
+        resetKeys.push(homePagePermissionId);
+      }
+      setCheckedKeys(resetKeys);
+    } else {
+      // 如果是新角色，只保留首页权限
+      setCheckedKeys(homePagePermissionId ? [homePagePermissionId] : []);
+    }
+    
+    // 重置表单字段
+    form.resetFields();
+    if (role) {
+      form.setFieldsValue({
+        name: role.name || '',
+        description: role.description || '',
+      });
+    }
+  };
+  
+  // 处理取消按钮点击
+  const handleCancel = () => {
+    resetPermissions();
+    onCancel();
+  };
+
   return (
     <Form
       form={form}
       layout="vertical"
+      key={role?.id || 'new'}
       initialValues={{
         name: role?.name || '',
         description: role?.description || '',
-        status: role?.status !== undefined ? role.status : true,
       }}
     >
-      <Card title="角色信息" style={{ marginBottom: 16 }}>
-        <Form.Item
-          name="name"
-          label="角色名称"
-          rules={[{ required: true, message: '请输入角色名称' }]}
-        >
-          <Input placeholder="请输入角色名称" />
-        </Form.Item>
-        
-        <Form.Item
-          name="description"
-          label="角色描述"
-        >
-          <TextArea rows={4} placeholder="请输入角色描述" />
-        </Form.Item>
-        
-        <Form.Item
-          name="status"
-          label="状态"
-          valuePropName="checked"
-        >
-          <Switch checkedChildren="启用" unCheckedChildren="禁用" />
-        </Form.Item>
-      </Card>
-      
-      <Card title="权限分配" style={{ marginBottom: 16 }}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '20px' }}>
-            <Spin tip="加载权限数据中..." />
-          </div>
-        ) : (
-          <>
-            <div style={{ marginBottom: 8 }}>
-              <Typography.Text type="secondary">
-                注意：首页权限为必选项，所有用户都需要首页权限才能正常使用系统
-              </Typography.Text>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <Title level={5}>系统权限</Title>
-              <Tree
-                checkable
-                checkedKeys={checkedKeys}
-                onCheck={handleCheck}
-                treeData={systemTreeData}
-                height={200}
-                style={{ border: '1px solid #f0f0f0', padding: '8px', borderRadius: '4px' }}
-              />
-            </div>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Card title="角色信息" style={{ height: '100%' }}>
+            <Form.Item
+              name="name"
+              label="角色名称"
+              rules={[{ required: true, message: '请输入角色名称' }]}
+            >
+              <Input placeholder="请输入角色名称" />
+            </Form.Item>
             
-            <div>
-              <Title level={5}>自定义模块权限</Title>
-              <Tree
-                checkable
-                checkedKeys={checkedKeys}
-                onCheck={handleCheck}
-                treeData={moduleTreeData}
-                height={200}
-                style={{ border: '1px solid #f0f0f0', padding: '8px', borderRadius: '4px' }}
-              />
-            </div>
-          </>
-        )}
-      </Card>
+            <Form.Item
+              name="description"
+              label="角色描述"
+            >
+              <TextArea rows={3} placeholder="请输入角色描述" />
+            </Form.Item>
+          </Card>
+        </Col>
+        
+        <Col span={16}>
+          <Card title="权限分配">
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <Spin tip="加载权限数据中..." />
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 8 }}>
+                  <Typography.Text type="secondary">
+                    注意：首页权限为必选项，所有用户都需要首页权限才能正常使用系统
+                  </Typography.Text>
+                </div>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Title level={5}>系统权限</Title>
+                    <Tree
+                      checkable
+                      checkedKeys={checkedKeys}
+                      onCheck={handleCheck}
+                      treeData={systemTreeData}
+                      height={300}
+                      style={{ border: '1px solid #f0f0f0', padding: '8px', borderRadius: '4px' }}
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <Title level={5}>自定义模块权限</Title>
+                    <Tree
+                      checkable
+                      checkedKeys={checkedKeys}
+                      onCheck={handleCheck}
+                      treeData={moduleTreeData}
+                      height={300}
+                      style={{ border: '1px solid #f0f0f0', padding: '8px', borderRadius: '4px' }}
+                    />
+                  </Col>
+                </Row>
+              </>
+            )}
+          </Card>
+        </Col>
+      </Row>
       
-      <Form.Item>
+      <Form.Item style={{ marginTop: 16, textAlign: 'right' }}>
         <Space>
+          <Button onClick={handleCancel}>取消</Button>
           <Button type="primary" onClick={handleSubmit} loading={submitting}>
             {role ? '更新' : '创建'}
           </Button>
-          <Button onClick={onCancel}>取消</Button>
         </Space>
       </Form.Item>
     </Form>

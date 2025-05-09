@@ -5,6 +5,7 @@ from sqlalchemy import Column, DateTime, Integer, String, ForeignKey, Text, Bool
 from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
+from backend.app.db.utils import get_local_time
 
 
 class SectionTypeEnum(str, Enum):
@@ -27,8 +28,8 @@ class Document(Base):
     description = Column(Text, nullable=True)
     template_id = Column(Integer, ForeignKey("templates.id"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_time)
+    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
 
     # 关系
     creator = relationship("User", back_populates="documents")
@@ -58,8 +59,8 @@ class Template(Base):
     description = Column(Text, nullable=True)
     structure = Column(Text, nullable=True)  # JSON字符串
     user_id = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_time)
+    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
 
     # 关系
     creator = relationship("User", back_populates="templates")
@@ -76,8 +77,8 @@ class Section(Base):
     content = Column(Text, nullable=True)
     type = Column(SQLEnum(SectionTypeEnum), default=SectionTypeEnum.CONTENT)
     order = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_time)
+    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
 
     # 关系
     document = relationship("Document", back_populates="sections")
@@ -94,7 +95,7 @@ class Image(Base):
     filename = Column(String(255), nullable=False)
     file_path = Column(String(255), nullable=False)
     url = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_time)
 
     # 关系
     document = relationship("Document", back_populates="images")
@@ -110,7 +111,7 @@ class Relation(Base):
     target_id = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
     relation_type = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_time)
 
     # 关系
     source = relationship("Document", foreign_keys=[source_id], back_populates="source_relations")

@@ -12,7 +12,7 @@ interface StructureNodeModalProps {
   onComplete: () => void;
 }
 
-const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
+export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
   visible,
   type,
   node,
@@ -27,20 +27,46 @@ const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
   // 当模态框打开时，初始化表单
   useEffect(() => {
     if (visible) {
+      console.log('模态框打开，type:', type, 'node:', node);
+      
       if (type === 'edit' && node) {
+        console.log('编辑模式，设置表单值');
+        // 在编辑模式下，设置表单值
         form.setFieldsValue({
           name: node.name,
           module_type: node.is_content_page ? 'content_page' : 'structure_node',
         });
-      } else {
-        form.resetFields();
-        // 默认选择节点类型
+      } else if (type === 'add') {
+        console.log('添加模式，设置默认值');
+        // 在添加模式下，重置表单并强制设置默认值
         form.setFieldsValue({
+          name: '',
           module_type: 'structure_node',
         });
       }
     }
   }, [visible, type, node, form]);
+
+  // 添加一个useEffect用于监控表单值变化
+  useEffect(() => {
+    if (visible) {
+      // 定义一个函数来打印表单当前值
+      const logFormValues = () => {
+        const currentValues = form.getFieldsValue();
+        console.log('当前表单值:', currentValues);
+      };
+      
+      // 立即打印一次
+      logFormValues();
+      
+      // 设置一个定时器定期检查表单值，用于调试
+      const interval = setInterval(logFormValues, 1000);
+      
+      return () => {
+        clearInterval(interval);
+      };
+    }
+  }, [visible, form]);
 
   // 处理表单提交
   const handleSubmit = async () => {
@@ -83,7 +109,15 @@ const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
   // 处理关闭模态框
   const handleCancel = () => {
     // 关闭模态框时重置表单，避免表单状态残留
+    console.log('取消操作，重置表单');
     form.resetFields();
+    // 重置后确保默认选择节点类型
+    if (type === 'add') {
+      console.log('是添加模式，重新设置默认值');
+      form.setFieldsValue({
+        module_type: 'structure_node',
+      });
+    }
     onCancel();
   };
 
@@ -106,6 +140,9 @@ const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
         layout="vertical"
         name="structure_node_form"
         preserve={false}
+        initialValues={{
+          module_type: type === 'edit' && node ? (node.is_content_page ? 'content_page' : 'structure_node') : 'structure_node'
+        }}
       >
         <Form.Item
           name="name"
@@ -120,7 +157,7 @@ const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
           label="模块类型"
           rules={[{ required: true, message: '请选择模块类型' }]}
         >
-          <Radio.Group>
+          <Radio.Group defaultValue="structure_node">
             <Radio value="structure_node">节点 (可添加子模块)</Radio>
             <Radio value="content_page">内容页面 (显示六部分模板)</Radio>
           </Radio.Group>
@@ -138,4 +175,5 @@ const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
   );
 };
 
+// 为了向后兼容，同时提供默认导出
 export default StructureNodeModal; 

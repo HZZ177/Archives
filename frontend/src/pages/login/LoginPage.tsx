@@ -36,10 +36,29 @@ const LoginPage: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error('LoginPage: 登录失败', error);
-      message.error(error.response?.data?.detail || '登录失败，请检查用户名和密码');
+      message.error(error.response?.data?.detail || '登录失败，请检查用户名/手机号和密码');
     } finally {
       setLoading(false);
     }
+  };
+
+  // 用户名或手机号验证规则
+  const validateUsernameOrMobile = (_: any, value: string) => {
+    if (!value) {
+      return Promise.reject('请输入用户名或手机号');
+    }
+    
+    // 简单的手机号格式验证（中国手机号11位数字，以1开头）
+    const isMobile = /^1\d{10}$/.test(value);
+    
+    // 用户名格式验证（至少2个字符，不超过50个字符）
+    const isUsername = value.length >= 2 && value.length <= 50;
+    
+    if (isMobile || isUsername) {
+      return Promise.resolve();
+    }
+    
+    return Promise.reject('请输入有效的用户名或手机号');
   };
 
   return (
@@ -58,11 +77,11 @@ const LoginPage: React.FC = () => {
           >
             <Form.Item
               name="username"
-              rules={[{ required: true, message: '请输入用户名' }]}
+              rules={[{ validator: validateUsernameOrMobile }]}
             >
               <Input 
                 prefix={<UserOutlined />} 
-                placeholder="用户名" 
+                placeholder="用户名/手机号" 
                 size="large" 
               />
             </Form.Item>

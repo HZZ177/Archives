@@ -110,14 +110,14 @@ export const createModuleNode = async (data: ModuleStructureNodeRequest): Promis
 };
 
 export const updateModuleNode = async (nodeId: number, data: ModuleStructureNodeRequest): Promise<ModuleStructureNode> => {
-  const response = await request.put(`${API_MODULE_STRUCTURES}/${nodeId}`, data);
+  const response = await request.post(`${API_MODULE_STRUCTURES}/update/${nodeId}`, data);
   // 更新节点后清除缓存
   invalidateModuleTreeCache();
   return response.data;
 };
 
 export const deleteModuleNode = async (nodeId: number): Promise<void> => {
-  await request.delete(`${API_MODULE_STRUCTURES}/${nodeId}`);
+  await request.post(`${API_MODULE_STRUCTURES}/delete/${nodeId}`);
   // 删除节点后清除缓存
   invalidateModuleTreeCache();
 };
@@ -150,8 +150,8 @@ export const fetchModuleContent = async (moduleNodeId: number): Promise<ModuleCo
 };
 
 export const saveModuleContent = async (moduleNodeId: number, data: ModuleContentRequest): Promise<ModuleContent> => {
-  // 后端的PUT接口已经实现了upsert逻辑，可以直接使用
-  const response = await request.put(`${API_MODULE_CONTENTS}/by-node/${moduleNodeId}`, data);
+  // 后端的接口已经实现了upsert逻辑，可以直接使用
+  const response = await request.post(`${API_MODULE_CONTENTS}/update/by-node/${moduleNodeId}`, data);
   return response.data;
 };
 

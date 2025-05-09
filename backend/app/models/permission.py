@@ -3,6 +3,7 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, T
 from sqlalchemy.orm import relationship, backref
 
 from backend.app.db.base import Base
+from backend.app.db.utils import get_local_time
 
 # 角色权限关联表
 role_permission = Table(
@@ -26,8 +27,8 @@ class Permission(Base):
     is_visible = Column(Boolean, default=True, comment="是否在菜单中可见")
     parent_id = Column(Integer, ForeignKey("permissions.id"), nullable=True, comment="父权限ID")
     description = Column(String(255), nullable=True, comment="权限描述")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_time)
+    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
 
     # 关系
     roles = relationship("Role", secondary=role_permission, back_populates="permissions")

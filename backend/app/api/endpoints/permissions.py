@@ -117,7 +117,7 @@ async def read_permission(
     return permission
 
 
-@router.put("/{permission_id}", response_model=PermissionResponse)
+@router.post("/update/{permission_id}", response_model=PermissionResponse)
 async def update_permission(
         permission_id: int,
         permission_in: PermissionUpdate,
@@ -180,7 +180,7 @@ async def update_permission(
     return permission
 
 
-@router.delete("/{permission_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/delete/{permission_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_permission(
         permission_id: int,
         db: Annotated[AsyncSession, Depends(get_db)],

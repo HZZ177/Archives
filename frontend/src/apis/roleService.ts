@@ -40,13 +40,13 @@ export const updateRole = async (
     permission_ids?: number[];
   }
 ): Promise<Role> => {
-  const response = await request.put(`/roles/${roleId}/`, roleData);
+  const response = await request.post(`/roles/update/${roleId}`, roleData);
   return response.data;
 };
 
 // 删除角色
 export const deleteRole = async (roleId: number): Promise<{success: boolean; message: string}> => {
-  const response = await request.delete(`/roles/${roleId}/`);
+  const response = await request.post(`/roles/delete/${roleId}`);
   return response.data;
 };
 
@@ -61,7 +61,7 @@ export const assignPermissionsToRole = async (
   roleId: number,
   permissionIds: number[]
 ): Promise<void> => {
-  await request.post(`/roles/${roleId}/permissions/`, {
+  await request.post(`/roles/${roleId}/update_permissions`, {
     permission_ids: permissionIds,
   });
 };
@@ -74,8 +74,8 @@ export const fetchUserRoles = async (userId: number): Promise<Role[]> => {
 
 // 更新用户角色
 export const updateUserRoles = async (userId: number, roleIds: number[]) => {
-  const response = await request.put(
-    `/users/${userId}/roles/`, 
+  const response = await request.post(
+    `/users/${userId}/update_roles`, 
     { role_ids: roleIds }
   );
   
@@ -89,4 +89,10 @@ export const updateUserRoles = async (userId: number, roleIds: number[]) => {
   
   // 返回角色列表或原始结果
   return result.roles || result;
+};
+
+// 添加新函数：更新角色状态
+export const updateRoleStatus = async (roleId: number, status: boolean): Promise<Role> => {
+  const response = await request.post(`/roles/update/${roleId}`, { status });
+  return response.data;
 }; 

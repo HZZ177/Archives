@@ -39,6 +39,27 @@ async def create_module_node(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="父节点不存在"
             )
+    
+    # 检查同一父节点下是否已存在同名节点
+    if node_in.parent_id is not None:
+        # 如果有父节点，检查同一父节点下是否有同名节点
+        name_exists_query = select(ModuleStructureNode).where(
+            ModuleStructureNode.name == node_in.name,
+            ModuleStructureNode.parent_id == node_in.parent_id
+        )
+    else:
+        # 如果是顶级节点，检查顶级节点中是否有同名节点
+        name_exists_query = select(ModuleStructureNode).where(
+            ModuleStructureNode.name == node_in.name,
+            ModuleStructureNode.parent_id.is_(None)
+        )
+    
+    name_exists_result = await db.execute(name_exists_query)
+    if name_exists_result.first() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="同一级别下已存在同名节点"
+        )
 
     # 确定order_index: 如果未提供，则使用当前最大值+1
     if node_in.order_index is None:
@@ -61,8 +82,12 @@ async def create_module_node(
             # 设置权限记录的parent_id为父模块的权限ID
             permission_parent_id = parent_node.permission_id
     
+    # 创建一个临时唯一code，避免初始插入时的code冲突
+    import uuid
+    temp_code = f"module:temp_{uuid.uuid4().hex[:8]}"
+    
     db_permission = Permission(
-        code=f"module:{node_in.name.lower().replace(' ', '_')}",
+        code=temp_code,  # 使用临时code
         name=f"{node_in.name}",
         page_path=page_path,
         is_visible=True,
@@ -259,7 +284,7 @@ async def read_module_node(
     return response_dict
 
 
-@router.put("/{node_id}", response_model=ModuleStructureNodeResponse)
+@router.post("/update/{node_id}", response_model=ModuleStructureNodeResponse)
 async def update_module_node(
         node_id: int,
         node_in: ModuleStructureNodeUpdate,
@@ -292,6 +317,32 @@ async def update_module_node(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="父节点不存在"
+            )
+    
+    # 如果更新了节点名称，检查同级节点中是否已存在同名节点
+    if "name" in node_in.model_dump(exclude_unset=True) and node_in.name != node.name:
+        parent_id = node_in.parent_id if node_in.parent_id is not None else node.parent_id
+
+        if parent_id is not None:
+            # 如果有父节点，检查同一父节点下是否有同名节点（排除当前节点）
+            name_exists_query = select(ModuleStructureNode).where(
+                ModuleStructureNode.name == node_in.name,
+                ModuleStructureNode.parent_id == parent_id,
+                ModuleStructureNode.id != node_id
+            )
+        else:
+            # 如果是顶级节点，检查顶级节点中是否有同名节点（排除当前节点）
+            name_exists_query = select(ModuleStructureNode).where(
+                ModuleStructureNode.name == node_in.name,
+                ModuleStructureNode.parent_id.is_(None),
+                ModuleStructureNode.id != node_id
+            )
+        
+        name_exists_result = await db.execute(name_exists_query)
+        if name_exists_result.first() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="同一级别下已存在同名节点"
             )
 
     # 更新节点
@@ -329,9 +380,12 @@ async def update_module_node(
             if parent_node and parent_node.permission_id:
                 permission_parent_id = parent_node.permission_id
         
-        # 创建权限记录
+        # 创建权限记录，使用唯一的临时code
+        import uuid
+        temp_code = f"module:temp_{uuid.uuid4().hex[:8]}"
+        
         db_permission = Permission(
-            code=f"module:{node.id}",
+            code=temp_code,  # 使用临时唯一code
             name=f"模块: {node.name}",
             page_path=f"/module-content/{node.id}",
             is_visible=True,
@@ -341,6 +395,9 @@ async def update_module_node(
         db.add(db_permission)
         await db.flush()
         await db.refresh(db_permission)
+        
+        # 在刷新后更新code为基于节点ID的值
+        db_permission.code = f"module:{node.id}"
         
         # 更新模块的权限关联
         node.permission_id = db_permission.id
@@ -371,7 +428,7 @@ async def update_module_node(
     return response_dict
 
 
-@router.delete("/{node_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/delete/{node_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_module_node(
         node_id: int,
         db: Annotated[AsyncSession, Depends(get_db)],

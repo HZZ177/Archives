@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
+from backend.app.db.utils import get_local_time
 
 
 class ModuleStructureNode(Base):
@@ -15,8 +16,8 @@ class ModuleStructureNode(Base):
     order_index = Column(Integer, default=0)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     is_content_page = Column(Boolean, default=False, nullable=False, comment="是否为内容页面类型")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=get_local_time)
+    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
     permission_id = Column(Integer, ForeignKey("permissions.id"), nullable=True, comment="关联的权限ID")
 
     # 关系
