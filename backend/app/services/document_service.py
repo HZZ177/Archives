@@ -7,7 +7,6 @@ from backend.app.core.logger import logger
 from backend.app.models.document import Document, Section
 from backend.app.models.user import User
 from backend.app.repositories.document_repository import document_repository
-from backend.app.repositories.section_repository import section_repository
 from backend.app.schemas.document import (
     DocumentCreate,
     DocumentUpdate,
@@ -230,7 +229,7 @@ class DocumentService:
                 )
             
             # 获取章节
-            sections = await section_repository.get_by_document_id(db, document_id)
+            sections = await document_repository.get_sections_by_document_id(db, document_id)
             return sections
             
         except HTTPException:
@@ -263,7 +262,7 @@ class DocumentService:
                 )
             
             # 创建章节
-            section = await section_repository.create_section(db, document_id, section_data)
+            section = await document_repository.create_section(db, document_id, section_data)
             return section
             
         except HTTPException:
@@ -296,7 +295,7 @@ class DocumentService:
                 )
             
             # 获取章节
-            section = await section_repository.get_section(db, document_id, section_id)
+            section = await document_repository.get_section(db, document_id, section_id)
             
             if not section:
                 raise HTTPException(
@@ -337,7 +336,7 @@ class DocumentService:
                 )
             
             # 获取章节
-            section = await section_repository.get_section(db, document_id, section_id)
+            section = await document_repository.get_section(db, document_id, section_id)
             
             if not section:
                 raise HTTPException(
@@ -346,8 +345,8 @@ class DocumentService:
                 )
             
             # 更新章节
-            updated_section = await section_repository.update(
-                db, db_obj=section, obj_in=section_data
+            updated_section = await document_repository.update_section(
+                db, section=section, section_data=section_data
             )
             
             return updated_section
@@ -382,7 +381,7 @@ class DocumentService:
                 )
             
             # 获取章节
-            section = await section_repository.get_section(db, document_id, section_id)
+            section = await document_repository.get_section(db, document_id, section_id)
             
             if not section:
                 raise HTTPException(
@@ -391,7 +390,7 @@ class DocumentService:
                 )
             
             # 删除章节
-            await section_repository.remove(db, id=section_id)
+            await document_repository.delete_section(db, section)
             return True
             
         except HTTPException:

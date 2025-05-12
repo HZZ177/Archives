@@ -4,9 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.app.repositories.base_repository import BaseRepository
-from backend.app.models.document import Document
+from backend.app.models.document import Document, Section
 from backend.app.core.logger import logger
-from backend.app.schemas.document import DocumentCreate, DocumentUpdate
+from backend.app.schemas.document import DocumentCreate, DocumentUpdate, SectionCreate, SectionUpdate
 
 
 class DocumentRepository(BaseRepository[Document, DocumentCreate, DocumentUpdate]):
@@ -74,6 +74,110 @@ class DocumentRepository(BaseRepository[Document, DocumentCreate, DocumentUpdate
             }
         except Exception as e:
             logger.error(f"获取用户文档列表失败: {str(e)}")
+            raise
+    
+    # Section 相关方法
+    async def get_sections_by_document_id(self, db: AsyncSession, document_id: int) -> List[Section]:
+        """
+        获取文档的所有章节
+        """
+        try:
+            result = await db.execute(
+                select(Section)
+                .where(Section.document_id == document_id)
+                .order_by(Section.order)
+            )
+            return result.scalars().all()
+        except Exception as e:
+            logger.error(f"获取文档章节失败: {str(e)}")
+            raise
+    
+    async def get_section(
+        self, 
+        db: AsyncSession, 
+        document_id: int, 
+        section_id: int
+    ) -> Optional[Section]:
+        """
+        获取特定文档的特定章节
+        """
+        try:
+            result = await db.execute(
+                select(Section)
+                .where(
+                    Section.id == section_id,
+                    Section.document_id == document_id
+                )
+            )
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(f"获取章节失败: {str(e)}")
+            raise
+            
+    async def create_section(
+        self, 
+        db: AsyncSession, 
+        document_id: int, 
+        section_data: SectionCreate
+    ) -> Section:
+        """
+        创建新章节
+        """
+        try:
+            # 创建章节对象
+            db_section = Section(
+                title=section_data.title,
+                content=section_data.content,
+                document_id=document_id,
+                order=section_data.order
+            )
+            
+            # 保存到数据库
+            db.add(db_section)
+            await db.commit()
+            await db.refresh(db_section)
+            
+            return db_section
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"创建章节失败: {str(e)}")
+            raise
+    
+    async def update_section(
+        self, 
+        db: AsyncSession, 
+        section: Section, 
+        section_data: SectionUpdate
+    ) -> Section:
+        """
+        更新章节
+        """
+        try:
+            # 更新章节属性
+            update_data = section_data.model_dump(exclude_unset=True)
+            for key, value in update_data.items():
+                setattr(section, key, value)
+            
+            # 保存到数据库
+            await db.commit()
+            await db.refresh(section)
+            
+            return section
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"更新章节失败: {str(e)}")
+            raise
+    
+    async def delete_section(self, db: AsyncSession, section: Section) -> None:
+        """
+        删除章节
+        """
+        try:
+            await db.delete(section)
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"删除章节失败: {str(e)}")
             raise
 
 

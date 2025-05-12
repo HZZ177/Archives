@@ -1,15 +1,14 @@
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_active_user, get_current_admin_user, get_db, success_response, error_response
 from backend.app.core.logger import logger
-from backend.app.models.document import Template
 from backend.app.models.user import User
 from backend.app.schemas.template import TemplateCreate, TemplateResponse, TemplateUpdate
 from backend.app.schemas.response import APIResponse
+from backend.app.services.template_service import template_service
 
 router = APIRouter()
 
@@ -25,9 +24,10 @@ async def read_templates(
     获取所有模板列表
     """
     try:
-        result = await db.execute(select(Template).offset(skip).limit(limit))
-        templates = result.scalars().all()
+        templates = await template_service.get_templates_list(db, skip, limit)
         return success_response(data=templates)
+    except HTTPException as e:
+        return error_response(message=e.detail)
     except Exception as e:
         logger.error(f"获取模板列表失败: {str(e)}")
         return error_response(message=f"获取模板列表失败: {str(e)}")
@@ -43,18 +43,10 @@ async def create_template(
     创建新模板
     """
     try:
-        # 创建新模板
-        db_template = Template(
-            name=template_in.name,
-            description=template_in.description,
-            structure=template_in.structure
-        )
-
-        db.add(db_template)
-        await db.commit()
-        await db.refresh(db_template)
-
-        return success_response(data=db_template, message="模板创建成功")
+        template = await template_service.create_template(db, template_in, current_user)
+        return success_response(data=template, message="模板创建成功")
+    except HTTPException as e:
+        return error_response(message=e.detail)
     except Exception as e:
         logger.error(f"创建模板失败: {str(e)}")
         return error_response(message=f"创建模板失败: {str(e)}")
@@ -70,12 +62,10 @@ async def read_template(
     获取特定模板
     """
     try:
-        template = await db.get(Template, template_id)
-
-        if not template:
-            return error_response(message="模板不存在")
-
+        template = await template_service.get_template(db, template_id)
         return success_response(data=template)
+    except HTTPException as e:
+        return error_response(message=e.detail)
     except Exception as e:
         logger.error(f"获取模板详情失败: {str(e)}")
         return error_response(message=f"获取模板详情失败: {str(e)}")
@@ -92,20 +82,10 @@ async def update_template(
     更新模板
     """
     try:
-        template = await db.get(Template, template_id)
-
-        if not template:
-            return error_response(message="模板不存在")
-
-        # 更新模板数据
-        update_data = template_in.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(template, key, value)
-
-        await db.commit()
-        await db.refresh(template)
-
+        template = await template_service.update_template(db, template_id, template_in, current_user)
         return success_response(data=template, message="模板更新成功")
+    except HTTPException as e:
+        return error_response(message=e.detail)
     except Exception as e:
         logger.error(f"更新模板失败: {str(e)}")
         return error_response(message=f"更新模板失败: {str(e)}")
@@ -121,15 +101,10 @@ async def delete_template(
     删除模板
     """
     try:
-        template = await db.get(Template, template_id)
-
-        if not template:
-            return error_response(message="模板不存在")
-
-        await db.delete(template)
-        await db.commit()
-
-        return success_response(message="模板删除成功")
+        message = await template_service.delete_template(db, template_id, current_user)
+        return success_response(message=message)
+    except HTTPException as e:
+        return error_response(message=e.detail)
     except Exception as e:
         logger.error(f"删除模板失败: {str(e)}")
         return error_response(message=f"删除模板失败: {str(e)}")

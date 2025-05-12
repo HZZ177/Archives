@@ -2,6 +2,7 @@ import uuid
 from typing import Dict, List, Optional, Set, Tuple, Any
 
 from fastapi import HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.logger import logger
@@ -496,11 +497,11 @@ class ModuleStructureService:
             # 为了支持在异步环境中使用 ORM 的多对多关系，需要使用 run_sync
             # 查询拥有父节点权限的所有角色
             async def get_roles_with_permission(permission_id: int) -> List[Role]:
-                result = await db.execute("""
+                result = await db.execute(text("""
                     SELECT r.* FROM roles r
                     JOIN role_permission rp ON r.id = rp.role_id
                     WHERE rp.permission_id = :permission_id
-                """, {"permission_id": permission_id})
+                """), {"permission_id": permission_id})
                 return result.fetchall()
             
             roles_with_parent_permission = await get_roles_with_permission(parent_permission_id)
@@ -508,10 +509,10 @@ class ModuleStructureService:
             # 将新权限分配给这些角色
             for role_data in roles_with_parent_permission:
                 # 使用原始SQL执行插入
-                await db.execute("""
+                await db.execute(text("""
                     INSERT INTO role_permission (role_id, permission_id)
                     VALUES (:role_id, :permission_id)
-                """, {"role_id": role_data.id, "permission_id": new_permission.id})
+                """), {"role_id": role_data.id, "permission_id": new_permission.id})
                 
                 logger.info(f"权限继承: 已将权限 '{new_permission.code}' 从父节点继承并分配给角色 '{role_data.name}'")
             
