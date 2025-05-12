@@ -1,4 +1,4 @@
-from typing import Generator, Optional, Annotated, List, TypeVar, Any
+from typing import Generator, Optional, Annotated, List, TypeVar, Any, Dict, Callable
 from functools import wraps
 
 from jose import jwt, JWTError
@@ -32,6 +32,31 @@ async def get_db() -> AsyncSession:
             yield session
         finally:
             await session.close()
+
+
+# Repository和Service依赖函数
+def get_repository(repo_type: Callable):
+    """
+    获取Repository实例的依赖函数
+    
+    :param repo_type: Repository类型
+    :return: Repository实例
+    """
+    def _get_repo():
+        return repo_type()
+    return _get_repo
+
+
+def get_service(service_type: Callable):
+    """
+    获取Service实例的依赖函数
+    
+    :param service_type: Service类型
+    :return: Service实例
+    """
+    def _get_service():
+        return service_type()
+    return _get_service
 
 
 async def get_current_user(

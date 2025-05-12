@@ -1,0 +1,124 @@
+from typing import Optional, Dict, Any
+from sqlalchemy import select, exists
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.core.logger import logger
+from backend.app.models.module_content import ModuleContent
+from backend.app.models.module_structure import ModuleStructureNode
+from backend.app.repositories.base_repository import BaseRepository
+from backend.app.schemas.module_content import ModuleContentCreate, ModuleContentUpdate
+
+
+class ModuleContentRepository(BaseRepository[ModuleContent, ModuleContentCreate, ModuleContentUpdate]):
+    """
+    ModuleContent模型的数据库操作仓库
+    """
+    def __init__(self):
+        super().__init__(ModuleContent)
+    
+    async def get_by_node_id(self, db: AsyncSession, module_node_id: int) -> Optional[ModuleContent]:
+        """
+        根据模块节点ID获取内容
+        """
+        try:
+            result = await db.execute(
+                select(ModuleContent).where(ModuleContent.module_node_id == module_node_id)
+            )
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(f"根据节点ID获取模块内容失败: {str(e)}")
+            raise
+    
+    async def check_node_exists(self, db: AsyncSession, module_node_id: int) -> bool:
+        """
+        检查模块节点是否存在
+        """
+        try:
+            result = await db.execute(
+                select(exists().where(ModuleStructureNode.id == module_node_id))
+            )
+            return result.scalar()
+        except Exception as e:
+            logger.error(f"检查模块节点是否存在失败: {str(e)}")
+            raise
+    
+    async def upsert_content(
+        self,
+        db: AsyncSession,
+        module_node_id: int,
+        user_id: int,
+        content_data: ModuleContentUpdate
+    ) -> ModuleContent:
+        """
+        创建或更新模块内容
+        """
+        try:
+            # 获取现有内容
+            content = await self.get_by_node_id(db, module_node_id)
+            
+            if content:
+                # 更新内容
+                update_data = content_data.model_dump(exclude_unset=True)
+                for key, value in update_data.items():
+                    setattr(content, key, value)
+                
+                # 更新最后修改者
+                content.user_id = user_id
+            else:
+                # 创建新内容
+                content_dict = content_data.model_dump(exclude_unset=True)
+                content = ModuleContent(
+                    module_node_id=module_node_id,
+                    user_id=user_id,
+                    **content_dict
+                )
+                db.add(content)
+            
+            await db.commit()
+            await db.refresh(content)
+            
+            return content
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"更新或创建模块内容失败: {str(e)}")
+            raise
+    
+    async def update_diagram_image(
+        self,
+        db: AsyncSession,
+        module_node_id: int,
+        user_id: int,
+        image_path: str
+    ) -> ModuleContent:
+        """
+        更新模块的图片路径
+        """
+        try:
+            # 获取现有内容
+            content = await self.get_by_node_id(db, module_node_id)
+            
+            if content:
+                # 更新图片路径
+                content.diagram_image_path = image_path
+                content.user_id = user_id
+            else:
+                # 创建新内容
+                content = ModuleContent(
+                    module_node_id=module_node_id,
+                    diagram_image_path=image_path,
+                    user_id=user_id
+                )
+                db.add(content)
+            
+            await db.commit()
+            await db.refresh(content)
+            
+            return content
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"更新模块图片路径失败: {str(e)}")
+            raise
+
+
+# 创建模块内容仓库实例
+module_content_repository = ModuleContentRepository() 

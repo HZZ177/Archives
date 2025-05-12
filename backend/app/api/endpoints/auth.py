@@ -1,19 +1,15 @@
-from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_active_user, get_db, success_response, error_response
-from backend.app.core.config import settings
-from backend.app.core.security import create_access_token, verify_password
 from backend.app.core.logger import logger
 from backend.app.models.user import User
-from backend.app.schemas.token import Token
-from backend.app.schemas.user import UserResponse
 from backend.app.schemas.response import APIResponse, LoginResult
+from backend.app.schemas.user import UserResponse
+from backend.app.services.auth_service import auth_service
 
 router = APIRouter()
 
@@ -33,47 +29,25 @@ async def login_access_token(
         - 失败: {"success": false, "message": "错误信息", "error_code": "AUTH_ERROR"}
     """
     try:
-        # 查询用户（支持用户名或手机号）
-        result = await db.execute(
-            select(User).where(
-                or_(
-                    User.username == form_data.username,
-                    User.mobile == form_data.username
-                )
-            )
+        # 调用认证服务进行用户认证
+        is_authenticated, user, error_msg = await auth_service.authenticate_user(
+            db, form_data.username, form_data.password
         )
-        user = result.scalar_one_or_none()
-
-        # 验证用户和密码
-        if not user or not verify_password(form_data.password, user.hashed_password):
-            logger.warning(f"登录失败: 用户名/手机号或密码错误 - {form_data.username}")
+        
+        # 认证失败
+        if not is_authenticated:
             return error_response(
-                message="用户名/手机号或密码错误",
+                message=error_msg,
                 error_code="AUTH_FAILED"
             )
-
-        # 验证用户是否激活
-        if not user.is_active:
-            logger.warning(f"登录失败: 用户未激活 - {user.id}")
-            return error_response(
-                message="用户未激活",
-                error_code="USER_INACTIVE"
-            )
-
+        
         # 创建访问令牌
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            subject=str(user.id),
-            expires_delta=access_token_expires
-        )
-
+        token_data = auth_service.create_user_token(str(user.id))
+        
         logger.info(f"用户登录成功: {user.id}")
         return success_response(
             message="登录成功",
-            data={
-                "access_token": access_token,
-                "token_type": "bearer"
-            }
+            data=token_data
         )
     except Exception as e:
         logger.error(f"登录过程发生错误: {str(e)}")
