@@ -43,7 +43,7 @@ const convertToTreeNode = (
         {node.name}
         
         {/* 操作按钮区域 - 只有非内容页面节点才显示添加按钮 */}
-        <div className="node-actions" onClick={e => e.stopPropagation()}>
+        <div className={`node-actions ${node.is_content_page ? 'content-node-actions' : ''}`} onClick={e => e.stopPropagation()}>
           {/* 只有当节点不是内容页面时才显示添加按钮 */}
           {!node.is_content_page && (
           <Tooltip title="添加子模块" placement="top">
@@ -272,9 +272,27 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
           onTreeDataChange();
           // 触发左侧导航刷新
           triggerRefreshEvent();
-        } catch (error) {
+        } catch (error: any) {
           console.error('删除失败:', error);
-          message.error('删除失败');
+          // 提取详细的错误信息
+          let errorMessage = '删除失败';
+          
+          // 处理API响应格式的错误
+          if (error.response?.data) {
+            // 优先使用统一格式的 message 字段
+            if (error.response.data.message) {
+              errorMessage = error.response.data.message;
+            } else if (error.response.data.detail) {
+              // 兼容旧格式的 detail 字段
+              errorMessage = error.response.data.detail;
+            }
+          } else if (error.message) {
+            // 直接使用错误对象的 message
+            errorMessage = error.message;
+          }
+          
+          // 显示详细的错误信息
+          message.error(errorMessage);
         }
       },
     });

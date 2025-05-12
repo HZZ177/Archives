@@ -36,7 +36,8 @@ const LoginPage: React.FC = () => {
       }, 300);
     } catch (error: any) {
       console.error('LoginPage: 登录失败', error);
-      message.error(error.response?.data?.detail || '登录失败，请检查用户名/手机号和密码');
+      // 优先使用新的统一格式的消息字段
+      message.error(error.response?.data?.message || error.response?.data?.detail || '登录失败，请检查用户名/手机号和密码');
     } finally {
       setLoading(false);
     }

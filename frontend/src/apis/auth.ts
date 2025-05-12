@@ -1,15 +1,8 @@
 import { LoginParams, LoginResult, User } from '../types/user';
 import { message } from 'antd';
 import { STORAGE_TOKEN_KEY, STORAGE_USER_KEY } from '../config/constants';
-import request from '../utils/request';
-
-// 统一API响应类型
-interface APIResponse<T> {
-  success: boolean;
-  message: string;
-  data: T | null;
-  error_code?: string;
-}
+import request, { unwrapResponse } from '../utils/request';
+import { APIResponse } from '../types/api';
 
 const authAPI = {
   /**
@@ -49,8 +42,8 @@ const authAPI = {
       localStorage.setItem(STORAGE_TOKEN_KEY, token);
       
       // 第二步：获取用户信息
-      const userResponse = await request.get('/auth/profile');
-      const userInfo = userResponse.data;
+      const userResponse = await request.get<APIResponse<User>>('/auth/profile');
+      const userInfo = unwrapResponse<User>(userResponse.data);
       
       console.log('User info response:', userInfo);
       
@@ -77,8 +70,8 @@ const authAPI = {
         error.response.data = {
           detail: '用户名或密码错误，请重试'
         };
-      } else if (!error.response.data || !error.response.data.detail) {
-        // 确保response.data.detail字段存在
+      } else if (!error.response.data || (!error.response.data.detail && !error.response.data.message)) {
+        // 确保response.data.detail或message字段存在
         error.response.data = {
           ...(error.response.data || {}),
           detail: error.message || '登录失败，请检查用户名和密码'
@@ -96,8 +89,8 @@ const authAPI = {
    */
   getCurrentUser: async (): Promise<User> => {
     try {
-      const response = await request.get('/auth/profile');
-      return response.data;
+      const response = await request.get<APIResponse<User>>('/auth/profile');
+      return unwrapResponse<User>(response.data);
     } catch (error) {
       console.error('Get current user error:', error);
       message.error('获取用户信息失败');

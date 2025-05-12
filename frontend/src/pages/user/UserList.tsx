@@ -9,6 +9,8 @@ import { API_BASE_URL } from '../../config/constants';
 import { fetchUserRoles, fetchRoles, updateUserRoles } from '../../apis/roleService';
 import { Role } from '../../types/role';
 import { formatDate } from '../../utils/dateUtils';
+import request, { unwrapResponse } from '../../utils/request';
+import { APIResponse } from '../../types/api';
 
 const { Search } = Input;
 
@@ -113,40 +115,33 @@ const UserList: React.FC = () => {
         ...(keyword ? { keyword } : {}),
       };
       
-      const token = localStorage.getItem('token');
-      const headers = {
-        Authorization: `Bearer ${token}`
-      };
+      // 使用统一 request 工具发起请求
+      const response = await request.get<APIResponse<any>>(`/users`, { params });
       
-      const response = await axios.get(`${API_BASE_URL}/users`, { 
-        params,
-        headers
-      });
-      
-      // 检查响应格式，适配直接返回数组的情况
-      let processedUsers: User[] = [];
-      
-      if (Array.isArray(response.data)) {
-        // API直接返回了用户数组，没有包装在items字段中
-        // 处理后端返回的用户数据，确保兼容性
-        processedUsers = response.data.map((user: any) => ({
-          ...user,
-          // 如果有is_active但没有status，根据is_active添加status
-          status: user.status !== undefined ? user.status : (user.is_active ? 1 : 0)
-        }));
-        setUsers(processedUsers);
-        setTotal(response.data.length); // 将总数设置为数组长度
-      } else {
-        // 使用标准的分页响应格式
-        // 处理用户数据确保兼容性
-        processedUsers = response.data.items.map((user: any) => ({
-          ...user,
-          // 如果有is_active但没有status，根据is_active添加status
-          status: user.status !== undefined ? user.status : (user.is_active ? 1 : 0)
-        }));
-        setUsers(processedUsers);
-        setTotal(response.data.total);
+      if (!response.data.success) {
+        message.error(response.data.message || '获取用户列表失败');
+        setLoading(false);
+        return;
       }
+      
+      // 使用 unwrapResponse 处理统一响应格式
+      const responseData = unwrapResponse<any>(response.data);
+      
+      if (!responseData || !responseData.items) {
+        setUsers([]);
+        setTotal(0);
+        setLoading(false);
+        return;
+      }
+      
+      // 处理用户数据
+      const processedUsers = responseData.items.map((user: any) => ({
+        ...user,
+        status: user.status !== undefined ? user.status : (user.is_active ? 1 : 0)
+      }));
+      
+      setUsers(processedUsers);
+      setTotal(responseData.total);
       
       // 获取用户角色信息
       fetchUserRolesInfo(processedUsers);
@@ -218,15 +213,16 @@ const UserList: React.FC = () => {
       const values = await addUserForm.validateFields();
       setSubmitting(true);
       
-      const token = localStorage.getItem('token');
-      const headers = {
-        Authorization: `Bearer ${token}`
-      };
+      // 使用request工具发送请求
+      const response = await request.post<APIResponse<any>>('/users', values);
       
-      // 直接提交所有数据，包括角色ID
-      await axios.post(`${API_BASE_URL}/users`, values, { headers });
+      if (!response.data.success) {
+        message.error(response.data.message || '创建用户失败');
+        setSubmitting(false);
+        return;
+      }
       
-      message.success('用户创建成功');
+      message.success(response.data.message || '用户创建成功');
       setAddUserModalVisible(false);
       fetchUsers(); // 刷新用户列表
       setSubmitting(false);
@@ -235,14 +231,12 @@ const UserList: React.FC = () => {
       
       // 提取详细错误信息
       let errorMessage = '创建用户失败';
-      if (error.response && error.response.data) {
-        if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        } else if (error.response.data.detail) {
-          errorMessage = error.response.data.detail;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        }
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
       message.error(errorMessage);
@@ -256,14 +250,20 @@ const UserList: React.FC = () => {
       setEditingUserId(userId);
       
       // 获取用户数据
-      const token = localStorage.getItem('token');
-      const headers = {
-        Authorization: `Bearer ${token}`
-      };
+      const response = await request.get<APIResponse<any>>(`/users/${userId}`);
       
-      // 获取用户数据
-      const response = await axios.get(`${API_BASE_URL}/users/${userId}`, { headers });
-      const userData = response.data;
+      if (!response.data.success) {
+        message.error(response.data.message || '加载用户数据失败');
+        return;
+      }
+      
+      // 使用unwrapResponse处理统一响应格式
+      const userData = unwrapResponse<any>(response.data);
+      
+      if (!userData) {
+        message.error('用户数据获取失败');
+        return;
+      }
       
       // 更新超级管理员状态
       setIsSuperUser(userData.is_superuser);
@@ -294,14 +294,12 @@ const UserList: React.FC = () => {
           console.error('获取用户角色失败:', error);
           // 提取详细错误信息
           let errorMessage = '获取用户角色失败';
-          if (error.response && error.response.data) {
-            if (typeof error.response.data === 'string') {
-              errorMessage = error.response.data;
-            } else if (error.response.data.detail) {
-              errorMessage = error.response.data.detail;
-            } else if (error.response.data.message) {
-              errorMessage = error.response.data.message;
-            }
+          if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          } else if (error.response?.data?.detail) {
+            errorMessage = error.response.data.detail;
+          } else if (error.message) {
+            errorMessage = error.message;
           }
           message.error(errorMessage);
         }
@@ -316,14 +314,12 @@ const UserList: React.FC = () => {
       console.error('加载用户数据失败:', error);
       // 提取详细错误信息
       let errorMessage = '加载用户数据失败';
-      if (error.response && error.response.data) {
-        if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        } else if (error.response.data.detail) {
-          errorMessage = error.response.data.detail;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        }
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       message.error(errorMessage);
     }
@@ -336,11 +332,6 @@ const UserList: React.FC = () => {
       const values = await editUserForm.validateFields();
       setSubmitting(true);
       
-      const token = localStorage.getItem('token');
-      const headers = {
-        Authorization: `Bearer ${token}`
-      };
-      
       // 提取角色ID
       const roleIds = values.role_ids || [];
       
@@ -350,7 +341,13 @@ const UserList: React.FC = () => {
       
       try {
         // 1. 更新用户基本信息
-        await axios.post(`${API_BASE_URL}/users/update/${editingUserId}`, userUpdateData, { headers });
+        const response = await request.post<APIResponse<any>>(`/users/update/${editingUserId}`, userUpdateData);
+        
+        if (!response.data.success) {
+          message.error(response.data.message || '更新用户信息失败');
+          setSubmitting(false);
+          return;
+        }
         
         // 2. 更新用户角色
         if (!isSuperUser) {  // 如果是超级管理员，不需要更新角色
@@ -360,11 +357,13 @@ const UserList: React.FC = () => {
             // 处理角色更新失败的情况，但不中断流程
             console.error('更新用户角色失败:', error);
             // 如果有错误消息，显示给用户
-            if (error.message) {
-              message.warning(`用户信息已更新，但角色更新失败: ${error.message}`);
-            } else {
-              message.warning('用户信息已更新，但角色更新失败');
+            let errorMessage = '用户信息已更新，但角色更新失败';
+            if (error.response?.data?.message) {
+              errorMessage = `用户信息已更新，但角色更新失败: ${error.response.data.message}`;
+            } else if (error.message) {
+              errorMessage = `用户信息已更新，但角色更新失败: ${error.message}`;
             }
+            message.warning(errorMessage);
             setEditUserModalVisible(false);
             setEditingUserId(null);
             fetchUsers(); // 刷新用户列表
@@ -373,65 +372,68 @@ const UserList: React.FC = () => {
           }
         }
         
-        message.success('用户信息更新成功');
+        message.success(response.data.message || '用户信息更新成功');
         setEditUserModalVisible(false);
         setEditingUserId(null);
         fetchUsers(); // 刷新用户列表
       } catch (error: any) {
         console.error('更新用户失败:', error);
-        if (error.response && error.response.data && error.response.data.detail) {
-          message.error(`更新用户失败: ${error.response.data.detail}`);
-        } else {
-          message.error('更新用户失败');
+        let errorMessage = '更新用户失败';
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response?.data?.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.message) {
+          errorMessage = error.message;
         }
+        message.error(errorMessage);
       }
       
       setSubmitting(false);
     } catch (error) {
       console.error('表单验证失败:', error);
-      message.error('表单验证失败，请检查输入');
       setSubmitting(false);
     }
   };
 
-  // 处理用户状态切换
+  // 更新用户状态
   const handleUserStatusChange = async (userId: number, checked: boolean) => {
     try {
-      const token = localStorage.getItem('token');
-      const headers = {
-        Authorization: `Bearer ${token}`
-      };
+      // 使用is_active字段替代status字段，匹配后端API期望的格式
+      const response = await request.post<APIResponse<any>>(`/users/update_status/${userId}`, { 
+        is_active: checked  // 将status改为is_active
+      });
       
-      // 调用更新状态接口
-      await axios.post(`${API_BASE_URL}/users/update_status/${userId}`, 
-        { is_active: checked }, 
-        { headers }
-      );
+      if (!response.data.success) {
+        message.error(response.data.message || '更新用户状态失败');
+        // 状态切换失败，回滚UI
+        fetchUsers();
+        return;
+      }
       
-      // 更新本地数据
-      setUsers(prev => 
-        prev.map(user => 
-          user.id === userId 
-            ? { ...user, is_active: checked } 
-            : user
+      message.success('用户状态更新成功');
+      
+      // 更新本地状态，避免重新获取整个列表
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.id === userId ? { ...user, is_active: checked, status: checked ? 1 : 0 } : user
         )
       );
-      
-      message.success(`用户${checked ? '启用' : '禁用'}成功`);
     } catch (error: any) {
       console.error('更新用户状态失败:', error);
-      // 提取错误信息
+      // 提取详细错误信息
       let errorMessage = '更新用户状态失败';
-      if (error.response && error.response.data) {
-        if (typeof error.response.data === 'string') {
-          errorMessage = error.response.data;
-        } else if (error.response.data.detail) {
-          errorMessage = error.response.data.detail;
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        }
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       message.error(errorMessage);
+      
+      // 状态切换失败，回滚UI
+      fetchUsers();
     }
   };
 
@@ -444,27 +446,40 @@ const UserList: React.FC = () => {
   // 处理搜索
   const handleSearch = (value: string) => {
     setSearchKeyword(value);
+    setCurrent(1); // 重置为第一页
     fetchUsers(1, page_size, value);
   };
 
-  // 处理分页变化
+  // 处理表格分页、排序、筛选变化
   const handleTableChange = (pagination: any) => {
+    setCurrent(pagination.current);
+    setPageSize(pagination.pageSize);
     fetchUsers(pagination.current, pagination.pageSize, searchKeyword);
   };
 
-  // 处理删除用户
+  // 删除用户
   const handleDelete = async (id: number) => {
     try {
-      const token = localStorage.getItem('token');
-      const headers = {
-        Authorization: `Bearer ${token}`
-      };
+      const response = await request.post<APIResponse<any>>(`/users/delete/${id}`);
       
-      await axios.post(`${API_BASE_URL}/users/delete/${id}`, {}, { headers });
-      message.success('删除用户成功');
+      if (!response.data.success) {
+        message.error(response.data.message || '删除用户失败');
+        return;
+      }
+      
+      message.success(response.data.message || '用户已删除');
       fetchUsers();
-    } catch (error) {
-      message.error('删除用户失败');
+    } catch (error: any) {
+      console.error('删除用户失败:', error);
+      let errorMessage = '删除用户失败';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      message.error(errorMessage);
     }
   };
 

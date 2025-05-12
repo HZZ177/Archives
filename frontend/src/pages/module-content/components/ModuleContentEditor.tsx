@@ -6,7 +6,8 @@ import {
   Spin 
 } from 'antd';
 import { 
-  SaveOutlined
+  SaveOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import { 
   ModuleContent, 
@@ -33,6 +34,7 @@ const ModuleContentEditor: React.FC<ModuleContentEditorProps> = ({ moduleNodeId 
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [content, setContent] = useState<ModuleContent | null>(null);
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
   
   // 本地状态，用于收集各部分的内容
   const [overviewText, setOverviewText] = useState<string>('');
@@ -87,6 +89,7 @@ const ModuleContentEditor: React.FC<ModuleContentEditorProps> = ({ moduleNodeId 
       await saveModuleContent(moduleNodeId, contentData);
       message.success('保存成功');
       setSaving(false);
+      setIsEditMode(false); // 保存成功后切换回阅读模式
     } catch (error) {
       console.error('保存失败:', error);
       message.error('保存失败');
@@ -107,11 +110,11 @@ const ModuleContentEditor: React.FC<ModuleContentEditorProps> = ({ moduleNodeId 
       <div style={{ textAlign: 'right', marginBottom: 16 }}>
         <Button 
           type="primary" 
-          icon={<SaveOutlined />} 
-          onClick={handleSave}
+          icon={isEditMode ? <SaveOutlined /> : <EditOutlined />} 
+          onClick={isEditMode ? handleSave : () => setIsEditMode(true)}
           loading={saving}
         >
-          保存
+          {isEditMode ? '保存' : '编辑'}
         </Button>
       </div>
       
@@ -120,61 +123,138 @@ const ModuleContentEditor: React.FC<ModuleContentEditorProps> = ({ moduleNodeId 
           header="模块功能概述" 
           key="1"
         >
-          <OverviewSection 
-            value={overviewText} 
-            onChange={setOverviewText} 
-          />
+          {isEditMode ? (
+            <OverviewSection 
+              value={overviewText} 
+              onChange={setOverviewText} 
+            />
+          ) : (
+            <div className="readonly-content" style={{ padding: '8px', whiteSpace: 'pre-wrap' }}>
+              {overviewText || '暂无内容'}
+            </div>
+          )}
         </Panel>
         
         <Panel 
           header="逻辑图/数据流向图" 
           key="2"
         >
-          <DiagramSection 
-            moduleNodeId={moduleNodeId}
-            imagePath={diagramPath}
-            onImagePathChange={setDiagramPath}
-          />
+          {isEditMode ? (
+            <DiagramSection 
+              moduleNodeId={moduleNodeId}
+              imagePath={diagramPath}
+              onImagePathChange={setDiagramPath}
+            />
+          ) : (
+            <div className="readonly-content" style={{ textAlign: 'center', padding: '16px' }}>
+              {diagramPath ? (
+                <img 
+                  src={diagramPath} 
+                  alt="模块逻辑图" 
+                  style={{ maxWidth: '100%' }} 
+                />
+              ) : (
+                <div>暂无图片</div>
+              )}
+            </div>
+          )}
         </Panel>
         
         <Panel 
           header="功能详解" 
           key="3"
         >
-          <KeyTechSection 
-            items={keyTechItems} 
-            onChange={setKeyTechItems} 
-          />
+          {isEditMode ? (
+            <KeyTechSection 
+              items={keyTechItems} 
+              onChange={setKeyTechItems} 
+            />
+          ) : (
+            <div className="readonly-content">
+              {keyTechItems.length > 0 ? (
+                keyTechItems.map((item, index) => (
+                  <div key={index} style={{ marginBottom: '16px' }}>
+                    <h4>{item.key}</h4>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{item.value}</div>
+                  </div>
+                ))
+              ) : (
+                <div>暂无内容</div>
+              )}
+            </div>
+          )}
         </Panel>
         
         <Panel 
           header="数据库表" 
           key="4"
         >
-          <DatabaseTablesSection 
-            tables={databaseTables} 
-            onChange={setDatabaseTables} 
-          />
+          {isEditMode ? (
+            <DatabaseTablesSection 
+              tables={databaseTables} 
+              onChange={setDatabaseTables} 
+            />
+          ) : (
+            <div className="readonly-content">
+              {databaseTables.length > 0 ? (
+                databaseTables.map((table, index) => (
+                  <div key={index} style={{ marginBottom: '16px' }}>
+                    <h4>{table.table_name}</h4>
+                    <div>{table.columns.length > 0 ? `${table.columns.length}个字段` : '无字段'}</div>
+                  </div>
+                ))
+              ) : (
+                <div>暂无内容</div>
+              )}
+            </div>
+          )}
         </Panel>
         
         <Panel 
           header="关联模块" 
           key="5"
         >
-          <RelatedModulesSection 
-            selectedModuleIds={relatedModuleIds} 
-            onChange={setRelatedModuleIds} 
-          />
+          {isEditMode ? (
+            <RelatedModulesSection 
+              selectedModuleIds={relatedModuleIds} 
+              onChange={setRelatedModuleIds} 
+            />
+          ) : (
+            <div className="readonly-content">
+              {relatedModuleIds.length > 0 ? (
+                <div>已关联 {relatedModuleIds.length} 个模块</div>
+              ) : (
+                <div>暂无关联模块</div>
+              )}
+            </div>
+          )}
         </Panel>
         
         <Panel 
           header="涉及接口" 
           key="6"
         >
-          <InterfaceSection 
-            interfaces={apiInterfaces} 
-            onChange={setApiInterfaces} 
-          />
+          {isEditMode ? (
+            <InterfaceSection 
+              interfaces={apiInterfaces} 
+              onChange={setApiInterfaces} 
+            />
+          ) : (
+            <div className="readonly-content">
+              {apiInterfaces.length > 0 ? (
+                apiInterfaces.map((api, index) => (
+                  <div key={index} style={{ marginBottom: '16px' }}>
+                    <h4>{api.name}</h4>
+                    <div><strong>类型:</strong> {api.type}</div>
+                    <div><strong>必需:</strong> {api.required ? '是' : '否'}</div>
+                    <div><strong>描述:</strong> {api.description}</div>
+                  </div>
+                ))
+              ) : (
+                <div>暂无内容</div>
+              )}
+            </div>
+          )}
         </Panel>
       </Collapse>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Form, Input, message, Radio } from 'antd';
 import { ModuleStructureNode, ModuleStructureNodeRequest } from '../../../types/modules';
 import { createModuleNode, updateModuleNode } from '../../../apis/moduleService';
@@ -23,21 +23,19 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
   // 确保form实例在组件渲染时已创建
   const [form] = Form.useForm();
   const [loading, setLoading] = useState<boolean>(false);
+  // 创建输入框ref，用于手动聚焦
+  const inputRef = useRef<any>(null);
 
   // 当模态框打开时，初始化表单
   useEffect(() => {
     if (visible) {
-      console.log('模态框打开，type:', type, 'node:', node);
-      
       if (type === 'edit' && node) {
-        console.log('编辑模式，设置表单值');
         // 在编辑模式下，设置表单值
         form.setFieldsValue({
           name: node.name,
           module_type: node.is_content_page ? 'content_page' : 'structure_node',
         });
       } else if (type === 'add') {
-        console.log('添加模式，设置默认值');
         // 在添加模式下，重置表单并强制设置默认值
         form.setFieldsValue({
           name: '',
@@ -47,26 +45,21 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
     }
   }, [visible, type, node, form]);
 
-  // 添加一个useEffect用于监控表单值变化
+  // 用于在模态框打开后聚焦到输入框
   useEffect(() => {
     if (visible) {
-      // 定义一个函数来打印表单当前值
-      const logFormValues = () => {
-        const currentValues = form.getFieldsValue();
-        console.log('当前表单值:', currentValues);
-      };
-      
-      // 立即打印一次
-      logFormValues();
-      
-      // 设置一个定时器定期检查表单值，用于调试
-      const interval = setInterval(logFormValues, 1000);
+      // 使用setTimeout确保在Modal完全显示后再聚焦
+      const focusTimer = setTimeout(() => {
+        if (inputRef.current && inputRef.current.focus) {
+          inputRef.current.focus();
+        }
+      }, 100); // 延迟100ms，确保模态框已完全显示
       
       return () => {
-        clearInterval(interval);
+        clearTimeout(focusTimer);
       };
     }
-  }, [visible, form]);
+  }, [visible]);
 
   // 处理表单提交
   const handleSubmit = async () => {
@@ -99,9 +92,23 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
       setLoading(false);
       // 调用完成回调，触发刷新
       onComplete();
-    } catch (error) {
+    } catch (error: any) {
       console.error(type === 'add' ? '创建失败:' : '更新失败:', error);
-      message.error(type === 'add' ? '创建失败' : '更新失败');
+      
+      // 提取错误信息
+      let errorMessage = type === 'add' ? '创建失败' : '更新失败';
+      
+      // 检查错误响应中的message字段
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // 显示具体错误消息
+      message.error(errorMessage);
       setLoading(false);
     }
   };
@@ -109,11 +116,9 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
   // 处理关闭模态框
   const handleCancel = () => {
     // 关闭模态框时重置表单，避免表单状态残留
-    console.log('取消操作，重置表单');
     form.resetFields();
     // 重置后确保默认选择节点类型
     if (type === 'add') {
-      console.log('是添加模式，重新设置默认值');
       form.setFieldsValue({
         module_type: 'structure_node',
       });
@@ -149,7 +154,11 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
           label="模块名称"
           rules={[{ required: true, message: '请输入模块名称' }]}
         >
-          <Input placeholder="请输入模块名称" />
+          <Input 
+            placeholder="请输入模块名称" 
+            autoFocus 
+            ref={inputRef} 
+          />
         </Form.Item>
         
         <Form.Item
@@ -163,13 +172,30 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
           </Radio.Group>
         </Form.Item>
         
-        {form.getFieldValue('module_type') === 'content_page' && (
-          <div style={{ backgroundColor: '#f5f5f5', padding: '8px 12px', borderRadius: '4px', marginBottom: '12px' }}>
-            <p style={{ margin: 0, color: '#555' }}>
-              内容页面将显示模块功能概述、逻辑图、功能详解、数据库表、关联模块、涉及接口六部分编辑内容。
-            </p>
-          </div>
-        )}
+        {/* 使用Form.Item的noStyle和dependencies属性监听module_type字段变化 */}
+        <Form.Item noStyle dependencies={['module_type']}>
+          {({ getFieldValue }) => {
+            const moduleType = getFieldValue('module_type');
+            return (
+              <>
+                {moduleType === 'structure_node' && (
+                  <div style={{ backgroundColor: '#f5f5f5', padding: '8px 12px', borderRadius: '4px', marginBottom: '12px' }}>
+                    <p style={{ margin: 0, color: '#555' }}>
+                      目录节点可用于组织系统模块结构，支持添加子模块和子页面，但不直接包含内容。
+                    </p>
+                  </div>
+                )}
+                {moduleType === 'content_page' && (
+                  <div style={{ backgroundColor: '#f5f5f5', padding: '8px 12px', borderRadius: '4px', marginBottom: '12px' }}>
+                    <p style={{ margin: 0, color: '#555' }}>
+                      内容页面将显示模块功能概述、逻辑图、功能详解、数据库表、关联模块、涉及接口六部分编辑内容。
+                    </p>
+                  </div>
+                )}
+              </>
+            );
+          }}
+        </Form.Item>
       </Form>
     </Modal>
   );

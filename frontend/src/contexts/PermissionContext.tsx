@@ -62,7 +62,16 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
         }
       });
       
-      const permissions = response.data;
+      // 确保权限是数组类型
+      let permissions = [];
+      if (response.data && response.data.data) {
+        // 处理统一响应格式
+        permissions = Array.isArray(response.data.data) ? response.data.data : [];
+      } else if (Array.isArray(response.data)) {
+        // 处理直接返回数组的情况
+        permissions = response.data;
+      }
+      
       console.log('PermissionContext: 获取到权限列表', permissions);
       
       setUserPermissions(permissions);
@@ -80,6 +89,12 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     // 路径为空或不是以/开头，视为无效路径
     if (!path || !path.startsWith('/')) {
       console.log(`PermissionContext: 无效路径 "${path}"`);
+      return false;
+    }
+    
+    // 确保userPermissions是数组
+    if (!Array.isArray(userPermissions)) {
+      console.warn('PermissionContext: userPermissions不是数组', userPermissions);
       return false;
     }
     

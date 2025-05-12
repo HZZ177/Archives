@@ -4,15 +4,17 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_current_active_user, get_current_admin_user, get_db
+from backend.app.api.deps import get_current_active_user, get_current_admin_user, get_db, success_response, error_response
+from backend.app.core.logger import logger
 from backend.app.models.document import Template
 from backend.app.models.user import User
 from backend.app.schemas.template import TemplateCreate, TemplateResponse, TemplateUpdate
+from backend.app.schemas.response import APIResponse
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[TemplateResponse])
+@router.get("/", response_model=APIResponse[List[TemplateResponse]])
 async def read_templates(
         db: Annotated[AsyncSession, Depends(get_db)],
         current_user: Annotated[User, Depends(get_current_active_user)],
@@ -22,12 +24,16 @@ async def read_templates(
     """
     获取所有模板列表
     """
-    result = await db.execute(select(Template).offset(skip).limit(limit))
-    templates = result.scalars().all()
-    return templates
+    try:
+        result = await db.execute(select(Template).offset(skip).limit(limit))
+        templates = result.scalars().all()
+        return success_response(data=templates)
+    except Exception as e:
+        logger.error(f"获取模板列表失败: {str(e)}")
+        return error_response(message=f"获取模板列表失败: {str(e)}")
 
 
-@router.post("/", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=APIResponse[TemplateResponse], status_code=status.HTTP_201_CREATED)
 async def create_template(
         template_in: TemplateCreate,
         db: Annotated[AsyncSession, Depends(get_db)],
@@ -36,21 +42,25 @@ async def create_template(
     """
     创建新模板
     """
-    # 创建新模板
-    db_template = Template(
-        name=template_in.name,
-        description=template_in.description,
-        structure=template_in.structure
-    )
+    try:
+        # 创建新模板
+        db_template = Template(
+            name=template_in.name,
+            description=template_in.description,
+            structure=template_in.structure
+        )
 
-    db.add(db_template)
-    await db.commit()
-    await db.refresh(db_template)
+        db.add(db_template)
+        await db.commit()
+        await db.refresh(db_template)
 
-    return db_template
+        return success_response(data=db_template, message="模板创建成功")
+    except Exception as e:
+        logger.error(f"创建模板失败: {str(e)}")
+        return error_response(message=f"创建模板失败: {str(e)}")
 
 
-@router.get("/{template_id}", response_model=TemplateResponse)
+@router.get("/{template_id}", response_model=APIResponse[TemplateResponse])
 async def read_template(
         template_id: int,
         db: Annotated[AsyncSession, Depends(get_db)],
@@ -59,18 +69,19 @@ async def read_template(
     """
     获取特定模板
     """
-    template = await db.get(Template, template_id)
+    try:
+        template = await db.get(Template, template_id)
 
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模板不存在"
-        )
+        if not template:
+            return error_response(message="模板不存在")
 
-    return template
+        return success_response(data=template)
+    except Exception as e:
+        logger.error(f"获取模板详情失败: {str(e)}")
+        return error_response(message=f"获取模板详情失败: {str(e)}")
 
 
-@router.put("/{template_id}", response_model=TemplateResponse)
+@router.put("/{template_id}", response_model=APIResponse[TemplateResponse])
 async def update_template(
         template_id: int,
         template_in: TemplateUpdate,
@@ -80,26 +91,27 @@ async def update_template(
     """
     更新模板
     """
-    template = await db.get(Template, template_id)
+    try:
+        template = await db.get(Template, template_id)
 
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模板不存在"
-        )
+        if not template:
+            return error_response(message="模板不存在")
 
-    # 更新模板数据
-    update_data = template_in.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(template, key, value)
+        # 更新模板数据
+        update_data = template_in.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(template, key, value)
 
-    await db.commit()
-    await db.refresh(template)
+        await db.commit()
+        await db.refresh(template)
 
-    return template
+        return success_response(data=template, message="模板更新成功")
+    except Exception as e:
+        logger.error(f"更新模板失败: {str(e)}")
+        return error_response(message=f"更新模板失败: {str(e)}")
 
 
-@router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{template_id}", response_model=APIResponse)
 async def delete_template(
         template_id: int,
         db: Annotated[AsyncSession, Depends(get_db)],
@@ -108,15 +120,16 @@ async def delete_template(
     """
     删除模板
     """
-    template = await db.get(Template, template_id)
+    try:
+        template = await db.get(Template, template_id)
 
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模板不存在"
-        )
+        if not template:
+            return error_response(message="模板不存在")
 
-    await db.delete(template)
-    await db.commit()
+        await db.delete(template)
+        await db.commit()
 
-    return None
+        return success_response(message="模板删除成功")
+    except Exception as e:
+        logger.error(f"删除模板失败: {str(e)}")
+        return error_response(message=f"删除模板失败: {str(e)}")

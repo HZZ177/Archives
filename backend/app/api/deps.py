@@ -1,4 +1,4 @@
-from typing import Generator, Optional, Annotated, List
+from typing import Generator, Optional, Annotated, List, TypeVar, Any
 from functools import wraps
 
 from jose import jwt, JWTError
@@ -16,6 +16,8 @@ from backend.app.core.security import ALGORITHM, has_permission
 from backend.app.models.user import User, Role
 from backend.app.models.permission import Permission
 from backend.app.schemas.token import TokenPayload
+from backend.app.schemas.response import APIResponse
+from backend.app.core.logger import logger
 
 # OAuth2 认证相关
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
@@ -39,26 +41,31 @@ async def get_current_user(
     """
     获取当前用户
     """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="无法验证凭据",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[ALGORITHM]
         )
         user_id: str = payload.get("sub")
         if user_id is None:
-            raise credentials_exception
+            raise JWTError("无效的token")
         token_data = TokenPayload(user_id=user_id)
     except JWTError:
-        raise credentials_exception
+        logger.error("Token验证失败")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无法验证凭据",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     # 根据ID获取用户
     user = await db.get(User, token_data.user_id)
     if user is None:
-        raise credentials_exception
+        logger.error(f"用户不存在: {token_data.user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户不存在",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 
@@ -69,7 +76,11 @@ async def get_current_active_user(
     获取当前活动用户
     """
     if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="用户未激活")
+        logger.error(f"用户未激活: {current_user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="用户未激活"
+        )
     return current_user
 
 
@@ -80,6 +91,7 @@ async def get_current_admin_user(
     获取当前管理员用户
     """
     if not current_user.is_superuser:
+        logger.error(f"权限不足: {current_user.id}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="权限不足"
@@ -106,7 +118,8 @@ async def get_user_permissions(
     stmt = select(Role).join(
         Role.users
     ).filter(
-        User.id == user.id
+        User.id == user.id,
+        Role.status == True  # 只获取启用状态的角色
     ).options(
         joinedload(Role.permissions)
     )
@@ -116,6 +129,8 @@ async def get_user_permissions(
     
     permissions = []
     for role in roles:
+        # 记录日志，便于调试
+        logger.debug(f"用户 {user.id} 拥有角色 {role.id}:{role.name} (状态: {role.status})")
         for perm in role.permissions:
             if perm.code and perm.code not in permissions:
                 permissions.append(perm.code)
@@ -138,6 +153,7 @@ def require_permissions(required_permissions: List[str]):
                     user = value
                     break
             else:
+                logger.error("无法获取当前用户")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="无法获取当前用户"
@@ -149,6 +165,7 @@ def require_permissions(required_permissions: List[str]):
                     db = value
                     break
             else:
+                logger.error("无法获取数据库会话")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="无法获取数据库会话"
@@ -162,6 +179,7 @@ def require_permissions(required_permissions: List[str]):
             user_permissions = await get_user_permissions(db, user)
             for permission in required_permissions:
                 if not has_permission(user_permissions, permission):
+                    logger.error(f"权限不足: {user.id} 缺少 {permission} 权限")
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail=f"权限不足：缺少 {permission} 权限"
@@ -189,8 +207,31 @@ async def check_permissions(db: AsyncSession, user: User, required_permissions: 
     user_permissions = await get_user_permissions(db, user)
     for permission in required_permissions:
         if not has_permission(user_permissions, permission):
+            logger.error(f"权限不足: {user.id} 缺少 {permission} 权限")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"权限不足：缺少 {permission} 权限"
             )
     return True
+
+
+def success_response(data: Any = None, message: str = "操作成功") -> APIResponse:
+    """
+    成功响应
+    """
+    return APIResponse(
+        success=True,
+        message=message,
+        data=data
+    )
+
+
+def error_response(message: str, error_code: str = None) -> APIResponse:
+    """
+    错误响应
+    """
+    return APIResponse(
+        success=False,
+        message=message,
+        error_code=error_code
+    )

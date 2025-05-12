@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Layout, Menu, theme, Button, Dropdown, Avatar, Breadcrumb } from 'antd';
+import { Layout, Menu, theme, Button, Dropdown, Avatar, Breadcrumb, Tooltip } from 'antd';
 import type { ItemType } from 'antd/es/menu/interface';
 import {
   UserOutlined,
@@ -389,47 +389,125 @@ const MainLayout: React.FC = () => {
     }
   };
 
+  // 查找从根节点到目标节点的完整路径
+  const findModulePath = (modules: ModuleStructureNode[], targetId: number): ModuleStructureNode[] => {
+    const findPath = (nodes: ModuleStructureNode[], id: number, path: ModuleStructureNode[] = []): ModuleStructureNode[] | null => {
+      for (const node of nodes) {
+        // 尝试当前节点路径
+        const currentPath = [...path, node];
+        
+        // 如果找到目标节点，返回路径
+        if (node.id === id) {
+          return currentPath;
+        }
+        
+        // 如果有子节点，递归搜索
+        if (node.children && node.children.length > 0) {
+          const foundPath = findPath(node.children, id, currentPath);
+          if (foundPath) {
+            return foundPath;
+          }
+        }
+      }
+      
+      // 没找到返回null
+      return null;
+    };
+    
+    const result = findPath(modules, targetId);
+    return result || [];
+  };
+
   // 根据路径生成面包屑
   const generateBreadcrumb = useCallback(() => {
     const pathSnippets = location.pathname.split('/').filter(i => i);
-    const breadcrumbItems = [
-      {
-        title: <Link to="/">首页</Link>,
-      },
-    ];
+    const breadcrumbItems: any[] = [];
 
-    // 根据路径生成面包屑项
-    let breadcrumbName = '';
-    
-    if (pathSnippets.includes('users')) {
-      breadcrumbName = '用户管理';
-    } else if (pathSnippets.includes('roles')) {
-      breadcrumbName = '角色管理';
-    } else if (pathSnippets.includes('structure-management')) {
-      breadcrumbName = '结构管理';
+    // 系统管理页面的面包屑 - 添加首页作为起点
+    if (pathSnippets.includes('users') || pathSnippets.includes('roles') || pathSnippets.includes('structure-management')) {
+      // 系统页面添加首页作为起点
+      breadcrumbItems.push({
+        title: <Link to="/">首页</Link>,
+      });
+      
+      if (pathSnippets.includes('users')) {
+        breadcrumbItems.push({
+          title: <span>系统管理</span>,
+        });
+        breadcrumbItems.push({
+          title: <span>用户管理</span>,
+        });
+      } else if (pathSnippets.includes('roles')) {
+        breadcrumbItems.push({
+          title: <span>系统管理</span>,
+        });
+        breadcrumbItems.push({
+          title: <span>角色管理</span>,
+        });
+      } else if (pathSnippets.includes('structure-management')) {
+        breadcrumbItems.push({
+          title: <span>结构管理</span>,
+        });
+      }
     } else if (pathSnippets.includes('module-content')) {
-      // 为模块内容页面查找对应的模块名称
+      // 为模块内容页面查找对应的模块路径
       const moduleId = parseInt(pathSnippets[pathSnippets.length - 1]);
-      const findModuleName = (modules: ModuleStructureNode[]): string | null => {
-        for (const module of modules) {
-          if (module.id === moduleId) {
-            return module.name;
-          }
-          if (module.children) {
-            const name = findModuleName(module.children);
-            if (name) return name;
+      
+      // 使用新函数查找完整路径
+      const modulePath = findModulePath(userModules, moduleId);
+      
+      // 如果找到路径，构建面包屑
+      if (modulePath.length > 0) {
+        // 遍历路径中所有节点
+        for (let i = 0; i < modulePath.length; i++) {
+          const node = modulePath[i];
+          const isLastNode = i === modulePath.length - 1;
+          
+          // 根据节点类型和是否为最后一个节点决定显示方式：
+          // 1. 最后一个节点总是纯文本
+          // 2. 中间节点只有在是内容页面(is_content_page=true)时才有链接
+          if (isLastNode) {
+            breadcrumbItems.push({
+              title: <span>{node.name}</span>,
+            });
+          } else if (node.is_content_page) {
+            // 内容页面节点可以链接
+            breadcrumbItems.push({
+              title: <Link to={`/module-content/${node.id}`}>{node.name}</Link>,
+            });
+          } else {
+            // 普通节点不可链接，仅显示文本
+            breadcrumbItems.push({
+              title: <span>{node.name}</span>,
+            });
           }
         }
-        return null;
-      };
-      
-      breadcrumbName = findModuleName(userModules) || '模块内容';
-    }
-
-    if (breadcrumbName) {
-      breadcrumbItems.push({
-        title: <span>{breadcrumbName}</span>,
-      });
+      } else {
+        // 如果没找到路径，回退到只显示当前节点名称
+        const findModuleName = (modules: ModuleStructureNode[]): string | null => {
+          for (const module of modules) {
+            if (module.id === moduleId) {
+              return module.name;
+            }
+            if (module.children) {
+              const name = findModuleName(module.children);
+              if (name) return name;
+            }
+          }
+          return null;
+        };
+        
+        const moduleName = findModuleName(userModules);
+        if (moduleName) {
+          breadcrumbItems.push({
+            title: <span>{moduleName}</span>,
+          });
+        } else {
+          breadcrumbItems.push({
+            title: <span>模块内容</span>,
+          });
+        }
+      }
     }
 
     return breadcrumbItems;

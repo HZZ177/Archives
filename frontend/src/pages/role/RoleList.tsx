@@ -83,6 +83,7 @@ const RoleList: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [currentRole, setCurrentRole] = useState<Role | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [formResetKey, setFormResetKey] = useState<number>(Date.now());
 
   // 获取角色列表
   const loadRoles = async () => {
@@ -141,14 +142,14 @@ const RoleList: React.FC = () => {
   // 处理删除角色
   const handleDelete = async (roleId: number) => {
     try {
-      const result = await deleteRole(roleId);
+      const response = await deleteRole(roleId);
       
-      if (result.success) {
-        message.success(result.message || '角色删除成功');
+      if (response.success) {
+        message.success(response.message || '角色删除成功');
         loadRoles();
       } else {
         // 显示业务逻辑错误（例如，角色正在被使用）
-        message.warning(result.message);
+        message.warning(response.message || '删除角色失败');
       }
     } catch (error: any) {
       console.error('删除角色失败:', error);
@@ -207,6 +208,7 @@ const RoleList: React.FC = () => {
   const handleModalClose = () => {
     setModalVisible(false);
     setCurrentRole(null); // 确保关闭Modal时清除当前角色数据
+    setFormResetKey(Date.now()); // 重置表单键
   };
 
   // 处理角色状态切换
@@ -329,6 +331,7 @@ const RoleList: React.FC = () => {
           icon={<PlusOutlined />}
           onClick={() => {
             setCurrentRole(null);
+            setFormResetKey(Date.now());
             setModalVisible(true);
           }}
         >
@@ -356,6 +359,7 @@ const RoleList: React.FC = () => {
           onSubmit={handleSubmit}
           onCancel={handleModalClose}
           submitting={submitting}
+          resetKey={formResetKey}
         />
       </Modal>
     </Card>

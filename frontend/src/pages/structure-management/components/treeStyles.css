@@ -151,11 +151,18 @@
   z-index: 10; /* 提高层级，确保按钮始终在最上层 */
   height: 28px; /* 设置固定高度，与节点高度接近 */
   align-items: center;
+  justify-content: flex-end; /* 添加此属性，确保按钮靠右对齐 */
   will-change: transform; /* 优化动画性能 */
   transition: none; /* 禁用过渡效果，避免按钮跟随树节点动画 */
   pointer-events: auto; /* 确保可点击 */
   max-width: 70px; /* 限制最大宽度 */
-  min-width: 60px; /* 设置最小宽度 */
+  width: auto; /* 使用自动宽度替代固定最小宽度 */
+}
+
+/* 内容页面节点的操作按钮区样式 */
+.content-node-actions {
+  max-width: 35px; /* 只有一个按钮时的合适宽度 */
+  width: 35px; /* 固定宽度 */
 }
 
 /* 确保按钮区域在树节点变化过程中保持稳定 */

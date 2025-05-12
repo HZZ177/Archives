@@ -45,7 +45,9 @@ const ModuleContentPage: React.FC = () => {
       <Card bordered={false}>
         {moduleNode && (
           <>
-            <Title level={4}>{moduleNode.name}</Title>
+            <Title level={4} style={{ textAlign: 'center', marginBottom: '20px', paddingBottom: '15px', borderBottom: '1px solid #f0f0f0' }}>
+              {moduleNode.name}
+            </Title>
             <ModuleContentEditor moduleNodeId={parseInt(moduleId || '0')} />
           </>
         )}

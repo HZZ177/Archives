@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { message } from 'antd';
 import { API_BASE_URL, STORAGE_TOKEN_KEY, STORAGE_USER_KEY, ROUTES } from '../config/constants';
+import { APIResponse } from '../types/api';
 
 // 创建 axios 实例
 const request = axios.create({
@@ -42,6 +43,26 @@ request.interceptors.response.use(
   response => {
     console.log(`响应: ${response.config.method?.toUpperCase()} ${response.config.url} - 状态码: ${response.status}`);
     console.log('响应头:', response.headers);
+    
+    // 处理统一响应格式
+    if (response.data && typeof response.data === 'object') {
+      const apiResponse = response.data as APIResponse<any>;
+      
+      // 检查是否是统一的响应格式
+      if ('success' in apiResponse && 'message' in apiResponse) {
+        if (!apiResponse.success) {
+          // 业务逻辑失败，创建一个错误对象
+          const error = new Error(apiResponse.message || '请求失败');
+          // @ts-ignore
+          error.response = {
+            ...response,
+            data: apiResponse,
+          };
+          return Promise.reject(error);
+        }
+      }
+    }
+    
     return response;
   },
   error => {
@@ -56,10 +77,12 @@ request.interceptors.response.use(
       if (error.response.data) {
         if (typeof error.response.data === 'string') {
           errorMessage = error.response.data;
-        } else if (error.response.data.detail) {
-          errorMessage = error.response.data.detail;
         } else if (error.response.data.message) {
+          // 优先使用新的统一格式的 message 字段
           errorMessage = error.response.data.message;
+        } else if (error.response.data.detail) {
+          // 兼容旧格式的 detail 字段
+          errorMessage = error.response.data.detail;
         }
       }
       
@@ -89,5 +112,20 @@ request.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+/**
+ * 解包API响应数据
+ * 从统一响应格式中提取数据字段
+ * @param response Axios响应对象
+ * @returns 解包后的数据
+ */
+export const unwrapResponse = <T>(response: any): T => {
+  // 检查响应是否符合统一响应格式
+  if (response && typeof response === 'object' && 'data' in response && 'success' in response) {
+    return response.data;
+  }
+  // 如果不是统一格式，直接返回
+  return response;
+};
 
 export default request; 

@@ -1,4 +1,4 @@
-import request from '../utils/request';
+import request, { unwrapResponse } from '../utils/request';
 import { 
   ModuleStructureNode, 
   ModuleContent, 
@@ -6,6 +6,7 @@ import {
   ModuleContentRequest,
   ModuleTreeResponse
 } from '../types/modules';
+import { APIResponse } from '../types/api';
 
 const API_MODULE_STRUCTURES = '/module-structures';
 const API_MODULE_CONTENTS = '/module-contents';
@@ -74,16 +75,45 @@ export const fetchModuleTree = async (parentId?: number, forceRefresh = false): 
   const fetchPromise = async (): Promise<ModuleTreeResponse> => {
     try {
       const params = parentId ? { parent_id: parentId } : {};
-      const response = await request.get(API_MODULE_STRUCTURES, { params });
+      const response = await request.get<APIResponse<any>>(API_MODULE_STRUCTURES, { params });
+      const unwrappedData = unwrapResponse<any>(response.data);
+      
+      // 适配不同的响应格式
+      let nodeItems: ModuleStructureNode[] = [];
+      
+      console.log('模块树响应数据:', unwrappedData);
+      
+      // 判断响应数据的格式并提取节点列表
+      if (unwrappedData) {
+        if (Array.isArray(unwrappedData)) {
+          // 数据直接是节点数组
+          nodeItems = unwrappedData;
+        } else if (unwrappedData.items && Array.isArray(unwrappedData.items)) {
+          // 数据包含items字段
+          nodeItems = unwrappedData.items;
+        } else if (unwrappedData.nodes && Array.isArray(unwrappedData.nodes)) {
+          // 数据包含nodes字段
+          nodeItems = unwrappedData.nodes;
+        } else {
+          console.warn('响应数据格式不符合预期:', unwrappedData);
+          nodeItems = [];
+        }
+      }
+      
+      // 创建符合前端期望的响应结构
+      const formattedData: ModuleTreeResponse = {
+        items: nodeItems
+      };
       
       // 更新缓存
-      moduleTreeCache.data = response.data;
+      moduleTreeCache.data = formattedData;
       moduleTreeCache.timestamp = Date.now();
       moduleTreeCache.loading = false;
       moduleTreeCache.pendingPromise = null;
       
       console.log(`模块树数据已更新到缓存，时间：${new Date(moduleTreeCache.timestamp).toLocaleTimeString()}`);
-      return response.data;
+      console.log('处理后的模块树数据:', formattedData);
+      return moduleTreeCache.data;
     } catch (error) {
       // 请求失败，重置加载状态
       moduleTreeCache.loading = false;
@@ -98,26 +128,26 @@ export const fetchModuleTree = async (parentId?: number, forceRefresh = false): 
 };
 
 export const fetchModuleNode = async (nodeId: number): Promise<ModuleStructureNode> => {
-  const response = await request.get(`${API_MODULE_STRUCTURES}/${nodeId}`);
-  return response.data;
+  const response = await request.get<APIResponse<ModuleStructureNode>>(`${API_MODULE_STRUCTURES}/${nodeId}`);
+  return unwrapResponse<ModuleStructureNode>(response.data);
 };
 
 export const createModuleNode = async (data: ModuleStructureNodeRequest): Promise<ModuleStructureNode> => {
-  const response = await request.post(API_MODULE_STRUCTURES, data);
+  const response = await request.post<APIResponse<ModuleStructureNode>>(API_MODULE_STRUCTURES, data);
   // 新建节点后清除缓存
   invalidateModuleTreeCache();
-  return response.data;
+  return unwrapResponse<ModuleStructureNode>(response.data);
 };
 
 export const updateModuleNode = async (nodeId: number, data: ModuleStructureNodeRequest): Promise<ModuleStructureNode> => {
-  const response = await request.post(`${API_MODULE_STRUCTURES}/update/${nodeId}`, data);
+  const response = await request.post<APIResponse<ModuleStructureNode>>(`${API_MODULE_STRUCTURES}/update/${nodeId}`, data);
   // 更新节点后清除缓存
   invalidateModuleTreeCache();
-  return response.data;
+  return unwrapResponse<ModuleStructureNode>(response.data);
 };
 
 export const deleteModuleNode = async (nodeId: number): Promise<void> => {
-  await request.post(`${API_MODULE_STRUCTURES}/delete/${nodeId}`);
+  await request.post<APIResponse<void>>(`${API_MODULE_STRUCTURES}/delete/${nodeId}`);
   // 删除节点后清除缓存
   invalidateModuleTreeCache();
 };
@@ -125,8 +155,8 @@ export const deleteModuleNode = async (nodeId: number): Promise<void> => {
 // 模块内容API
 export const fetchModuleContent = async (moduleNodeId: number): Promise<ModuleContent> => {
   try {
-    const response = await request.get(`${API_MODULE_CONTENTS}/by-node/${moduleNodeId}`);
-    return response.data;
+    const response = await request.get<APIResponse<ModuleContent>>(`${API_MODULE_CONTENTS}/by-node/${moduleNodeId}`);
+    return unwrapResponse<ModuleContent>(response.data);
   } catch (error: any) {
     // 如果内容不存在，返回空对象，允许用户创建新内容
     if (error.response && error.response.status === 404) {
@@ -151,8 +181,8 @@ export const fetchModuleContent = async (moduleNodeId: number): Promise<ModuleCo
 
 export const saveModuleContent = async (moduleNodeId: number, data: ModuleContentRequest): Promise<ModuleContent> => {
   // 后端的接口已经实现了upsert逻辑，可以直接使用
-  const response = await request.post(`${API_MODULE_CONTENTS}/update/by-node/${moduleNodeId}`, data);
-  return response.data;
+  const response = await request.post<APIResponse<ModuleContent>>(`${API_MODULE_CONTENTS}/update/by-node/${moduleNodeId}`, data);
+  return unwrapResponse<ModuleContent>(response.data);
 };
 
 /**
@@ -165,8 +195,8 @@ export const uploadDiagramImage = async (moduleNodeId: number, file: File): Prom
   const formData = new FormData();
   formData.append('file', file);
   
-  const response = await request.post(
-    `${API_MODULE_CONTENTS}/by-node/${moduleNodeId}/upload-diagram`, 
+  const response = await request.post<APIResponse<ModuleContent>>(
+    `${API_MODULE_CONTENTS}/upload-diagram/${moduleNodeId}`, 
     formData,
     {
       headers: {
@@ -175,5 +205,6 @@ export const uploadDiagramImage = async (moduleNodeId: number, file: File): Prom
     }
   );
   
-  return response.data;
+  const content = unwrapResponse<ModuleContent>(response.data);
+  return { diagram_image_path: content.diagram_image_path || '' };
 }; 

@@ -6,9 +6,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_current_active_user, get_db
+from backend.app.api.deps import get_current_active_user, get_db, success_response, error_response
 from backend.app.core.config import settings
 from backend.app.core.security import create_access_token, verify_password
+from backend.app.core.logger import logger
 from backend.app.models.user import User
 from backend.app.schemas.token import Token
 from backend.app.schemas.user import UserResponse
@@ -31,55 +32,66 @@ async def login_access_token(
         - 成功: {"success": true, "message": "登录成功", "data": {"access_token": "...", "token_type": "bearer"}}
         - 失败: {"success": false, "message": "错误信息", "error_code": "AUTH_ERROR"}
     """
-    # 查询用户（支持用户名或手机号）
-    result = await db.execute(
-        select(User).where(
-            or_(
-                User.username == form_data.username,
-                User.mobile == form_data.username
+    try:
+        # 查询用户（支持用户名或手机号）
+        result = await db.execute(
+            select(User).where(
+                or_(
+                    User.username == form_data.username,
+                    User.mobile == form_data.username
+                )
             )
         )
-    )
-    user = result.scalar_one_or_none()
+        user = result.scalar_one_or_none()
 
-    # 验证用户和密码
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        return APIResponse(
-            success=False,
-            message="用户名/手机号或密码错误",
-            error_code="AUTH_FAILED"
+        # 验证用户和密码
+        if not user or not verify_password(form_data.password, user.hashed_password):
+            logger.warning(f"登录失败: 用户名/手机号或密码错误 - {form_data.username}")
+            return error_response(
+                message="用户名/手机号或密码错误",
+                error_code="AUTH_FAILED"
+            )
+
+        # 验证用户是否激活
+        if not user.is_active:
+            logger.warning(f"登录失败: 用户未激活 - {user.id}")
+            return error_response(
+                message="用户未激活",
+                error_code="USER_INACTIVE"
+            )
+
+        # 创建访问令牌
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            subject=str(user.id),
+            expires_delta=access_token_expires
         )
 
-    # 验证用户是否激活
-    if not user.is_active:
-        return APIResponse(
-            success=False, 
-            message="用户未激活",
-            error_code="USER_INACTIVE"
+        logger.info(f"用户登录成功: {user.id}")
+        return success_response(
+            message="登录成功",
+            data={
+                "access_token": access_token,
+                "token_type": "bearer"
+            }
+        )
+    except Exception as e:
+        logger.error(f"登录过程发生错误: {str(e)}")
+        return error_response(
+            message="登录失败，请稍后重试",
+            error_code="AUTH_ERROR"
         )
 
-    # 创建访问令牌
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        subject=str(user.id),
-        expires_delta=access_token_expires
-    )
 
-    return APIResponse(
-        success=True,
-        message="登录成功",
-        data={
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
-    )
-
-
-@router.get("/profile", response_model=UserResponse)
+@router.get("/profile", response_model=APIResponse[UserResponse])
 async def read_users_me(
         current_user: Annotated[User, Depends(get_current_active_user)]
 ):
     """
     获取当前登录用户信息
     """
-    return current_user
+    try:
+        return success_response(data=current_user)
+    except Exception as e:
+        logger.error(f"获取用户信息失败: {str(e)}")
+        return error_response(message="获取用户信息失败")

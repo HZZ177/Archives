@@ -14,6 +14,7 @@ interface RoleFormProps {
   onSubmit: (values: any) => Promise<void>;
   onCancel: () => void;
   submitting: boolean;
+  resetKey?: number;
 }
 
 // 首页权限标识，通过页面路径来识别
@@ -24,6 +25,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
   onSubmit,
   onCancel,
   submitting,
+  resetKey,
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -119,6 +121,21 @@ const RoleForm: React.FC<RoleFormProps> = ({
       setLoading(false);
     }
   };
+
+  // 添加新的useEffect，监听resetKey变化并重置表单状态
+  useEffect(() => {
+    if (resetKey && !role) {
+      // 仅在创建新角色模式下（role为null）且resetKey存在时重置
+      console.log('重置键变化，重置表单状态:', resetKey);
+      form.resetFields();
+      
+      // 重置权限选择状态，只保留首页权限
+      setCheckedKeys(homePagePermissionId ? [homePagePermissionId] : []);
+      
+      // 重新加载权限数据
+      loadPermissionData();
+    }
+  }, [resetKey, role, homePagePermissionId]);
 
   // 当role属性变化时重新加载权限数据
   useEffect(() => {

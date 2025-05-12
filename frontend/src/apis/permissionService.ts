@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config/constants';
 import { Permission, PermissionTree } from '../types/permission';
+import request, { unwrapResponse } from '../utils/request';
+import { APIResponse } from '../types/api';
 
 // 获取请求头
 const getHeaders = () => {
@@ -13,11 +15,8 @@ const getHeaders = () => {
 // 获取权限列表（扁平结构）
 export const fetchPermissions = async (params = {}) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/permissions`, {
-      params,
-      headers: getHeaders()
-    });
-    return response.data;
+    const response = await request.get<APIResponse<Permission[]>>('/permissions', { params });
+    return unwrapResponse<Permission[]>(response.data);
   } catch (error) {
     console.error('获取权限列表失败', error);
     throw error;
@@ -74,10 +73,8 @@ export const fetchPermissionTree = async () => {
 // 获取权限详情
 export const fetchPermissionById = async (id: number) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/permissions/${id}`, {
-      headers: getHeaders()
-    });
-    return response.data;
+    const response = await request.get<APIResponse<Permission>>(`/permissions/${id}`);
+    return unwrapResponse<Permission>(response.data);
   } catch (error) {
     console.error(`获取权限ID:${id}详情失败`, error);
     throw error;
@@ -87,10 +84,8 @@ export const fetchPermissionById = async (id: number) => {
 // 创建权限
 export const createPermission = async (permissionData: any) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/permissions`, permissionData, {
-      headers: getHeaders()
-    });
-    return response.data;
+    const response = await request.post<APIResponse<Permission>>('/permissions', permissionData);
+    return unwrapResponse<Permission>(response.data);
   } catch (error) {
     console.error('创建权限失败', error);
     throw error;
@@ -100,10 +95,8 @@ export const createPermission = async (permissionData: any) => {
 // 更新权限
 export const updatePermission = async (id: number, permissionData: any) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/permissions/update/${id}`, permissionData, {
-      headers: getHeaders()
-    });
-    return response.data;
+    const response = await request.post<APIResponse<Permission>>(`/permissions/update/${id}`, permissionData);
+    return unwrapResponse<Permission>(response.data);
   } catch (error) {
     console.error(`更新权限ID:${id}失败`, error);
     throw error;
@@ -113,10 +106,8 @@ export const updatePermission = async (id: number, permissionData: any) => {
 // 删除权限
 export const deletePermission = async (id: number) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/permissions/delete/${id}`, {}, {
-      headers: getHeaders()
-    });
-    return response.data;
+    await request.post<APIResponse<void>>(`/permissions/delete/${id}`);
+    return;
   } catch (error) {
     console.error(`删除权限ID:${id}失败`, error);
     throw error;
@@ -126,10 +117,8 @@ export const deletePermission = async (id: number) => {
 // 获取当前用户的权限
 export const fetchCurrentUserPermissions = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/permissions/user/current`, {
-      headers: getHeaders()
-    });
-    return response.data;
+    const response = await request.get<APIResponse<string[]>>('/permissions/user/current');
+    return unwrapResponse<string[]>(response.data);
   } catch (error) {
     console.error('获取当前用户权限失败', error);
     throw error;
@@ -139,10 +128,8 @@ export const fetchCurrentUserPermissions = async () => {
 // 获取当前用户可访问的页面路径
 export const fetchUserPagePermissions = async () => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/permissions/user/pages`, {
-      headers: getHeaders()
-    });
-    return response.data;
+    const response = await request.get<APIResponse<{path: string}[]>>('/permissions/user/pages');
+    return unwrapResponse<{path: string}[]>(response.data);
   } catch (error) {
     console.error('获取用户页面权限失败', error);
     throw error;
