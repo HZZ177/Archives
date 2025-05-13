@@ -24,6 +24,12 @@ request.interceptors.request.use(
       baseURL: config.baseURL
     });
     
+    // 移除URL末尾的斜杠以避免307重定向
+    if (config.url && config.url.endsWith('/') && config.url.length > 1) {
+      config.url = config.url.slice(0, -1);
+      console.log(`已移除URL末尾斜杠，处理后的URL: ${config.url}`);
+    }
+    
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
       console.log(`请求: ${config.method?.toUpperCase()} ${config.url} - 携带认证Token`);
