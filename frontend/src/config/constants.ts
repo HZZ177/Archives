@@ -28,6 +28,8 @@ export const ROUTES = {
   DOCUMENT_EDIT: '/documents/:id',
   STRUCTURE_MANAGEMENT: '/structure-management',
   MODULE_CONTENT: '/module-content',
+  WORKSPACES_MANAGE: '/workspaces/manage',
+  WORKSPACES_EDIT: '/workspaces/:id',
 };
 
 // 状态码

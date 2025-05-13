@@ -1,6 +1,6 @@
 from typing import Annotated, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_active_user, get_db, success_response, error_response
@@ -14,6 +14,7 @@ from backend.app.schemas.module_structure import (
 )
 from backend.app.schemas.response import APIResponse
 from backend.app.services.module_structure_service import module_structure_service
+from backend.app.services.workspace_service import workspace_service
 
 router = APIRouter()
 
@@ -22,13 +23,22 @@ router = APIRouter()
 async def create_module_node(
         node_in: ModuleStructureNodeCreate,
         db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(get_current_active_user)]
+        current_user: Annotated[User, Depends(get_current_active_user)],
+        workspace_id: Optional[int] = Query(None, description="工作区ID，不指定则使用用户默认工作区")
 ):
     """
     创建模块结构节点
     """
     try:
-        node = await module_structure_service.create_module_node(db, node_in, current_user)
+        # 如果未指定工作区，使用用户的默认工作区
+        if workspace_id is None and current_user.default_workspace_id:
+            workspace_id = current_user.default_workspace_id
+        # 如果用户没有默认工作区，尝试获取
+        elif workspace_id is None:
+            default_workspace = await workspace_service.get_default_workspace(db, current_user)
+            workspace_id = default_workspace.id
+            
+        node = await module_structure_service.create_module_node(db, node_in, current_user, workspace_id)
         return success_response(data=node, message="模块节点创建成功")
     except HTTPException as e:
         return error_response(message=e.detail)
@@ -41,7 +51,8 @@ async def create_module_node(
 async def read_module_tree(
         db: Annotated[AsyncSession, Depends(get_db)],
         current_user: Annotated[User, Depends(get_current_active_user)],
-        parent_id: Optional[int] = None
+        parent_id: Optional[int] = None,
+        workspace_id: Optional[int] = Query(None, description="工作区ID，不指定则使用用户默认工作区")
 ):
     """
     获取模块结构树
@@ -49,7 +60,15 @@ async def read_module_tree(
     否则返回所有顶级节点及其子树
     """
     try:
-        tree = await module_structure_service.get_module_tree(db, parent_id)
+        # 如果未指定工作区，使用用户的默认工作区
+        if workspace_id is None and current_user.default_workspace_id:
+            workspace_id = current_user.default_workspace_id
+        # 如果用户没有默认工作区，尝试获取
+        elif workspace_id is None:
+            default_workspace = await workspace_service.get_default_workspace(db, current_user)
+            workspace_id = default_workspace.id
+            
+        tree = await module_structure_service.get_module_tree(db, parent_id, workspace_id)
         return success_response(data=tree)
     except HTTPException as e:
         return error_response(message=e.detail)

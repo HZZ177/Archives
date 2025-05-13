@@ -19,9 +19,11 @@ class ModuleStructureNode(Base):
     created_at = Column(DateTime, default=get_local_time)
     updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
     permission_id = Column(Integer, ForeignKey("permissions.id"), nullable=True, comment="关联的权限ID")
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True, comment="关联的工作区ID")
 
     # 关系
     parent = relationship("ModuleStructureNode", remote_side=[id], backref="children")
     creator = relationship("User", foreign_keys=[user_id])
     content = relationship("ModuleContent", back_populates="module_node", uselist=False, cascade="all, delete-orphan")
-    permission = relationship("Permission", foreign_keys=[permission_id]) 
+    permission = relationship("Permission", foreign_keys=[permission_id])
+    workspace = relationship("Workspace", back_populates="module_nodes") 

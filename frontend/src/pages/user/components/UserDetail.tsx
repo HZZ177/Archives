@@ -12,6 +12,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../../config/constants';
 import { fetchRoles, fetchUserRoles, updateUserRoles } from '../../../apis/roleService';
 import { Role } from '../../../types/role';
+import UserWorkspacePermissions from './UserWorkspacePermissions';
 
 const UserDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -356,98 +357,110 @@ const UserDetail: React.FC = () => {
   // 渲染用户表单
   const renderUserForm = () => {
     return (
-      <Card title={isNewUser ? "创建新用户" : "编辑用户"} bordered={false}>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          initialValues={{
-            is_superuser: false
-          }}
-        >
-          <Form.Item
-            name="username"
-            label="用户名"
-            rules={[{ required: true, message: '请输入用户名' }]}
+      <>
+        <Card title={isNewUser ? "创建新用户" : "编辑用户"} bordered={false}>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            initialValues={{
+              is_superuser: false
+            }}
           >
-            <Input placeholder="请输入用户名" />
-          </Form.Item>
-          
-          {isNewUser && (
             <Form.Item
-              name="password"
-              label="密码"
-              rules={[{ required: true, message: '请输入密码' }]}
+              name="username"
+              label="用户名"
+              rules={[{ required: true, message: '请输入用户名' }]}
             >
-              <Input.Password placeholder="请输入密码" />
+              <Input placeholder="请输入用户名" />
             </Form.Item>
-          )}
-          
-          <Form.Item
-            name="email"
-            label="邮箱"
-            rules={[
-              { type: 'email', message: '邮箱格式不正确' }
-            ]}
-          >
-            <Input placeholder="请输入邮箱" />
-          </Form.Item>
-          
-          <Form.Item
-            name="mobile"
-            label="手机号"
-            rules={[
-              { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' }
-            ]}
-          >
-            <Input placeholder="请输入手机号" />
-          </Form.Item>
-          
-          <Form.Item
-            name="is_superuser"
-            label="是否超级管理员"
-            valuePropName="checked"
-          >
-            <Switch onChange={handleSuperUserChange} />
-          </Form.Item>
-          
-          <Form.Item
-            name="role_ids"
-            label="角色"
-            help={isSuperUser ? "当前用户已设置为管理员，无须选择角色" : "请选择用户角色"}
-            rules={[
-              {
-                required: !isSuperUser,
-                message: '请至少选择一个角色'
-              }
-            ]}
-          >
-            <Select
-              mode="multiple"
-              placeholder={isSuperUser ? "当前用户已设置为管理员，无须选择角色" : "请选择角色"}
-              loading={loadingRoles}
-              style={{ width: '100%' }}
-              optionFilterProp="label"
-              disabled={isSuperUser}
+            
+            {isNewUser && (
+              <Form.Item
+                name="password"
+                label="密码"
+                rules={[{ required: true, message: '请输入密码' }]}
+              >
+                <Input.Password placeholder="请输入密码" />
+              </Form.Item>
+            )}
+            
+            <Form.Item
+              name="email"
+              label="邮箱"
+              rules={[
+                { type: 'email', message: '邮箱格式不正确' }
+              ]}
             >
-              {roles.map(role => (
-                <Select.Option key={role.id} value={role.id} label={role.name}>
-                  {role.name}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-          
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              保存
-            </Button>
-            <Button style={{ marginLeft: 8 }} onClick={() => navigate('/users')}>
-              取消
-            </Button>
-          </Form.Item>
-        </Form>
-      </Card>
+              <Input placeholder="请输入邮箱" />
+            </Form.Item>
+            
+            <Form.Item
+              name="mobile"
+              label="手机号"
+              rules={[
+                { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' }
+              ]}
+            >
+              <Input placeholder="请输入手机号" />
+            </Form.Item>
+            
+            <Form.Item
+              name="is_superuser"
+              label="是否超级管理员"
+              valuePropName="checked"
+            >
+              <Switch onChange={handleSuperUserChange} />
+            </Form.Item>
+            
+            <Form.Item
+              name="role_ids"
+              label="角色"
+              help={isSuperUser ? "当前用户已设置为管理员，无须选择角色" : "请选择用户角色"}
+              rules={[
+                {
+                  required: !isSuperUser,
+                  message: '请至少选择一个角色'
+                }
+              ]}
+            >
+              <Select
+                mode="multiple"
+                placeholder={isSuperUser ? "当前用户已设置为管理员，无须选择角色" : "请选择角色"}
+                loading={loadingRoles}
+                style={{ width: '100%' }}
+                optionFilterProp="label"
+                disabled={isSuperUser}
+              >
+                {roles.map(role => (
+                  <Select.Option key={role.id} value={role.id} label={role.name}>
+                    {role.name}
+                  </Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+            
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={loading}>
+                保存
+              </Button>
+              <Button style={{ marginLeft: 8 }} onClick={() => navigate('/users')}>
+                取消
+              </Button>
+            </Form.Item>
+          </Form>
+        </Card>
+        
+        {/* 只在编辑用户时显示工作区权限管理，新用户需要先创建 */}
+        {!isNewUser && !isNaN(Number(id)) && (
+          <div style={{ marginTop: 24 }}>
+            <UserWorkspacePermissions 
+              userId={Number(id)} 
+              username={form.getFieldValue('username') || ''}
+            />
+          </div>
+        )}
+      </>
     );
   };
 

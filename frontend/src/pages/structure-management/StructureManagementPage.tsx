@@ -103,6 +103,25 @@ const StructureManagementPage: React.FC = React.memo(() => {
     loadModuleTree();
   }, []);
 
+  // 监听工作区变更事件
+  useEffect(() => {
+    // 处理工作区变更事件
+    const handleWorkspaceChange = () => {
+      console.log('StructureManagementPage: 检测到工作区变更，重新加载模块树');
+      loadModuleTree();
+    };
+    
+    // 添加事件监听器
+    window.addEventListener('workspaceChanged', handleWorkspaceChange);
+    window.addEventListener('refreshModuleTree', handleWorkspaceChange);
+    
+    // 清理监听器
+    return () => {
+      window.removeEventListener('workspaceChanged', handleWorkspaceChange);
+      window.removeEventListener('refreshModuleTree', handleWorkspaceChange);
+    };
+  }, []);
+
   return (
     <div className="structure-management-container">
       <Card 

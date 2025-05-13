@@ -126,10 +126,13 @@ export const fetchCurrentUserPermissions = async () => {
 };
 
 // 获取当前用户可访问的页面路径
-export const fetchUserPagePermissions = async () => {
+export const fetchUserPagePermissions = async (workspaceId?: number) => {
   try {
-    const response = await request.get<APIResponse<{path: string}[]>>('/permissions/user/pages');
-    return unwrapResponse<{path: string}[]>(response.data);
+    const url = '/permissions/user/pages';
+    const params = workspaceId ? { workspace_id: workspaceId } : {};
+    
+    const response = await request.get<APIResponse<string[]>>(url, { params });
+    return unwrapResponse<string[]>(response.data);
   } catch (error) {
     console.error('获取用户页面权限失败', error);
     throw error;

@@ -2,13 +2,14 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import axios from 'axios';
 import { API_BASE_URL } from '../config/constants';
 import { useUser } from './UserContext';
+import { useWorkspaceContext } from './WorkspaceContext';
 
 // 权限上下文类型
 interface PermissionContextType {
   userPermissions: string[];
   hasPermission: (path: string) => boolean;
   loading: boolean;
-  refreshPermissions: () => Promise<string[]>;
+  refreshPermissions: (workspaceId?: number) => Promise<string[]>;
 }
 
 // 创建权限上下文
@@ -30,11 +31,12 @@ interface PermissionProviderProps {
  */
 export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children }) => {
   const { userState } = useUser();
+  const { currentWorkspace } = useWorkspaceContext();
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   
   // 刷新权限方法
-  const refreshPermissions = useCallback(async (): Promise<string[]> => {
+  const refreshPermissions = useCallback(async (workspaceId?: number): Promise<string[]> => {
     if (!userState.isLoggedIn || !userState.token) {
       setUserPermissions([]);
       setLoading(false);
@@ -55,11 +57,13 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
       }
       
       // 普通用户加载权限
-      console.log('PermissionContext: 加载用户权限');
+      console.log('PermissionContext: 加载用户权限，工作区ID:', workspaceId);
+      const params = workspaceId ? { workspace_id: workspaceId } : {};
       const response = await axios.get(`${API_BASE_URL}/permissions/user/pages`, {
         headers: {
           Authorization: `Bearer ${userState.token}`
-        }
+        },
+        params
       });
       
       // 确保权限是数组类型
@@ -106,11 +110,25 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     
     // 检查直接匹配或前缀匹配
     const hasAccess = userPermissions.some(permission => {
-      const isMatch = path === permission || path.startsWith(`${permission}/`);
-      if (isMatch) {
-        console.log(`PermissionContext: 权限匹配成功 - 路径: ${path}, 匹配权限: ${permission}`);
+      // 精确匹配
+      if (path === permission) {
+        console.log(`PermissionContext: 精确匹配成功 - 路径: ${path}, 权限: ${permission}`);
+        return true;
       }
-      return isMatch;
+      
+      // 前缀匹配（权限是路径的父级路径）
+      if (path.startsWith(`${permission}/`)) {
+        console.log(`PermissionContext: 前缀匹配成功 - 路径: ${path}, 父路径权限: ${permission}`);
+        return true;
+      }
+      
+      // 模块页面特殊处理
+      if (permission.includes('/module-content/') && path.includes('/module-content/')) {
+        console.log(`PermissionContext: 模块内容页面匹配 - 路径: ${path}, 权限: ${permission}`);
+        return true;
+      }
+      
+      return false;
     });
     
     if (!hasAccess) {
@@ -120,15 +138,34 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     return hasAccess;
   }, [userPermissions]);
   
-  // 用户登录状态变化时重新加载权限
+  // 用户登录状态或工作区变化时重新加载权限
   useEffect(() => {
     if (userState.isLoggedIn) {
-      refreshPermissions();
+      const workspaceId = currentWorkspace?.id;
+      console.log('PermissionContext: 用户登录状态或工作区变化，重新加载权限，工作区ID:', workspaceId);
+      refreshPermissions(workspaceId);
     } else {
       setUserPermissions([]);
       setLoading(false);
     }
-  }, [userState.isLoggedIn, refreshPermissions]);
+  }, [userState.isLoggedIn, currentWorkspace?.id, refreshPermissions]);
+  
+  // 监听工作区变更事件
+  useEffect(() => {
+    const handleWorkspaceChange = () => {
+      if (userState.isLoggedIn) {
+        const workspaceId = currentWorkspace?.id;
+        console.log('PermissionContext: 监听到工作区变更事件，重新加载权限，工作区ID:', workspaceId);
+        refreshPermissions(workspaceId);
+      }
+    };
+    
+    window.addEventListener('workspaceChanged', handleWorkspaceChange);
+    
+    return () => {
+      window.removeEventListener('workspaceChanged', handleWorkspaceChange);
+    };
+  }, [userState.isLoggedIn, currentWorkspace?.id, refreshPermissions]);
   
   return (
     <PermissionContext.Provider

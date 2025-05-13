@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Any, Set, Tuple
-from sqlalchemy import select, exists, func, delete
+from sqlalchemy import select, exists, func, delete, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.logger import logger
@@ -43,6 +43,21 @@ class ModuleStructureRepository(BaseRepository[ModuleStructureNode, ModuleStruct
             logger.error(f"获取所有模块节点失败: {str(e)}")
             raise
     
+    async def get_nodes_by_workspace(self, db: AsyncSession, workspace_id: int) -> List[ModuleStructureNode]:
+        """
+        获取特定工作区的所有模块结构节点
+        """
+        try:
+            result = await db.execute(
+                select(ModuleStructureNode)
+                .where(ModuleStructureNode.workspace_id == workspace_id)
+                .order_by(ModuleStructureNode.order_index)
+            )
+            return result.scalars().all()
+        except Exception as e:
+            logger.error(f"获取工作区 {workspace_id} 的模块节点失败: {str(e)}")
+            raise
+    
     async def check_node_exists(self, db: AsyncSession, node_id: int) -> bool:
         """
         检查模块节点是否存在
@@ -61,6 +76,7 @@ class ModuleStructureRepository(BaseRepository[ModuleStructureNode, ModuleStruct
         db: AsyncSession, 
         name: str, 
         parent_id: Optional[int], 
+        workspace_id: Optional[int] = None,
         exclude_id: Optional[int] = None
     ) -> bool:
         """
@@ -68,41 +84,54 @@ class ModuleStructureRepository(BaseRepository[ModuleStructureNode, ModuleStruct
         """
         try:
             # 构建查询条件
+            conditions = []
+            
+            # 名称条件
+            conditions.append(ModuleStructureNode.name == name)
+            
+            # 父节点条件
             if parent_id is not None:
-                # 有父节点，检查同级节点
-                query = select(exists().where(
-                    ModuleStructureNode.name == name,
-                    ModuleStructureNode.parent_id == parent_id
-                ))
+                conditions.append(ModuleStructureNode.parent_id == parent_id)
             else:
-                # 顶级节点，检查其他顶级节点
-                query = select(exists().where(
-                    ModuleStructureNode.name == name,
-                    ModuleStructureNode.parent_id.is_(None)
-                ))
+                conditions.append(ModuleStructureNode.parent_id.is_(None))
+            
+            # 工作区条件
+            if workspace_id is not None:
+                conditions.append(ModuleStructureNode.workspace_id == workspace_id)
             
             # 排除自身ID (更新时)
             if exclude_id is not None:
-                query = query.where(ModuleStructureNode.id != exclude_id)
+                conditions.append(ModuleStructureNode.id != exclude_id)
             
+            # 执行查询
+            query = select(exists().where(and_(*conditions)))
             result = await db.execute(query)
             return result.scalar()
+            
         except Exception as e:
             logger.error(f"检查同级节点名称失败: {str(e)}")
             raise
     
-    async def get_max_order_index(self, db: AsyncSession, parent_id: Optional[int]) -> int:
+    async def get_max_order_index(self, db: AsyncSession, parent_id: Optional[int], workspace_id: Optional[int] = None) -> int:
         """
         获取指定父节点下的最大排序索引
         """
         try:
+            conditions = []
+            
+            # 父节点条件
             if parent_id is not None:
-                condition = ModuleStructureNode.parent_id == parent_id
+                conditions.append(ModuleStructureNode.parent_id == parent_id)
             else:
-                condition = ModuleStructureNode.parent_id.is_(None)
+                conditions.append(ModuleStructureNode.parent_id.is_(None))
+            
+            # 工作区条件
+            if workspace_id is not None:
+                conditions.append(ModuleStructureNode.workspace_id == workspace_id)
             
             result = await db.execute(
-                select(func.coalesce(func.max(ModuleStructureNode.order_index), -1)).where(condition)
+                select(func.coalesce(func.max(ModuleStructureNode.order_index), -1))
+                .where(and_(*conditions))
             )
             return result.scalar() + 1
         except Exception as e:

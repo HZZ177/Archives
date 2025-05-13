@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 from backend.app.db.base import Base
 from backend.app.db.utils import get_local_time
 from backend.app.models.permission import role_permission
+from backend.app.models.workspace import workspace_user
 
 # 用户角色关联表
 user_role = Table(
@@ -28,11 +29,17 @@ class User(Base):
     is_superuser = Column(Boolean, default=False)
     created_at = Column(DateTime, default=get_local_time)
     updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
+    # 添加默认工作区
+    default_workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=True)
 
     # 关系
     roles = relationship("Role", secondary=user_role, back_populates="users")
     documents = relationship("Document", back_populates="creator")
     templates = relationship("Template", back_populates="creator")
+    # 添加工作区关系
+    default_workspace = relationship("Workspace", foreign_keys=[default_workspace_id])
+    workspaces = relationship("Workspace", secondary=workspace_user, back_populates="users")
+    created_workspaces = relationship("Workspace", foreign_keys="[Workspace.created_by]", back_populates="creator")
 
 
 class Role(Base):

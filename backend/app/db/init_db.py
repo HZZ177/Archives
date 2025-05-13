@@ -1,6 +1,6 @@
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, select
+from sqlalchemy import text, select, update
 from typing import List, Dict, Any
 from sqlalchemy.orm import selectinload
 from backend.app.core.logger import logger
@@ -10,6 +10,7 @@ from backend.app.db.session import engine
 from backend.app.models.user import User, Role
 from backend.app.models.permission import Permission
 from backend.app.models.document import Document, Template, Section, Image, Relation
+from backend.app.models.workspace import Workspace, workspace_user
 
 
 async def create_system_permissions(session: AsyncSession) -> None:
@@ -151,6 +152,59 @@ async def assign_admin_role_to_admin_user(session: AsyncSession) -> None:
         logger.info("管理员用户已拥有管理员角色")
 
 
+async def create_default_workspace(session: AsyncSession) -> None:
+    """创建默认工作区并分配给超级管理员"""
+    # 检查是否已存在工作区
+    result = await session.execute(text("SELECT COUNT(*) FROM workspaces"))
+    workspace_count = result.scalar()
+
+    if workspace_count == 0:
+        logger.info("开始创建默认工作区...")
+        
+        # 获取管理员用户 - 使用text查询直接获取id而不是ORM对象
+        result = await session.execute(text("SELECT id FROM users WHERE username = 'admin'"))
+        admin_id = result.scalar_one_or_none()
+        
+        if not admin_id:
+            logger.warning("管理员用户不存在，跳过创建默认工作区")
+            return
+        
+        # 创建默认工作区
+        default_workspace = Workspace(
+            name="默认工作区",
+            description="系统默认工作区",
+            is_default=True,
+            created_by=admin_id
+        )
+        session.add(default_workspace)
+        await session.commit()
+        await session.refresh(default_workspace)
+        
+        # 立即保存ID到本地变量，避免后续隐式加载
+        workspace_id = default_workspace.id
+        
+        # 添加管理员用户到工作区
+        await session.execute(
+            workspace_user.insert().values(
+                workspace_id=workspace_id,
+                user_id=admin_id,
+                access_level="owner"
+            )
+        )
+        
+        # 设置为管理员用户的默认工作区 - 使用直接更新而不是通过ORM对象
+        await session.execute(
+            update(User)
+            .where(User.id == admin_id)
+            .values(default_workspace_id=workspace_id)
+        )
+        
+        await session.commit()
+        logger.info(f"默认工作区创建成功，ID: {workspace_id}")
+    else:
+        logger.info(f"系统已存在工作区，共 {workspace_count} 个工作区")
+
+
 async def init_db() -> None:
     """
     初始化数据库
@@ -210,6 +264,9 @@ async def init_db() -> None:
             
             # 分配管理员角色给管理员用户
             await assign_admin_role_to_admin_user(session)
+            
+            # 创建默认工作区
+            await create_default_workspace(session)
 
     except Exception as e:
         logger.error(f"数据库初始化失败: {str(e)}")

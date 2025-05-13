@@ -215,34 +215,52 @@ const RoleList: React.FC = () => {
   const handleRoleStatusChange = async (roleId: number, checked: boolean) => {
     try {
       // 调用API更新角色状态
-      await updateRoleStatus(roleId, checked);
+      const response = await updateRoleStatus(roleId, checked);
       
-      // 更新本地数据
-      setRoles(prev => 
-        prev.map(role => 
-          role.id === roleId 
-            ? { ...role, status: checked } 
-            : role
-        )
-      );
-      
-      message.success(`角色${checked ? '启用' : '禁用'}成功`);
+      // 根据响应的success字段判断操作是否成功
+      if (response.success) {
+        // 更新成功，更新本地数据
+        setRoles(prev => 
+          prev.map(role => 
+            role.id === roleId 
+              ? { ...role, status: checked } 
+              : role
+          )
+        );
+        
+        message.success(response.message || `角色${checked ? '启用' : '禁用'}成功`);
+      } else {
+        // 操作失败但有业务逻辑错误信息
+        message.error(response.message || `角色${checked ? '启用' : '禁用'}失败`);
+      }
     } catch (error: any) {
       console.error('更新角色状态失败:', error);
       
       // 提取详细错误信息
       let errorMessage = '更新角色状态失败';
-      if (error.response && error.response.data) {
+      
+      // 检查是否有直接的response.data（API返回的原始错误）
+      if (error.response?.data) {
         if (typeof error.response.data === 'string') {
+          // 如果是字符串类型，直接使用
           errorMessage = error.response.data;
-        } else if (error.response.data.detail) {
-          errorMessage = error.response.data.detail;
         } else if (error.response.data.message) {
+          // 如果是对象且有message字段，使用message字段
           errorMessage = error.response.data.message;
+        } else if (error.response.data.detail) {
+          // 如果有detail字段，使用detail字段
+          errorMessage = error.response.data.detail;
         }
+      } else if (error.message) {
+        // 如果有标准的错误消息，使用它
+        errorMessage = error.message;
       }
       
+      // 显示错误信息
       message.error(errorMessage);
+      
+      // 错误发生时，回滚UI状态
+      loadRoles();
     }
   };
 

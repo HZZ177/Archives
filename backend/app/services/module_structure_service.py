@@ -26,18 +26,23 @@ class ModuleStructureService:
     async def get_module_tree(
         self,
         db: AsyncSession,
-        parent_id: Optional[int] = None
+        parent_id: Optional[int] = None,
+        workspace_id: Optional[int] = None
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         获取模块结构树
         
         :param db: 数据库会话
         :param parent_id: 父节点ID，如果指定则只返回该节点的子树
+        :param workspace_id: 工作区ID，如果指定则只返回该工作区下的节点
         :return: 模块结构树
         """
         try:
-            # 获取所有节点
-            all_nodes = await module_structure_repository.get_all_nodes(db)
+            # 获取所有节点，根据工作区筛选
+            if workspace_id:
+                all_nodes = await module_structure_repository.get_nodes_by_workspace(db, workspace_id)
+            else:
+                all_nodes = await module_structure_repository.get_all_nodes(db)
             
             # 获取有内容的模块ID列表
             has_content_ids = set()
@@ -61,7 +66,8 @@ class ModuleStructureService:
                     "updated_at": node.updated_at,
                     "children": [],  # 初始化为空列表
                     "has_content": node.id in has_content_ids,
-                    "permission_id": node.permission_id
+                    "permission_id": node.permission_id,
+                    "workspace_id": node.workspace_id
                 }
                 nodes_by_id[node.id] = node_dict
             
@@ -138,7 +144,8 @@ class ModuleStructureService:
                 "updated_at": node.updated_at,
                 "children": [],  # 单个节点不包含子节点
                 "has_content": has_content,
-                "permission_id": node.permission_id
+                "permission_id": node.permission_id,
+                "workspace_id": node.workspace_id
             }
             
             return response_dict
@@ -156,7 +163,8 @@ class ModuleStructureService:
         self,
         db: AsyncSession,
         node_in: ModuleStructureNodeCreate,
-        user: User
+        user: User,
+        workspace_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         创建模块结构节点
@@ -164,6 +172,7 @@ class ModuleStructureService:
         :param db: 数据库会话
         :param node_in: 节点创建数据
         :param user: 当前用户
+        :param workspace_id: 工作区ID
         :return: 创建的节点信息
         """
         try:
@@ -175,10 +184,19 @@ class ModuleStructureService:
                         status_code=status.HTTP_404_NOT_FOUND,
                         detail="父节点不存在"
                     )
+                
+                # 如果指定了工作区，需要确保父节点也属于同一工作区
+                if workspace_id:
+                    parent_node = await module_structure_repository.get_by_id(db, node_in.parent_id)
+                    if parent_node.workspace_id != workspace_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="父节点不属于指定的工作区"
+                        )
             
             # 检查同一父节点下是否已存在同名节点
             has_same_name = await module_structure_repository.check_same_name_sibling(
-                db, node_in.name, node_in.parent_id
+                db, node_in.name, node_in.parent_id, workspace_id
             )
             if has_same_name:
                 raise HTTPException(
@@ -188,7 +206,7 @@ class ModuleStructureService:
             
             # 确定order_index: 如果未提供，则使用当前最大值+1
             if node_in.order_index is None:
-                node_in.order_index = await module_structure_repository.get_max_order_index(db, node_in.parent_id)
+                node_in.order_index = await module_structure_repository.get_max_order_index(db, node_in.parent_id, workspace_id)
                 
             # 权限相关设置
             page_path = "/module-content/"  # 完整路径会在模块创建后更新
@@ -223,7 +241,8 @@ class ModuleStructureService:
                 "order_index": node_in.order_index,
                 "user_id": user.id,
                 "is_content_page": node_in.is_content_page,
-                "permission_id": db_permission.id
+                "permission_id": db_permission.id,
+                "workspace_id": workspace_id
             }
             
             db_node = await module_structure_repository.create_node(db, node_data)
@@ -274,7 +293,8 @@ class ModuleStructureService:
                 "updated_at": db_node.updated_at,
                 "children": [],
                 "has_content": has_content,
-                "permission_id": db_node.permission_id
+                "permission_id": db_node.permission_id,
+                "workspace_id": workspace_id
             }
             
             return response_dict

@@ -164,6 +164,18 @@ class AuthRepository(BaseRepository[User, UserCreate, UserUpdate]):
             logger.error(f"更新用户密码失败: {str(e)}")
             raise
 
+    async def get_first_superuser(self, db: AsyncSession) -> Optional[User]:
+        """
+        获取第一个超级管理员用户
+        """
+        try:
+            stmt = select(User).where(User.is_superuser == True).limit(1)
+            result = await db.execute(stmt)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(f"获取超级管理员失败: {str(e)}")
+            raise
+
 
 # 创建认证仓库实例
 auth_repository = AuthRepository() 

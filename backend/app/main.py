@@ -9,6 +9,7 @@ from starlette.responses import JSONResponse
 from backend.app.api.endpoints import auth, users, documents, templates, images
 from backend.app.api.endpoints import module_structures, module_contents
 from backend.app.api.endpoints import roles, permissions
+from backend.app.api.endpoints import workspaces
 from backend.app.core.config import settings
 from backend.app.core.logger import logger
 from backend.app.db.init_db import init_db
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(module_contents.router, prefix=f"{settings.API_V1_STR}/module-contents", tags=["module-contents"])
     app.include_router(roles.router, prefix=f"{settings.API_V1_STR}/roles", tags=["roles"])
     app.include_router(permissions.router, prefix=f"{settings.API_V1_STR}/permissions", tags=["permissions"])
+    app.include_router(workspaces.router, prefix=f"{settings.API_V1_STR}/workspaces", tags=["workspaces"])
 
     # 配置静态文件
     static_dir = settings.STATIC_DIR

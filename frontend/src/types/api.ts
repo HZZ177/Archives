@@ -30,4 +30,28 @@ export interface PaginatedData<T = any> {
   page: number;
   /** 每页条数 */
   size: number;
+}
+
+// 分页请求参数
+export interface PaginationParams {
+  page?: number;
+  pageSize?: number;
+  sort?: string;
+  order?: 'asc' | 'desc';
+}
+
+// 分页响应结构
+export interface PaginatedResponse<T> extends APIResponse {
+  data: PaginatedData<T>;
+}
+
+// 搜索类型参数
+export interface SearchParams extends PaginationParams {
+  query?: string;
+  filters?: Record<string, any>;
+}
+
+// 通用ID参数
+export interface IdParam {
+  id: number;
 } 

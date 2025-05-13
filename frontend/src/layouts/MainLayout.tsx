@@ -15,12 +15,14 @@ import {
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import { useModules } from '../contexts/ModuleContext';
+import { WorkspaceProvider, useWorkspaceContext } from '../contexts/WorkspaceContext';
 import { ROUTES } from '../config/constants';
 import { fetchModuleTree } from '../apis/moduleService';
 import { ModuleStructureNode } from '../types/modules';
 import { fetchUserPagePermissions } from '../apis/permissionService';
 // 使用新的PageTransition组件
 import PageTransition from '../components/common/PageTransition';
+import WorkspaceSelector from '../components/common/WorkspaceSelector';
 
 const { Header, Sider, Content } = Layout;
 
@@ -118,6 +120,7 @@ const MainLayout: React.FC = () => {
   const location = useLocation();
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [filteredMenuItems, setFilteredMenuItems] = useState<ItemType[]>([]);
+  const { currentWorkspace } = useWorkspaceContext();
   
   const {
     token: { colorBgContainer },
@@ -177,9 +180,14 @@ const MainLayout: React.FC = () => {
   useEffect(() => {
     const fetchUserPermissions = async () => {
       try {
-        // 获取用户可访问的页面路径
-        const pagePaths = await fetchUserPagePermissions();
+        // 获取当前工作区ID
+        const workspaceId = currentWorkspace?.id;
+        
+        // 获取用户可访问的页面路径，传入工作区ID
+        const pagePaths = await fetchUserPagePermissions(workspaceId);
         console.log('获取到用户页面权限:', pagePaths);
+        
+        // 直接使用接口返回的字符串数组
         setUserPermissions(pagePaths);
       } catch (error) {
         console.error('获取用户权限失败:', error);
@@ -189,7 +197,7 @@ const MainLayout: React.FC = () => {
     if (userState.isLoggedIn) {
       fetchUserPermissions();
     }
-  }, [userState.isLoggedIn]);
+  }, [userState.isLoggedIn, currentWorkspace?.id]);
 
   // 从模块结构生成菜单项，根据has_content属性区分处理方式
   const convertModuleToMenuItem = (module: ModuleStructureNode): ExtendedMenuItem => {
@@ -544,171 +552,176 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      {/* 主菜单侧边栏 */}
-      <Sider 
-        trigger={null} 
-        collapsible 
-        collapsed={collapsed}
-        theme="light"
-        style={{
-          overflow: 'auto',
-          height: '100vh',
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          borderRight: '1px solid #f0f0f0',
-          zIndex: 2,
-          transition: isDragging ? 'none' : 'width 0.2s'
-        }}
-        width={collapsed ? 80 : siderWidth}
-      >
-        <div style={{ height: 32, margin: 16, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
-          {collapsed ? '档案' : '档案管理系统'}
-        </div>
-        <Menu
+    <WorkspaceProvider>
+      <Layout style={{ minHeight: '100vh' }}>
+        {/* 主菜单侧边栏 */}
+        <Sider 
+          trigger={null} 
+          collapsible 
+          collapsed={collapsed}
           theme="light"
-          mode="inline"
-          defaultSelectedKeys={['/']}
-          defaultOpenKeys={['system']}
-          selectedKeys={[location.pathname]}
-          items={filteredMenuItems}
-          onClick={async (info) => {
-            // 防止重复导航到当前路径，避免不必要的组件重新加载
-            if (info.key === location.pathname) {
-              return;
-            }
-            
-            console.log('菜单点击: 导航到', info.key);
-            
-            // 在导航前预加载目标组件
-            try {
-              const preloadRegistry = await import('../utils/preloadRegistry');
-              // 根据路径预加载对应组件
-              switch(info.key) {
-                case '/roles':
-                  preloadRegistry.preloadComponentByName('RoleList');
-                  break;
-                case '/users':
-                  preloadRegistry.preloadComponentByName('UserList');
-                  break;
-                case '/structure-management':
-                  preloadRegistry.preloadComponentByName('StructureManagementPage');
-                  break;
-                default:
-                  // 对于模块内容页面
-                  if (info.key.startsWith('/module-content/')) {
-                    preloadRegistry.preloadComponentByName('ModuleContentPage');
-                  }
-                  break;
-              }
-            } catch (error) {
-              console.error('预加载组件失败:', error);
-            }
-            
-            // 执行导航
-            navigate(info.key);
-          }}
-          onMouseEnter={(event) => {
-            // 获取鼠标所在菜单项的key（路径）
-            const targetMenuItem = event.target as HTMLElement;
-            const menuItemKey = targetMenuItem.closest('li[data-menu-id]')?.getAttribute('data-menu-id');
-            
-            if (menuItemKey) {
-              // 提取实际路径（去掉前缀）
-              const pathKey = menuItemKey.replace(/^.+:/, '');
-              handleMenuHover(pathKey);
-            }
-          }}
           style={{
-            // 禁用可能的内部过渡效果
-            transition: isDragging ? 'none' : undefined
-          }}
-        />
-      </Sider>
-      
-      {/* 添加拖动手柄 */}
-      {!collapsed && (
-        <div
-          ref={dragHandleRef}
-          style={{
+            overflow: 'auto',
+            height: '100vh',
             position: 'fixed',
+            left: 0,
             top: 0,
-            left: siderWidth,
-            width: '5px',
-            height: '100%',
-            backgroundColor: 'transparent',
-            cursor: 'col-resize',
-            zIndex: 100,
-            transition: isDragging ? 'none' : 'left 0.2s'
+            bottom: 0,
+            borderRight: '1px solid #f0f0f0',
+            zIndex: 2,
+            transition: isDragging ? 'none' : 'width 0.2s'
           }}
-          onMouseDown={handleDragStart}
+          width={collapsed ? 80 : siderWidth}
         >
-          {/* 添加可视提示，在鼠标悬停时显示 */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              backgroundColor: '#e6e6e6',
-              opacity: isDragging ? 0.5 : 0,
-              transition: 'opacity 0.2s'
+          <div style={{ height: 32, margin: 16, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
+            {collapsed ? '档案' : '档案管理系统'}
+          </div>
+          <Menu
+            theme="light"
+            mode="inline"
+            defaultSelectedKeys={['/']}
+            defaultOpenKeys={['system']}
+            selectedKeys={[location.pathname]}
+            items={filteredMenuItems}
+            onClick={async (info) => {
+              // 防止重复导航到当前路径，避免不必要的组件重新加载
+              if (info.key === location.pathname) {
+                return;
+              }
+              
+              console.log('菜单点击: 导航到', info.key);
+              
+              // 在导航前预加载目标组件
+              try {
+                const preloadRegistry = await import('../utils/preloadRegistry');
+                // 根据路径预加载对应组件
+                switch(info.key) {
+                  case '/roles':
+                    preloadRegistry.preloadComponentByName('RoleList');
+                    break;
+                  case '/users':
+                    preloadRegistry.preloadComponentByName('UserList');
+                    break;
+                  case '/structure-management':
+                    preloadRegistry.preloadComponentByName('StructureManagementPage');
+                    break;
+                  default:
+                    // 对于模块内容页面
+                    if (info.key.startsWith('/module-content/')) {
+                      preloadRegistry.preloadComponentByName('ModuleContentPage');
+                    }
+                    break;
+                }
+              } catch (error) {
+                console.error('预加载组件失败:', error);
+              }
+              
+              // 执行导航
+              navigate(info.key);
             }}
-            onMouseOver={(e) => { e.currentTarget.style.opacity = '0.5'; }}
-            onMouseOut={(e) => { if (!isDragging) e.currentTarget.style.opacity = '0'; }}
+            onMouseEnter={(event) => {
+              // 获取鼠标所在菜单项的key（路径）
+              const targetMenuItem = event.target as HTMLElement;
+              const menuItemKey = targetMenuItem.closest('li[data-menu-id]')?.getAttribute('data-menu-id');
+              
+              if (menuItemKey) {
+                // 提取实际路径（去掉前缀）
+                const pathKey = menuItemKey.replace(/^.+:/, '');
+                handleMenuHover(pathKey);
+              }
+            }}
+            style={{
+              // 禁用可能的内部过渡效果
+              transition: isDragging ? 'none' : undefined
+            }}
           />
-        </div>
-      )}
-
-      {/* 主内容区域 */}
-      <Layout style={{ 
-        marginLeft: collapsed ? 80 : siderWidth, 
-        transition: isDragging ? 'none' : 'margin-left 0.2s'
-      }}>
-        <Header style={{ padding: 0, background: colorBgContainer }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 24 }}>
-            <Button
-              type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
+        </Sider>
+        
+        {/* 添加拖动手柄 */}
+        {!collapsed && (
+          <div
+            ref={dragHandleRef}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: siderWidth,
+              width: '5px',
+              height: '100%',
+              backgroundColor: 'transparent',
+              cursor: 'col-resize',
+              zIndex: 100,
+              transition: isDragging ? 'none' : 'left 0.2s'
+            }}
+            onMouseDown={handleDragStart}
+          >
+            {/* 添加可视提示，在鼠标悬停时显示 */}
+            <div
               style={{
-                fontSize: '16px',
-                width: 64,
-                height: 64,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: '#e6e6e6',
+                opacity: isDragging ? 0.5 : 0,
+                transition: 'opacity 0.2s'
               }}
+              onMouseOver={(e) => { e.currentTarget.style.opacity = '0.5'; }}
+              onMouseOut={(e) => { if (!isDragging) e.currentTarget.style.opacity = '0'; }}
             />
-            <div>
-              <Dropdown 
-                menu={{ 
-                  items: userMenuItems,
-                  onClick: ({ key }) => handleMenuClick(key),
-                }} 
-                placement="bottomRight"
-              >
-                <Button type="text" style={{ height: 64 }}>
-                  <Avatar icon={<UserOutlined />} />
-                  <span style={{ marginLeft: 8 }}>
-                    {userState.currentUser?.username || '用户'}
-                  </span>
-                </Button>
-              </Dropdown>
+          </div>
+        )}
+
+        {/* 主内容区域 */}
+        <Layout style={{ 
+          marginLeft: collapsed ? 80 : siderWidth, 
+          transition: isDragging ? 'none' : 'margin-left 0.2s'
+        }}>
+          <Header style={{ padding: 0, background: colorBgContainer }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <Button
+                  type="text"
+                  icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                  onClick={() => setCollapsed(!collapsed)}
+                  style={{
+                    fontSize: '16px',
+                    width: 64,
+                    height: 64,
+                  }}
+                />
+                <WorkspaceSelector style={{ marginLeft: 16 }} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <Dropdown 
+                  menu={{ 
+                    items: userMenuItems,
+                    onClick: ({ key }) => handleMenuClick(key),
+                  }} 
+                  placement="bottomRight"
+                >
+                  <Button type="text" style={{ height: 64 }}>
+                    <Avatar icon={<UserOutlined />} />
+                    <span style={{ marginLeft: 8 }}>
+                      {userState.currentUser?.username || '用户'}
+                    </span>
+                  </Button>
+                </Dropdown>
+              </div>
             </div>
-          </div>
-        </Header>
-        <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280, borderRadius: 8, background: colorBgContainer }}>
-          <Breadcrumb 
-            style={{ marginBottom: 16 }}
-            items={generateBreadcrumb()}
-          />
-          <div className="main-content">
-            <PageTransition />
-          </div>
-        </Content>
+          </Header>
+          <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280, borderRadius: 8, background: colorBgContainer }}>
+            <Breadcrumb 
+              style={{ marginBottom: 16 }}
+              items={generateBreadcrumb()}
+            />
+            <div className="main-content">
+              <PageTransition />
+            </div>
+          </Content>
+        </Layout>
       </Layout>
-    </Layout>
+    </WorkspaceProvider>
   );
 };
 

@@ -62,12 +62,18 @@ const PrivateRoute: React.FC<PrivateRouteProps> = React.memo(({ children }) => {
   // 检查用户是否有权限访问当前页面
   const authorized = hasPermission(currentPath);
   
-  // 权限检查结束后打印调试信息
+  // 权限检查结束后打印详细调试信息
   console.log(`PrivateRoute: 权限检查完成 - 路径: ${currentPath}, 权限: ${authorized ? '有权限' : '无权限'}, 权限列表:`, userPermissions);
+  console.log(`PrivateRoute: 当前用户是否是超级管理员: ${userState.currentUser?.is_superuser ? '是' : '否'}`);
   
   // 无权限访问
   if (!authorized) {
-    console.log(`PrivateRoute: 无访问权限 - 路径: ${currentPath}`);
+    console.log(`PrivateRoute: 无访问权限 - 路径: ${currentPath}, 用户权限列表:`, userPermissions);
+    console.log(`PrivateRoute: 路径匹配检查:`, userPermissions.map(perm => ({
+      permission: perm,
+      exactMatch: perm === currentPath,
+      prefixMatch: currentPath.startsWith(`${perm}/`)
+    })));
     return <Navigate to="/no-permission" replace />;
   }
   

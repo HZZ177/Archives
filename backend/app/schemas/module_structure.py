@@ -13,7 +13,7 @@ class ModuleStructureNodeBase(BaseModel):
 
 class ModuleStructureNodeCreate(ModuleStructureNodeBase):
     """创建模块结构节点的请求模型"""
-    pass
+    workspace_id: Optional[int] = None
 
 
 class ModuleStructureNodeUpdate(BaseModel):
@@ -22,12 +22,14 @@ class ModuleStructureNodeUpdate(BaseModel):
     parent_id: Optional[int] = None
     order_index: Optional[int] = None
     is_content_page: Optional[bool] = None
+    workspace_id: Optional[int] = None
 
 
 class ModuleStructureNodeResponse(ModuleStructureNodeBase):
     """模块结构节点的响应模型"""
     id: int
     user_id: int
+    workspace_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
     children: List["ModuleStructureNodeResponse"] = []

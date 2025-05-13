@@ -16,6 +16,7 @@ const RoleList = lazy(() => import('./pages/role/RoleList'));
 const PermissionList = lazy(() => import('./pages/permission/PermissionList'));
 const StructureManagementPage = lazy(() => import('./pages/structure-management/StructureManagementPage'));
 const ModuleContentPage = lazy(() => import('./pages/module-content/ModuleContentPage'));
+const WorkspaceManagePage = lazy(() => import('./pages/workspace/WorkspaceManagePage'));
 
 // 加载指示器组件
 const LoadingComponent = () => (
@@ -153,6 +154,10 @@ const router = createBrowserRouter([
       {
         path: `${ROUTES.MODULE_CONTENT}/:moduleId`,
         element: <SuspenseWrapper component={ModuleContentPage} />
+      },
+      {
+        path: ROUTES.WORKSPACES_MANAGE,
+        element: <SuspenseWrapper component={WorkspaceManagePage} />
       }
     ]
   },
