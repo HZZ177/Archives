@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Input, Space, Card, Popconfirm, message, Tag, Modal, Form, Switch, Select, Tooltip } from 'antd';
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, KeyOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../../types/user';
 import { ROUTES } from '../../config/constants';
@@ -11,6 +11,7 @@ import { Role } from '../../types/role';
 import { formatDate } from '../../utils/dateUtils';
 import request, { unwrapResponse } from '../../utils/request';
 import { APIResponse } from '../../types/api';
+import { useUser } from '../../contexts/UserContext';
 
 const { Search } = Input;
 
@@ -89,6 +90,10 @@ const UserList: React.FC = () => {
   const [isSuperUser, setIsSuperUser] = useState(false);
   
   const navigate = useNavigate();
+  // 获取当前用户信息
+  const { userState } = useUser();
+  // 添加重置密码的loading状态
+  const [resetPasswordLoading, setResetPasswordLoading] = useState<number | null>(null);
 
   // 获取所有角色列表
   const fetchAllRoles = async () => {
@@ -437,6 +442,40 @@ const UserList: React.FC = () => {
     }
   };
 
+  // 添加处理重置密码的函数
+  const handleResetPassword = async (userId: number) => {
+    try {
+      setResetPasswordLoading(userId);
+      
+      // 发送重置密码请求
+      const response = await request.post<APIResponse<any>>(`/users/${userId}/reset_password`);
+      
+      if (!response.data.success) {
+        message.error(response.data.message || '重置密码失败');
+        setResetPasswordLoading(null);
+        return;
+      }
+      
+      message.success(response.data.message || '密码已重置');
+      setResetPasswordLoading(null);
+    } catch (error: any) {
+      console.error('重置密码失败:', error);
+      
+      // 提取详细错误信息
+      let errorMessage = '重置密码失败';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      message.error(errorMessage);
+      setResetPasswordLoading(null);
+    }
+  };
+
   // 初始加载
   useEffect(() => {
     fetchUsers();
@@ -543,7 +582,7 @@ const UserList: React.FC = () => {
     {
       title: '角色',
       key: 'roles',
-      width: 100,
+      width: 160,
       render: (_: any, record: User) => {
         const roles = userRolesMap[record.id] || [];
         if (roles.length === 0) {
@@ -554,8 +593,8 @@ const UserList: React.FC = () => {
         const roleNames = roles.map(role => role.name).join(', ');
         
         return (
-          <EllipsisTooltip title={roleNames} widthLimit={90}>
-            <Space size={[0, 4]} wrap style={{ display: 'inline-flex' }}>
+          <EllipsisTooltip title={roleNames} widthLimit={160}>
+            <Space size={[4, 0]} direction="horizontal" style={{ display: 'inline-flex' }}>
               {roles.map(role => (
                 <Tag color="blue" key={role.id}>
                   {role.name}
@@ -576,7 +615,7 @@ const UserList: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 180,
+      width: 240,
       fixed: 'right' as 'right',
       render: (_: any, record: User) => (
         <Space size="middle">
@@ -599,6 +638,25 @@ const UserList: React.FC = () => {
               删除
             </Button>
           </Popconfirm>
+          
+          {/* 初始化密码按钮 - 仅当当前用户是超级管理员且目标用户不是admin时显示 */}
+          {userState.currentUser?.is_superuser && record.username !== 'admin' && (
+            <Popconfirm
+              title="确定要将该用户密码重置为手机号吗?"
+              description={`用户 ${record.username} 的密码将被重置为手机号`}
+              onConfirm={() => handleResetPassword(record.id)}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button 
+                type="link" 
+                icon={<KeyOutlined />} 
+                loading={resetPasswordLoading === record.id}
+              >
+                初始化密码
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -689,20 +747,13 @@ const UserList: React.FC = () => {
           </Form.Item>
           
           <Form.Item
-            name="password"
-            label="密码"
-            rules={[{ required: true, message: '请输入密码' }]}
-          >
-            <Input.Password placeholder="请输入密码" />
-          </Form.Item>
-          
-          <Form.Item
             name="mobile"
             label="手机号"
             rules={[
               { required: true, message: '请输入手机号' },
               { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' }
             ]}
+            help="手机号将被设置为初始密码，用户首次登录时将被要求修改密码"
           >
             <Input placeholder="请输入手机号" />
           </Form.Item>

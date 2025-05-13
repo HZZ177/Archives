@@ -260,3 +260,30 @@ async def update_user_roles(
     except Exception as e:
         logger.error(f"更新用户角色失败: {str(e)}")
         return error_response(message=f"更新用户角色失败: {str(e)}")
+
+
+@router.post("/{user_id}/reset_password", response_model=APIResponse)
+async def reset_user_password(
+        user_id: int,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_admin_user)]
+):
+    """
+    将用户密码重置为手机号
+    
+    只有超级管理员可以执行此操作，且不能重置admin账户的密码
+    """
+    try:
+        # 调用服务层重置用户密码
+        message = await user_service.reset_user_password(
+            db=db, 
+            user_id=user_id,
+            current_user=current_user
+        )
+        
+        return success_response(message=message)
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"重置用户密码失败: {str(e)}")
+        return error_response(message=f"重置用户密码失败: {str(e)}")

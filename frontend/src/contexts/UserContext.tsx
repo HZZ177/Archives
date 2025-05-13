@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { User, UserState, UserContextType, LoginParams } from '../types/user';
+import { User, UserState, UserContextType, LoginParams, ChangePasswordParams } from '../types/user';
 import authAPI from '../apis/auth';
 import { STORAGE_TOKEN_KEY, STORAGE_USER_KEY } from '../config/constants';
 import { message } from 'antd';
@@ -76,6 +76,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // token 和用户信息已经在 authAPI.login 中存储到 localStorage
       
       console.log('UserContext: 状态更新完成');
+      
+      // 如果需要修改密码，显示提示
+      if (result.need_change_password) {
+        message.warning('您的密码与手机号相同，出于安全考虑，请尽快修改密码。', 10);
+      }
     } catch (error: any) {
       console.error('UserContext: 登录失败', error);
       throw error;
@@ -125,13 +130,25 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // 修改密码
+  const changePassword = async (params: ChangePasswordParams): Promise<void> => {
+    try {
+      await authAPI.changePassword(params);
+      message.success('密码修改成功');
+    } catch (error) {
+      console.error('修改密码失败:', error);
+      throw error;
+    }
+  };
+
   // 提供Context值
   const contextValue: UserContextType = {
     userState,
     login,
     logout,
     updateUserInfo,
-    refreshUserInfo
+    refreshUserInfo,
+    changePassword
   };
 
   return (

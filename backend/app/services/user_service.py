@@ -103,7 +103,11 @@ class UserService:
             
             # 准备用户数据
             user_dict = user_data.model_dump(exclude={"password", "role_ids"})
-            user_dict["hashed_password"] = get_password_hash(user_data.password)
+            
+            # 如果未提供密码，则使用手机号作为默认密码
+            password = user_data.password if user_data.password else user_data.mobile
+            user_dict["hashed_password"] = get_password_hash(password)
+            
             role_ids = user_data.role_ids if user_data.role_ids else None
             
             # 创建用户
@@ -477,6 +481,68 @@ class UserService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"更新用户角色失败: {str(e)}"
+            )
+
+    async def reset_user_password(
+        self, 
+        db: AsyncSession, 
+        user_id: int,
+        current_user: User
+    ) -> str:
+        """
+        将用户密码重置为手机号
+        
+        :param db: 数据库会话
+        :param user_id: 用户ID
+        :param current_user: 当前用户
+        :return: 成功消息
+        """
+        try:
+            # 权限检查: 只有超级管理员可以重置密码
+            if not current_user.is_superuser:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="只有超级管理员可以重置用户密码"
+                )
+            
+            # 获取用户
+            user = await user_repository.get_user_by_id(db, user_id)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="用户不存在"
+                )
+            
+            # 特殊保护：不允许重置admin账户密码
+            if user.username == 'admin':
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="不允许重置超级管理员账号密码"
+                )
+            
+            # 检查用户是否有手机号
+            if not user.mobile:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="用户没有设置手机号，无法重置密码"
+                )
+            
+            # 将密码重置为手机号
+            update_data = {
+                "hashed_password": get_password_hash(user.mobile)
+            }
+            
+            # 更新用户密码
+            await user_repository.update_user(db, user, update_data)
+            
+            return "用户密码已成功重置为手机号"
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"重置用户密码服务失败: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"重置用户密码失败: {str(e)}"
             )
 
 

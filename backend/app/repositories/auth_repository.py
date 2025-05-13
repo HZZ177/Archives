@@ -142,6 +142,27 @@ class AuthRepository(BaseRepository[User, UserCreate, UserUpdate]):
         except Exception as e:
             logger.error(f"删除用户失败: {str(e)}")
             raise
+    
+    async def update_password(self, db: AsyncSession, user: User, hashed_password: str) -> User:
+        """
+        更新用户密码
+        
+        :param db: 数据库会话
+        :param user: 用户对象
+        :param hashed_password: 加密后的密码
+        :return: 更新后的用户
+        """
+        try:
+            # 更新密码
+            user.hashed_password = hashed_password
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+            return user
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"更新用户密码失败: {str(e)}")
+            raise
 
 
 # 创建认证仓库实例

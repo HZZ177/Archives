@@ -52,9 +52,9 @@ class UserCreate(UserBase):
     创建用户模型
     """
     username: str
-    password: str
+    password: Optional[str] = None  # 密码可选，如果不提供则默认设置为手机号
     email: Optional[EmailStr] = None
-    mobile: Optional[str] = None
+    mobile: str  # 手机号必填，用于设置默认密码
     role_ids: Optional[List[int]] = None
     is_superuser: Optional[bool] = False  # 保留超级管理员标志，但移除is_active
 
@@ -129,3 +129,11 @@ class UserDetail(UserResponse):
 class UserStatusUpdate(BaseModel):
     """更新用户状态（启用/禁用）"""
     is_active: bool
+
+
+# 修改密码请求模型
+class ChangePasswordRequest(BaseModel):
+    """修改密码请求模型"""
+    old_password: Optional[str] = None  # 旧密码，首次登录时可为空
+    new_password: str  # 新密码
+    is_first_login: Optional[bool] = False  # 是否首次登录（跳过旧密码验证）

@@ -34,11 +34,18 @@ export interface UserQueryParams {
 export interface LoginParams {
   username: string;
   password: string;
+  remember?: boolean;
 }
 
 export interface LoginResult {
   token: string;
   userinfo: User;
+  need_change_password?: boolean;
+}
+
+export interface ChangePasswordParams {
+  old_password: string;
+  new_password: string;
 }
 
 export interface UserState {
@@ -54,4 +61,5 @@ export interface UserContextType {
   logout: () => Promise<void>;
   updateUserInfo: (user: User) => void;
   refreshUserInfo: () => Promise<void>;
+  changePassword?: (params: ChangePasswordParams) => Promise<void>;
 } 

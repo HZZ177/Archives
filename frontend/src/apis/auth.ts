@@ -1,4 +1,4 @@
-import { LoginParams, LoginResult, User } from '../types/user';
+import { LoginParams, LoginResult, User, ChangePasswordParams } from '../types/user';
 import { message } from 'antd';
 import { STORAGE_TOKEN_KEY, STORAGE_USER_KEY } from '../config/constants';
 import request, { unwrapResponse } from '../utils/request';
@@ -17,7 +17,7 @@ const authAPI = {
       formData.append('password', params.password);
 
       // 第一步：登录获取token
-      const response = await request.post<APIResponse<{ access_token: string; token_type: string }>>('/auth/login', formData, {
+      const response = await request.post<APIResponse<{ access_token: string; token_type: string; need_change_password?: boolean }>>('/auth/login', formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -37,6 +37,7 @@ const authAPI = {
       }
       
       const token = response.data.data.access_token;
+      const needChangePassword = response.data.data.need_change_password || false;
       
       // 存储token
       localStorage.setItem(STORAGE_TOKEN_KEY, token);
@@ -50,11 +51,16 @@ const authAPI = {
       // 存储用户信息
       localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(userInfo));
       
-      // 返回符合前端期望格式的数据
-      return {
+      // 存储登录结果，包含need_change_password标志
+      const loginResult = {
         token,
-        userinfo: userInfo
+        userinfo: userInfo,
+        need_change_password: needChangePassword
       };
+      localStorage.setItem('login_result', JSON.stringify(loginResult));
+      
+      // 返回符合前端期望格式的数据
+      return loginResult;
     } catch (error: any) {
       console.error('Login error:', error);
       
@@ -109,6 +115,37 @@ const authAPI = {
     } catch (error) {
       console.error('Logout error:', error);
       message.error('登出失败');
+      throw error;
+    }
+  },
+
+  /**
+   * 修改用户密码
+   * @param params 包含旧密码和新密码的参数对象
+   * @returns 修改结果
+   */
+  changePassword: async (params: ChangePasswordParams): Promise<boolean> => {
+    try {
+      const response = await request.post<APIResponse<any>>('/auth/change-password', params);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || '修改密码失败');
+      }
+      
+      return true;
+    } catch (error: any) {
+      console.error('修改密码失败:', error);
+      
+      let errorMessage = '修改密码失败';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      message.error(errorMessage);
       throw error;
     }
   }

@@ -18,4 +18,5 @@ class LoginResult(BaseModel):
     登录成功的响应数据格式
     """
     access_token: str
-    token_type: str 
+    token_type: str
+    need_change_password: Optional[bool] = False  # 是否需要修改密码 
