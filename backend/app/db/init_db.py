@@ -188,7 +188,6 @@ async def init_db() -> None:
                 # 创建管理员用户
                 admin_user = User(
                     username="admin",
-                    email="admin@examples.com",
                     hashed_password=get_password_hash("admin123"),
                     is_active=True,
                     is_superuser=True
