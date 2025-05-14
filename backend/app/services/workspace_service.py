@@ -165,6 +165,52 @@ class WorkspaceService:
         
         return {"success": True, "message": "用户角色已更新"}
 
+    async def update_workspace_user_role(
+        self, db: AsyncSession, workspace_id: int, user_id: int, access_level: str, current_user: User
+    ) -> Dict[str, Any]:
+        """更新用户在工作区中的角色，并返回完整的用户信息"""
+        # 验证工作区是否存在
+        workspace = await self.get_workspace(db, workspace_id)
+
+        # 检查权限: 只有超级管理员或工作区管理员可以更新用户角色
+        if not current_user.is_superuser:
+            user_access = await workspace_repository.get_user_access_level(db, workspace_id, current_user.id)
+            if user_access != "admin":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="只有工作区管理员可以更新用户角色"
+                )
+        
+        # 检查要更新的用户是否存在
+        from backend.app.repositories.auth_repository import auth_repository
+        target_user = await auth_repository.get_user_by_id(db, user_id)
+        if not target_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"用户ID {user_id} 不存在"
+            )
+        
+        # 不能修改超级管理员的角色
+        if target_user.is_superuser and access_level != "owner":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="不能修改超级管理员的工作区角色"
+            )
+        
+        # 更新用户角色
+        await workspace_repository.add_user_to_workspace(db, workspace_id, user_id, access_level)
+        
+        # 返回完整的用户信息，包括更新后的角色
+        return {
+            "user_id": target_user.id,
+            "username": target_user.username,
+            "email": target_user.email,
+            "is_superuser": target_user.is_superuser,
+            "access_level": access_level,
+            "workspace_id": workspace_id,
+            "created_at": target_user.created_at.isoformat() if target_user.created_at else None,
+        }
+
     async def remove_user_from_workspace(
         self, db: AsyncSession, workspace_id: int, user_id: int, current_user: User
     ) -> Dict[str, Any]:

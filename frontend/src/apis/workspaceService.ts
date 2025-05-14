@@ -113,7 +113,7 @@ export const createWorkspace = async (params: CreateWorkspaceParams): Promise<Wo
  */
 export const updateWorkspace = async (id: number, params: UpdateWorkspaceParams): Promise<Workspace> => {
   try {
-    const response = await request.post<APIResponse<Workspace>>(`/workspaces/${id}`, params);
+    const response = await request.post<APIResponse<Workspace>>(`/workspaces/update/${id}`, params);
     invalidateWorkspaceCache();
     return unwrapResponse(response.data);
   } catch (error) {
@@ -155,12 +155,14 @@ export const fetchWorkspaceUsers = async (workspaceId: number): Promise<Workspac
  * 添加用户到工作区
  * @param workspaceId 工作区ID
  * @param params 用户数据
- * @returns 添加的用户
  */
-export const addUserToWorkspace = async (workspaceId: number, params: WorkspaceUserParams): Promise<WorkspaceUser> => {
+export const addUserToWorkspace = async (workspaceId: number, params: WorkspaceUserParams): Promise<void> => {
   try {
-    const response = await request.post<APIResponse<WorkspaceUser>>(`/workspaces/${workspaceId}/users`, params);
-    return unwrapResponse(response.data);
+    const response = await request.post<APIResponse<any>>(`/workspaces/${workspaceId}/users`, params);
+    if (!response.data.success) {
+      throw new Error(response.data.message || '添加用户到工作区失败');
+    }
+    // 成功添加用户，不需要返回数据
   } catch (error) {
     console.error(`添加用户到工作区(ID:${workspaceId})失败:`, error);
     throw error;
@@ -171,12 +173,24 @@ export const addUserToWorkspace = async (workspaceId: number, params: WorkspaceU
  * 更新工作区用户角色
  * @param workspaceId 工作区ID
  * @param userId 用户ID
- * @param role 新角色
+ * @param role 前端显示的角色
  * @returns 更新后的用户
  */
 export const updateWorkspaceUserRole = async (workspaceId: number, userId: number, role: string): Promise<WorkspaceUser> => {
   try {
-    const response = await request.post<APIResponse<WorkspaceUser>>(`/workspaces/${workspaceId}/users/${userId}`, { role });
+    // 角色映射：从前端显示角色映射到后端access_level
+    const roleToAccessLevel: Record<string, string> = {
+      'owner': 'owner',
+      'admin': 'admin',
+      'member': 'write', // 成员对应write权限
+      'guest': 'read'    // 访客对应read权限
+    };
+    
+    // 使用access_level作为参数名，与后端API匹配
+    const response = await request.post<APIResponse<WorkspaceUser>>(
+      `/workspaces/${workspaceId}/users/${userId}`, 
+      { access_level: roleToAccessLevel[role] || 'read' }
+    );
     return unwrapResponse(response.data);
   } catch (error) {
     console.error(`更新工作区(ID:${workspaceId})用户(ID:${userId})角色失败:`, error);
@@ -191,7 +205,7 @@ export const updateWorkspaceUserRole = async (workspaceId: number, userId: numbe
  */
 export const removeUserFromWorkspace = async (workspaceId: number, userId: number): Promise<void> => {
   try {
-    await request.post<APIResponse<void>>(`/workspaces/${workspaceId}/users/delete/${userId}`);
+    await request.post<APIResponse<void>>(`/workspaces/${workspaceId}/users/${userId}/remove`);
   } catch (error) {
     console.error(`从工作区(ID:${workspaceId})移除用户(ID:${userId})失败:`, error);
     throw error;

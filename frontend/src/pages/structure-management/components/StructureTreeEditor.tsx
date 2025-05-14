@@ -307,6 +307,19 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
     console.log('StructureTreeEditor: 节点修改完成，刷新树数据');
     onTreeDataChange();
     
+    // 如果是添加子节点，自动展开父节点
+    if (modalType === 'add' && parentNode) {
+      // 确保父节点ID在expandedKeys中
+      setExpandedKeys(prevKeys => {
+        const parentKey = parentNode.id.toString();
+        if (!prevKeys.includes(parentKey)) {
+          console.log(`StructureTreeEditor: 自动展开父节点 [${parentNode.name}]`);
+          return [...prevKeys, parentKey];
+        }
+        return prevKeys;
+      });
+    }
+    
     // 同时通知全局刷新
     triggerRefreshEvent();
   };

@@ -1,11 +1,13 @@
 from typing import List, Optional, Set
-from sqlalchemy import select, exists
+from sqlalchemy import select, exists, func, outerjoin, join
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, aliased
 
 from backend.app.core.logger import logger
 from backend.app.models.permission import Permission, role_permission
 from backend.app.models.user import User, Role, user_role
+from backend.app.models.module_structure import ModuleStructureNode
+from backend.app.models.workspace import Workspace
 from backend.app.repositories.base_repository import BaseRepository
 from backend.app.schemas.permission import PermissionCreate, PermissionUpdate
 
@@ -24,16 +26,39 @@ class PermissionRepository(BaseRepository[Permission, PermissionCreate, Permissi
         limit: int = 1000
     ) -> List[Permission]:
         """
-        获取所有权限列表（扁平结构）
+        获取所有权限列表（扁平结构），包含工作区信息
         """
         try:
-            result = await db.execute(
-                select(Permission)
+            # 创建ModuleStructureNode和Workspace的别名以用于JOIN
+            msn = aliased(ModuleStructureNode)
+            ws = aliased(Workspace)
+            
+            # 构建查询
+            query = (
+                select(
+                    Permission,
+                    msn.workspace_id,
+                    ws.name.label("workspace_name"),
+                )
+                .outerjoin(msn, Permission.id == msn.permission_id)
+                .outerjoin(ws, msn.workspace_id == ws.id)
                 .options(selectinload(Permission.children))
                 .offset(skip)
                 .limit(limit)
             )
-            return result.scalars().all()
+            
+            # 执行查询
+            result = await db.execute(query)
+            
+            # 处理结果
+            permissions = []
+            for perm, ws_id, ws_name in result.unique():
+                # 设置工作区相关属性
+                setattr(perm, "workspace_id", ws_id)
+                setattr(perm, "workspace_name", ws_name)
+                permissions.append(perm)
+                
+            return permissions
         except Exception as e:
             logger.error(f"获取权限列表失败: {str(e)}")
             raise
@@ -43,13 +68,36 @@ class PermissionRepository(BaseRepository[Permission, PermissionCreate, Permissi
         获取权限树（树形结构）
         """
         try:
-            result = await db.execute(
-                select(Permission)
-                .options(selectinload(Permission.children))
+            # 创建ModuleStructureNode和Workspace的别名以用于JOIN
+            msn = aliased(ModuleStructureNode)
+            ws = aliased(Workspace)
+            
+            # 构建查询
+            query = (
+                select(
+                    Permission,
+                    msn.workspace_id,
+                    ws.name.label("workspace_name"),
+                )
+                .outerjoin(msn, Permission.id == msn.permission_id)
+                .outerjoin(ws, msn.workspace_id == ws.id)
                 .where(Permission.parent_id.is_(None))
+                .options(selectinload(Permission.children))
                 .order_by(Permission.sort)
             )
-            return result.unique().scalars().all()
+            
+            # 执行查询
+            result = await db.execute(query)
+            
+            # 处理结果
+            permissions = []
+            for perm, ws_id, ws_name in result.unique():
+                # 设置工作区相关属性
+                setattr(perm, "workspace_id", ws_id)
+                setattr(perm, "workspace_name", ws_name)
+                permissions.append(perm)
+                
+            return permissions
         except Exception as e:
             logger.error(f"获取权限树失败: {str(e)}")
             raise

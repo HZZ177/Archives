@@ -37,6 +37,8 @@ class PermissionResponse(PermissionBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    workspace_id: Optional[int] = None
+    workspace_name: Optional[str] = None
     children: Optional[List['PermissionResponse']] = []
 
     class Config:

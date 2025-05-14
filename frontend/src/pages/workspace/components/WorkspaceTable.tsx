@@ -1,13 +1,12 @@
 import React from 'react';
 import { Table, Button, Tag, Space, Tooltip } from 'antd';
-import { EditOutlined, DeleteOutlined, StarOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Workspace } from '../../../types/workspace';
 
 interface WorkspaceTableProps {
   workspaces: Workspace[];
   onEdit: (workspace: Workspace) => void;
   onDelete: (workspace: Workspace) => void;
-  onSetDefault: (workspace: Workspace) => void;
 }
 
 /**
@@ -17,7 +16,6 @@ const WorkspaceTable: React.FC<WorkspaceTableProps> = ({
   workspaces,
   onEdit,
   onDelete,
-  onSetDefault,
 }) => {
   const columns = [
     {
@@ -74,15 +72,6 @@ const WorkspaceTable: React.FC<WorkspaceTableProps> = ({
               disabled={record.is_default}
             />
           </Tooltip>
-          <Tooltip title={record.is_default ? '已设为默认' : '设为默认'}>
-            <Button
-              type="text"
-              icon={<StarOutlined />}
-              onClick={() => onSetDefault(record)}
-              disabled={record.is_default}
-              style={{ color: record.is_default ? '#faad14' : undefined }}
-            />
-          </Tooltip>
         </Space>
       ),
     },
@@ -94,6 +83,7 @@ const WorkspaceTable: React.FC<WorkspaceTableProps> = ({
       columns={columns}
       dataSource={workspaces}
       pagination={false}
+      size="middle"
     />
   );
 };

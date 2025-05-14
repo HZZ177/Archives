@@ -18,8 +18,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
     currentWorkspace, 
     workspaces, 
     loading, 
-    setCurrentWorkspace,
-    setAsDefaultWorkspace
+    setCurrentWorkspace
   } = useWorkspaceContext();
   const { userState } = useUser();
   const navigate = useNavigate();
@@ -68,39 +67,12 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
     ] : []),
   ];
 
-  // 为当前选中的工作区添加"设为默认"选项（如果不是默认工作区）
-  const currentId = currentWorkspace.id.toString();
-  if (workspaces.find(w => w.id.toString() === currentId && !w.is_default)) {
-    menuItems.push(
-      { type: 'divider' as const },
-      {
-        key: `set_default:${currentId}`,
-        label: (
-          <Space>
-            <span>设为默认工作区</span>
-          </Space>
-        ),
-      }
-    );
-  }
-
   // 点击菜单项处理
   const onClick: MenuProps['onClick'] = ({ key }) => {
     // 如果点击的是管理按钮
     if (key === 'manage') {
       // 导航到工作区管理页面
       navigate(ROUTES.WORKSPACES_MANAGE);
-      setOpen(false);
-      return;
-    }
-    
-    // 如果是设为默认工作区
-    if (key.startsWith('set_default:')) {
-      const workspaceId = key.split(':')[1];
-      const workspace = workspaces.find(w => w.id.toString() === workspaceId);
-      if (workspace) {
-        setAsDefaultWorkspace(workspace);
-      }
       setOpen(false);
       return;
     }
@@ -115,8 +87,20 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
 
   // 工作区选择器触发器
   const dropdownTrigger = (
-    <Button className="workspace-selector-button" onClick={() => setOpen(!open)}>
-      <Space>
+    <Button 
+      className="workspace-selector-button" 
+      onClick={(e) => {
+        setOpen(!open);
+        // 点击后自动失去焦点
+        if (e.currentTarget) {
+          setTimeout(() => {
+            e.currentTarget.blur();
+          }, 100);
+        }
+      }}
+    >
+      <span className="workspace-title">工作区</span>
+      <div className="workspace-content">
         <span style={{ 
           display: 'inline-block', 
           width: '12px', 
@@ -126,8 +110,8 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
           marginRight: '6px' 
         }} />
         <span className="workspace-name-text">{currentWorkspace.name}</span>
-        <DownOutlined />
-      </Space>
+        <DownOutlined style={{ marginLeft: 'auto' }} />
+      </div>
     </Button>
   );
 

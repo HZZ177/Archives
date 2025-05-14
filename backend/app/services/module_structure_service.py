@@ -278,6 +278,9 @@ class ModuleStructureService:
             if parent_node and parent_node.permission_id:
                 await self.assign_permission_to_roles(db, parent_node.permission_id, db_permission)
             
+            # 将新节点的权限分配给创建者所拥有的所有角色，确保创建者可以访问
+            await self.assign_permission_to_user_roles(db, user.id, db_permission)
+            
             # 提交事务
             await db.commit()
             
@@ -538,6 +541,55 @@ class ModuleStructureService:
             
         except Exception as e:
             logger.error(f"分配权限给角色失败: {str(e)}")
+            raise
+    
+    async def assign_permission_to_user_roles(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        new_permission: Permission
+    ) -> None:
+        """
+        将权限分配给指定用户所拥有的所有角色
+        
+        :param db: 数据库会话
+        :param user_id: 用户ID
+        :param new_permission: 要分配的权限
+        """
+        try:
+            # 查询用户拥有的所有角色
+            result = await db.execute(text("""
+                SELECT r.* FROM roles r
+                JOIN user_role ur ON r.id = ur.role_id
+                WHERE ur.user_id = :user_id
+            """), {"user_id": user_id})
+            
+            user_roles = result.fetchall()
+            
+            # 对用户的每个角色分配新权限
+            for role in user_roles:
+                # 检查是否已存在该权限分配，避免重复
+                exists_result = await db.execute(text("""
+                    SELECT 1 FROM role_permission 
+                    WHERE role_id = :role_id AND permission_id = :permission_id
+                """), {"role_id": role.id, "permission_id": new_permission.id})
+                
+                exists = exists_result.scalar() is not None
+                
+                if not exists:
+                    # 使用原始SQL执行插入
+                    await db.execute(text("""
+                        INSERT INTO role_permission (role_id, permission_id)
+                        VALUES (:role_id, :permission_id)
+                    """), {"role_id": role.id, "permission_id": new_permission.id})
+                    
+                    logger.info(f"为用户 ID:{user_id} 的角色 '{role.name}' 分配权限 '{new_permission.code}'")
+            
+            if not user_roles:
+                logger.warning(f"用户 ID:{user_id} 没有任何角色，无法分配权限")
+                
+        except Exception as e:
+            logger.error(f"为用户角色分配权限失败: {str(e)}")
             raise
 
 

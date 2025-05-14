@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Form, Input, Button, Switch, ColorPicker, Space } from 'antd';
+import { Form, Input, Button, ColorPicker, Space } from 'antd';
 import { Workspace, CreateWorkspaceParams, UpdateWorkspaceParams } from '../../../types/workspace';
 
 const { TextArea } = Input;
@@ -29,7 +29,6 @@ const WorkspaceForm: React.FC<WorkspaceFormProps> = ({
         name: initialValues.name,
         description: initialValues.description || '',
         color: initialValues.color || '#1890ff',
-        is_default: initialValues.is_default || false,
       });
     }
   }, [initialValues, form]);
@@ -53,7 +52,6 @@ const WorkspaceForm: React.FC<WorkspaceFormProps> = ({
         name: '',
         description: '',
         color: '#1890ff',
-        is_default: false,
       }}
     >
       <Form.Item
@@ -76,14 +74,6 @@ const WorkspaceForm: React.FC<WorkspaceFormProps> = ({
         name="color"
       >
         <ColorPicker />
-      </Form.Item>
-
-      <Form.Item
-        name="is_default"
-        valuePropName="checked"
-        tooltip="设置为默认工作区后，用户登录时将默认进入该工作区"
-      >
-        <Switch checkedChildren="默认" unCheckedChildren="非默认" /> 设为默认工作区
       </Form.Item>
 
       <Form.Item>

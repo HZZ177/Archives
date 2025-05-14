@@ -8,7 +8,6 @@ import {
   createWorkspace, 
   updateWorkspace, 
   deleteWorkspace, 
-  setDefaultWorkspace,
   fetchWorkspaceUsers,
   addUserToWorkspace
 } from '../../apis/workspaceService';
@@ -22,6 +21,7 @@ import {
 import WorkspaceUserTable from './components/WorkspaceUserTable';
 import AddUserToWorkspaceModal from './components/AddUserToWorkspaceModal';
 import { useAuthContext } from '../../contexts/AuthContext';
+import { useWorkspaceContext } from '../../contexts/WorkspaceContext';
 import './WorkspaceManagePage.css';
 
 // 用于处理API返回的原始工作区用户数据
@@ -42,6 +42,7 @@ interface ApiWorkspaceUser {
 
 const WorkspaceManagePage: React.FC = () => {
   const { currentUser } = useAuthContext();
+  const { refreshWorkspaces: refreshWorkspacesContext } = useWorkspaceContext();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);
@@ -134,13 +135,30 @@ const WorkspaceManagePage: React.FC = () => {
     }
   }, [selectedWorkspace, activeTab]);
 
+  // 当工作区列表加载完成或标签页切换到users时，自动选择默认工作区
+  useEffect(() => {
+    if (activeTab === 'users' && workspaces.length > 0 && !selectedWorkspace) {
+      // 优先选择默认工作区，如果没有默认工作区，则选择第一个
+      const defaultWorkspace = workspaces.find(w => w.is_default);
+      setSelectedWorkspace(defaultWorkspace || workspaces[0]);
+    }
+  }, [activeTab, workspaces, selectedWorkspace]);
+
   // 处理标签页切换
   const handleTabChange = (key: string) => {
     setActiveTab(key);
     
     // 如果切换到用户管理标签页，且已选择了工作区，则加载用户列表
-    if (key === 'users' && selectedWorkspace) {
+    if (key === 'users') {
+      if (selectedWorkspace) {
       fetchWorkspaceUsersList(selectedWorkspace.id);
+      } else if (workspaces.length > 0) {
+        // 优先选择默认工作区，如果没有默认工作区，则选择第一个
+        const defaultWorkspace = workspaces.find(w => w.is_default);
+        const workspaceToSelect = defaultWorkspace || workspaces[0];
+        setSelectedWorkspace(workspaceToSelect);
+        fetchWorkspaceUsersList(workspaceToSelect.id);
+      }
     }
   };
 
@@ -151,7 +169,9 @@ const WorkspaceManagePage: React.FC = () => {
       await createWorkspace(values);
       message.success('工作区创建成功');
       setCreateModalVisible(false);
-      fetchWorkspacesList();
+      await fetchWorkspacesList();
+      // 刷新WorkspaceContext中的数据
+      await refreshWorkspacesContext();
     } catch (error) {
       console.error('创建工作区失败:', error);
       message.error('创建工作区失败');
@@ -169,7 +189,9 @@ const WorkspaceManagePage: React.FC = () => {
       await updateWorkspace(selectedWorkspace.id, values);
       message.success('工作区更新成功');
       setEditModalVisible(false);
-      fetchWorkspacesList();
+      await fetchWorkspacesList();
+      // 刷新WorkspaceContext中的数据
+      await refreshWorkspacesContext();
     } catch (error) {
       console.error('更新工作区失败:', error);
       message.error('更新工作区失败');
@@ -191,7 +213,9 @@ const WorkspaceManagePage: React.FC = () => {
           setLoading(true);
           await deleteWorkspace(workspace.id);
           message.success('工作区删除成功');
-          fetchWorkspacesList();
+          await fetchWorkspacesList();
+          // 刷新WorkspaceContext中的数据
+          await refreshWorkspacesContext();
         } catch (error) {
           console.error('删除工作区失败:', error);
           message.error('删除工作区失败');
@@ -200,26 +224,6 @@ const WorkspaceManagePage: React.FC = () => {
         }
       }
     });
-  };
-
-  // 设置默认工作区
-  const handleSetDefault = (workspace: Workspace) => {
-    if (workspace.is_default) {
-      message.info('该工作区已是默认工作区');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setDefaultWorkspace(currentUser?.id || 0, workspace.id);
-      message.success('已设置为默认工作区');
-      fetchWorkspacesList();
-    } catch (error) {
-      console.error('设置默认工作区失败:', error);
-      message.error('设置默认工作区失败');
-    } finally {
-      setLoading(false);
-    }
   };
 
   // 添加用户到工作区
@@ -233,6 +237,8 @@ const WorkspaceManagePage: React.FC = () => {
       
       // 刷新工作区用户列表
       fetchWorkspaceUsersList(selectedWorkspace.id);
+      // 刷新WorkspaceContext中的数据
+      await refreshWorkspacesContext();
     } catch (error) {
       console.error('添加用户到工作区失败:', error);
       message.error('添加用户到工作区失败');
@@ -261,7 +267,6 @@ const WorkspaceManagePage: React.FC = () => {
           setEditModalVisible(true);
         }}
         onDelete={handleDelete}
-        onSetDefault={handleSetDefault}
       />
     </div>
   );
@@ -380,8 +385,6 @@ const WorkspaceManagePage: React.FC = () => {
               name: values.name || '',  // 确保name不是undefined
               description: values.description,
               color: values.color,
-              // 使用类型断言确保访问is_default属性
-              is_default: 'is_default' in values ? Boolean(values.is_default) : false
             };
             handleCreate(createParams);
           }}

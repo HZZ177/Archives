@@ -68,4 +68,9 @@ class WorkspaceWithUsers(WorkspaceResponse):
 
 class UserDefaultWorkspace(BaseModel):
     """设置用户默认工作区的请求模型"""
-    workspace_id: int 
+    workspace_id: int
+
+
+class WorkspaceUserRoleUpdate(BaseModel):
+    """更新工作区用户角色的请求模型"""
+    access_level: str = Field(..., description="用户访问级别: read, write, admin, owner等")

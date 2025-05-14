@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Table, Button, Space, Tag, Tooltip, Modal, message } from 'antd';
-import { EditOutlined, DeleteOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Tag, Modal, message, Tooltip } from 'antd';
+import { EditOutlined, DeleteOutlined, QuestionCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { WorkspaceUser } from '../../../types/workspace';
 import { updateWorkspaceUserRole, removeUserFromWorkspace } from '../../../apis/workspaceService';
+import { roleConfig, getEffectiveRole, getRoleColor, getRoleLabel, getRoleDescription } from '../../../utils/roleMapping';
+import { useWorkspaceContext } from '../../../contexts/WorkspaceContext';
 
 interface WorkspaceUserTableProps {
   workspaceId: number;
@@ -23,35 +25,7 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
   const [selectedUser, setSelectedUser] = useState<WorkspaceUser | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [actionLoading, setActionLoading] = useState<boolean>(false);
-
-  // 角色配置
-  const roleConfig = [
-    { value: 'owner', label: '所有者', color: 'gold', description: '完全控制权限，可以管理所有内容和设置' },
-    { value: 'admin', label: '管理员', color: 'red', description: '可以管理大多数内容和设置，但无法删除工作区' },
-    { value: 'member', label: '成员', color: 'blue', description: '可以查看和编辑内容，但无法更改关键设置' },
-    { value: 'guest', label: '访客', color: 'green', description: '仅可查看权限，无法编辑内容' },
-    // 兼容旧版API返回的角色格式
-    { value: 'write', label: '可编辑', color: 'blue', description: '可以查看和编辑内容' },
-    { value: 'read', label: '只读', color: 'green', description: '仅可查看，无法编辑内容' }
-  ];
-
-  // 获取角色标签颜色
-  const getRoleColor = (role: string): string => {
-    const roleInfo = roleConfig.find(r => r.value === role);
-    return roleInfo?.color || 'default';
-  };
-
-  // 获取角色显示名称
-  const getRoleLabel = (role: string): string => {
-    const roleInfo = roleConfig.find(r => r.value === role);
-    return roleInfo?.label || role;
-  };
-
-  // 获取角色描述
-  const getRoleDescription = (role: string): string => {
-    const roleInfo = roleConfig.find(r => r.value === role);
-    return roleInfo?.description || '';
-  };
+  const { refreshWorkspaces } = useWorkspaceContext();
 
   // 从工作区中移除用户
   const handleRemoveUser = (user: WorkspaceUser) => {
@@ -67,6 +41,8 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
           await removeUserFromWorkspace(workspaceId, user.user_id);
           message.success('已成功移除用户');
           onRefresh();
+          // 刷新WorkspaceContext中的数据
+          await refreshWorkspaces();
         } catch (error) {
           console.error('移除用户失败:', error);
           message.error('移除用户失败');
@@ -80,7 +56,8 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
   // 打开编辑角色模态框
   const handleEditRole = (user: WorkspaceUser) => {
     setSelectedUser(user);
-    setSelectedRole(user.role);
+    // 获取有效角色，确保前端显示一致
+    setSelectedRole(getEffectiveRole(user));
     setEditModalVisible(true);
   };
 
@@ -94,6 +71,8 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
       message.success('已成功更新用户角色');
       setEditModalVisible(false);
       onRefresh();
+      // 刷新WorkspaceContext中的数据
+      await refreshWorkspaces();
     } catch (error) {
       console.error('更新用户角色失败:', error);
       message.error('更新用户角色失败');
@@ -119,9 +98,9 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
       title: '角色',
       dataIndex: 'role',
       key: 'role',
-      render: (role: string, record: WorkspaceUser) => {
-        // 如果没有role字段但有access_level字段，则使用access_level
-        const effectiveRole = role || (record as any).access_level || 'member';
+      render: (_: string, record: WorkspaceUser) => {
+        // 获取有效角色，确保前端显示一致
+        const effectiveRole = getEffectiveRole(record);
         return (
           <Tooltip title={getRoleDescription(effectiveRole)}>
             <Tag color={getRoleColor(effectiveRole)}>
@@ -138,14 +117,14 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
         <Space size="small">
           <Button
             icon={<EditOutlined />}
-            size="small"
+            type="link"
             onClick={() => handleEditRole(record)}
           >
             修改角色
           </Button>
           <Button
             icon={<DeleteOutlined />}
-            size="small"
+            type="link"
             danger
             onClick={() => handleRemoveUser(record)}
           >
@@ -160,7 +139,7 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <h3>工作区用户</h3>
-        <Button type="primary" onClick={onAddUser}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={onAddUser}>
           添加用户
         </Button>
       </div>

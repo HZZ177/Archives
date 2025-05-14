@@ -1,13 +1,102 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Form, Input, Switch, Tree, Button, Space, Spin, message, Typography, Card, Tooltip, Row, Col } from 'antd';
+import { Form, Input, Switch, Tree, Button, Space, Spin, message, Typography, Card, Tooltip, Row, Col, Divider, Tabs } from 'antd';
 import { fetchPermissionTree } from '../../../apis/permissionService';
 import { PermissionTree } from '../../../types/permission';
 import type { TreeProps } from 'antd';
 import { Role } from '../../../types/role';
 import { LockOutlined } from '@ant-design/icons';
+import './RoleForm.less'; // 确保创建并引入样式文件
 
 const { Title } = Typography;
 const { TextArea } = Input;
+
+// 获取节点树所有节点的keys（包括子节点）
+const getNodeKeys = (nodes: any[]): string[] => {
+  const keys: string[] = [];
+  
+  const collectKeys = (nodeList: any[]) => {
+    nodeList.forEach(node => {
+      if (node.key) {
+        keys.push(node.key.toString());
+      }
+      if (node.children && node.children.length > 0) {
+        collectKeys(node.children);
+      }
+    });
+  };
+  
+  collectKeys(nodes);
+  return keys;
+};
+
+// 辅助函数：获取节点的所有子节点key
+const getNodeChildrenKeys = (node: any): string[] => {
+  const keys: string[] = [];
+  
+  if (!node.children || node.children.length === 0) {
+    return keys;
+  }
+  
+  const extractKeys = (nodes: any[]) => {
+    nodes.forEach(childNode => {
+      if (childNode.key) {
+        keys.push(childNode.key.toString());
+      }
+      
+      if (childNode.children && childNode.children.length > 0) {
+        extractKeys(childNode.children);
+      }
+    });
+  };
+
+  extractKeys(node.children);
+  return keys;
+};
+
+interface WorkspaceTreeProps {
+  workspace: WorkspaceGroup;
+  globalCheckedKeys: React.Key[];
+  onTreeCheck: (checked: React.Key[], info: any, sourceKey: string) => void;
+}
+
+// WorkspaceTree组件，封装Tree组件，实现独立状态管理
+const WorkspaceTree: React.FC<WorkspaceTreeProps> = ({
+  workspace,
+  globalCheckedKeys,
+  onTreeCheck,
+}) => {
+  // 当前工作区所有节点的keys
+  const workspaceNodeKeys = getNodeKeys(workspace.permissionNodes);
+  
+  // 过滤当前工作区相关的选中keys
+  const filteredCheckedKeys = globalCheckedKeys
+    .map(key => key.toString())
+    .filter(key => workspaceNodeKeys.includes(key));
+  
+  // 处理当前工作区的选中事件
+  const handleCheck: TreeProps['onCheck'] = (checked, info) => {
+    // 将Tree组件的选中状态转换为数组
+    const checkedArray = Array.isArray(checked) 
+      ? checked 
+      : checked.checked;
+    
+    // 调用父组件的处理函数，传递当前工作区的key
+    onTreeCheck(checkedArray, info, workspace.key);
+  };
+  
+  return (
+    <Tree
+      checkable
+      checkedKeys={filteredCheckedKeys}
+      onCheck={handleCheck}
+      treeData={workspace.permissionNodes}
+      defaultExpandAll
+      className="permission-tree"
+      height={180}
+      key={`workspace-tree-${workspace.key}-${JSON.stringify(filteredCheckedKeys)}`}
+    />
+  );
+};
 
 interface RoleFormProps {
   role?: Role | null;
@@ -19,6 +108,59 @@ interface RoleFormProps {
 
 // 首页权限标识，通过页面路径来识别
 const HOME_PAGE_PATH = '/';
+
+// 添加工作区分组结构接口定义
+interface WorkspaceGroup {
+  title: string;
+  key: string;
+  workspaceId: number;
+  permissionNodes: any[]; // 存储该工作区下的权限节点
+}
+
+// SystemTree组件，封装系统权限树
+interface SystemTreeProps {
+  treeData: any[];
+  globalCheckedKeys: React.Key[];
+  onTreeCheck: (checked: React.Key[], info: any, sourceKey: string) => void;
+}
+
+const SystemTree: React.FC<SystemTreeProps> = ({
+  treeData,
+  globalCheckedKeys,
+  onTreeCheck,
+}) => {
+  // 系统树所有节点的keys
+  const systemNodeKeys = getNodeKeys(treeData);
+  
+  // 过滤只包含系统树节点的选中keys
+  const filteredCheckedKeys = globalCheckedKeys
+    .map(key => key.toString())
+    .filter(key => systemNodeKeys.includes(key));
+  
+  // 处理系统权限树的选中事件
+  const handleCheck: TreeProps['onCheck'] = (checked, info) => {
+    // 将Tree组件的选中状态转换为数组
+    const checkedArray = Array.isArray(checked) 
+      ? checked 
+      : checked.checked;
+    
+    // 调用父组件的处理函数
+    onTreeCheck(checkedArray, info, 'system');
+  };
+  
+  return (
+    <Tree
+      checkable
+      checkedKeys={filteredCheckedKeys}
+      onCheck={handleCheck}
+      treeData={treeData}
+      defaultExpandAll
+      className="permission-tree"
+      height={430}
+      key={`system-tree-${JSON.stringify(filteredCheckedKeys)}`}
+    />
+  );
+};
 
 const RoleForm: React.FC<RoleFormProps> = ({
   role,
@@ -88,9 +230,11 @@ const RoleForm: React.FC<RoleFormProps> = ({
       setHomePagePermissionId(homePageId);
       console.log('首页权限ID:', homePageId);
       
-      // 渲染系统权限树和模块权限树
+      // 渲染系统权限树
       const renderedSystemTreeData = renderPermissionTree(systemPermissions);
-      const renderedModuleTreeData = renderPermissionTree(modulePermissions);
+      
+      // 按工作区分组渲染模块权限树
+      const renderedModuleTreeData = renderModuleTreeByWorkspace(modulePermissions);
       
       setSystemTreeData(renderedSystemTreeData);
       setModuleTreeData(renderedModuleTreeData);
@@ -122,20 +266,104 @@ const RoleForm: React.FC<RoleFormProps> = ({
     }
   };
 
-  // 添加新的useEffect，监听resetKey变化并重置表单状态
-  useEffect(() => {
-    if (resetKey && !role) {
-      // 仅在创建新角色模式下（role为null）且resetKey存在时重置
-      console.log('重置键变化，重置表单状态:', resetKey);
-      form.resetFields();
+  // 按工作区分组权限数据
+  const renderModuleTreeByWorkspace = (modulePermissions: PermissionTree[]): WorkspaceGroup[] => {
+    // 按工作区ID分组权限
+    const workspaceGroups: Map<number, WorkspaceGroup> = new Map();
+    const noWorkspaceGroup: any[] = [];
+    
+    // 首先按工作区分组所有模块权限
+    modulePermissions.forEach(permission => {
+      // 如果没有工作区ID，放入未分组列表
+      if (!permission.workspace_id) {
+        const permNode = renderPermissionNode(permission);
+        noWorkspaceGroup.push(permNode);
+        return;
+      }
       
-      // 重置权限选择状态，只保留首页权限
-      setCheckedKeys(homePagePermissionId ? [homePagePermissionId] : []);
+      // 如果有工作区信息，按工作区分组
+      if (!workspaceGroups.has(permission.workspace_id)) {
+        workspaceGroups.set(permission.workspace_id, {
+          title: permission.workspace_name || `工作区 ${permission.workspace_id}`,
+          key: `workspace-${permission.workspace_id}`,
+          workspaceId: permission.workspace_id,
+          permissionNodes: []
+        });
+      }
       
-      // 重新加载权限数据
-      loadPermissionData();
+      const group = workspaceGroups.get(permission.workspace_id)!;
+      const permNode = renderPermissionNode(permission);
+      group.permissionNodes.push(permNode);
+    });
+    
+    // 转换Map为数组
+    const result: WorkspaceGroup[] = Array.from(workspaceGroups.values());
+    
+    // 如果有未分组的权限，添加一个"未分组"分类
+    if (noWorkspaceGroup.length > 0) {
+      result.push({
+        title: '未分组模块',
+        key: 'workspace-none',
+        workspaceId: -1,
+        permissionNodes: noWorkspaceGroup
+      });
     }
-  }, [resetKey, role, homePagePermissionId]);
+    
+    return result;
+  };
+  
+  // 渲染单个权限节点
+  const renderPermissionNode = (permission: PermissionTree): any => {
+    const isHomePage = permission.page_path === HOME_PAGE_PATH;
+    const node: any = {
+      key: permission.id.toString(),
+      title: isHomePage ? (
+        <Tooltip title="首页权限为必选项，所有用户都需要首页权限">
+          <span>
+            {permission.name} <LockOutlined style={{ color: '#1890ff' }} />
+          </span>
+        </Tooltip>
+      ) : permission.name,
+      code: permission.code,
+      page_path: permission.page_path,
+      workspace_id: permission.workspace_id,
+      workspace_name: permission.workspace_name,
+      // 如果是首页权限，禁用复选框
+      disableCheckbox: isHomePage,
+      // 如果是首页权限，设置样式
+      className: isHomePage ? 'home-page-permission' : '',
+    };
+    
+    if (permission.children && permission.children.length > 0) {
+      node.children = permission.children.map(child => renderPermissionNode(child));
+    }
+    
+    return node;
+  };
+
+  // 渲染权限树
+  const renderPermissionTree = (permissionList: PermissionTree[]): any[] => {
+    return permissionList.map(permission => renderPermissionNode(permission));
+  };
+
+  // 组件加载和状态重置
+  useEffect(() => {
+    loadPermissionData();
+    
+    // 如果角色ID变更，重新加载数据
+    return () => {
+      console.log('RoleForm组件卸载');
+    };
+  }, [role?.id, resetKey]); // 依赖role?.id而不是整个role对象，以及resetKey
+  
+  // 当角色权限变化时，更新表单中的permission_ids字段
+  useEffect(() => {
+    if (role && role.permissions && checkedKeys.length > 0) {
+      form.setFieldsValue({
+        permission_ids: checkedKeys.map(key => Number(key))
+      });
+    }
+  }, [checkedKeys, form, role]);
 
   // 当role属性变化时重新加载权限数据
   useEffect(() => {
@@ -168,253 +396,193 @@ const RoleForm: React.FC<RoleFormProps> = ({
     }
   }, [role, form]); // 依赖role整个对象和form实例
 
-  // 处理权限选择变更
-  const handleCheck: TreeProps['onCheck'] = (checked: any, info: any) => {
-    console.log('树选择变更:', checked);
-    console.log('节点信息:', info);
-    
-    // 检查节点来自哪棵树
-    const nodeKey = info.node.key.toString();
-    const isSystemTree = systemTreeData.some(
-      node => nodeKey === node.key.toString() || isChildOf(node, nodeKey)
+  // 渲染工作区卡片
+  const renderWorkspaceCards = (workspaceGroups: WorkspaceGroup[]) => {
+    return (
+      <Row gutter={[16, 16]} style={{ maxHeight: '100%', overflow: 'auto' }}>
+        {workspaceGroups.map((workspace) => (
+          <Col xs={24} sm={24} md={12} xl={8} key={workspace.key}>
+            <Card 
+              title={workspace.title} 
+              bordered={true} 
+              className="workspace-card"
+              size="small"
+              headStyle={{ background: '#f5f5f5', padding: '8px 12px' }}
+              bodyStyle={{ padding: '12px', maxHeight: '220px', overflowY: 'auto' }}
+            >
+              <WorkspaceTree
+                workspace={workspace}
+                globalCheckedKeys={checkedKeys}
+                onTreeCheck={(checked, info, sourceKey) => handleCheck(checked, info, sourceKey)}
+              />
+            </Card>
+          </Col>
+        ))}
+      </Row>
     );
-    
-    // 获取当前选择树中的所有节点key
-    const currentTreeKeys = isSystemTree ? getTreeKeys(systemTreeData) : getTreeKeys(moduleTreeData);
-    
-    // 从checkedKeys中过滤掉当前树的key，保留另一棵树的选择状态
-    const otherTreeCheckedKeys = checkedKeys.filter(key => !currentTreeKeys.includes(key.toString()));
-    
-    // 合并另一棵树的选择状态和当前的选择状态
-    let mergedCheckedKeys = [
-      ...otherTreeCheckedKeys,
-      ...(Array.isArray(checked) ? checked : checked.checked)
-    ];
-    
-    // 确保首页权限始终被选中
-    if (homePagePermissionId && !mergedCheckedKeys.includes(homePagePermissionId)) {
-      mergedCheckedKeys.push(homePagePermissionId);
-    }
-    
-    setCheckedKeys(mergedCheckedKeys);
   };
   
-  // 辅助函数：检查一个key是否是某节点的子节点
-  const isChildOf = (node: any, key: string): boolean => {
-    if (!node.children) return false;
+  // 自定义类型扩展，支持额外参数
+  type CustomOnCheckFn = (
+    checked: { checked: React.Key[]; halfChecked: React.Key[] } | React.Key[],
+    info: any,
+    sourceKey?: string
+  ) => void;
+
+  // 处理权限选择
+  const handleCheck: CustomOnCheckFn = (checked, info, sourceKey?: string) => {
+    console.log('当前选择操作来源:', sourceKey || 'system');
     
-    return node.children.some((child: any) => 
-      child.key.toString() === key || isChildOf(child, key)
-    );
-  };
-
-  // 辅助函数：获取树中所有节点的key
-  const getTreeKeys = (treeData: any[]): string[] => {
-    const keys: string[] = [];
-    const extractKeys = (nodes: any[]) => {
-      nodes.forEach(node => {
-        keys.push(node.key.toString());
-        if (node.children) {
-          extractKeys(node.children);
-        }
-      });
-    };
-    extractKeys(treeData);
-    return keys;
-  };
-
-  // 渲染权限树
-  const renderPermissionTree = (permissionList: PermissionTree[]): any[] => {
-    return permissionList.map(permission => {
-      const isHomePage = permission.page_path === HOME_PAGE_PATH;
-      const node: any = {
-        key: permission.id.toString(),
-        title: isHomePage ? (
-          <Tooltip title="首页权限为必选项，所有用户都需要首页权限">
-            <span>
-              {permission.name} <LockOutlined style={{ color: '#1890ff' }} />
-            </span>
-          </Tooltip>
-        ) : permission.name,
-        code: permission.code,
-        page_path: permission.page_path,
-        // 如果是首页权限，禁用复选框
-        disableCheckbox: isHomePage,
-        // 如果是首页权限，设置样式
-        className: isHomePage ? 'home-page-permission' : '',
-      };
+    // 获取当前操作节点的key
+    const nodeKey = info?.node?.key?.toString() || '';
+    
+    // 将传入的checked转换为字符串数组
+    const currentChecked: string[] = Array.isArray(checked) 
+      ? checked.map((key: React.Key) => key.toString())
+      : checked.checked.map((key: React.Key) => key.toString());
       
-      if (permission.children && permission.children.length > 0) {
-        node.children = renderPermissionTree(permission.children);
-      }
-      
-      return node;
+    console.log(`节点 ${nodeKey} 状态变化, 当前树选中节点:`, currentChecked);
+    
+    // 创建全局选中状态的副本
+    let newCheckedKeys = [...checkedKeys].map(key => key.toString());
+    
+    // 获取当前操作的树（系统树或特定工作区）的所有节点key
+    const sourceTreeKeys = sourceKey === 'system' 
+      ? getNodeKeys(systemTreeData)
+      : moduleTreeData.find(ws => ws.key === sourceKey)
+        ? getNodeKeys(moduleTreeData.find(ws => ws.key === sourceKey)!.permissionNodes)
+        : [];
+    
+    if (sourceTreeKeys.length === 0) {
+      console.warn('未找到源树的节点keys');
+      return;
+    }
+    
+    // 从全局选中状态中移除当前树的所有节点
+    newCheckedKeys = newCheckedKeys.filter(key => !sourceTreeKeys.includes(key));
+    
+    // 将当前树的选中状态合并到全局状态
+    newCheckedKeys = [...newCheckedKeys, ...currentChecked];
+    
+    // 确保首页权限ID始终在选中列表中
+    if (homePagePermissionId && !newCheckedKeys.includes(homePagePermissionId)) {
+      newCheckedKeys.push(homePagePermissionId);
+    }
+    
+    console.log('更新后的选中列表:', newCheckedKeys);
+    
+    // 更新选中状态
+    setCheckedKeys(newCheckedKeys);
+    
+    // 更新表单中的permission_ids字段
+    form.setFieldsValue({ 
+      permission_ids: newCheckedKeys.map(key => Number(key))
     });
-  };
-
-  // 获取选中的权限ID列表
-  const getSelectedPermissionIds = (): number[] => {
-    const selectedIds: number[] = [];
-    const processTreeData = (treeData: any[]) => {
-      treeData.forEach((node) => {
-        if (
-          (checkedKeys.includes(node.key) || 
-          (homePagePermissionId && node.key === homePagePermissionId)) && 
-          node.page_path && 
-          node.page_path.trim() !== ''
-        ) {
-          selectedIds.push(Number(node.key));
-        }
-        
-        if (node.children) {
-          processTreeData(node.children);
-        }
-      });
-    };
-
-    processTreeData([...systemTreeData, ...moduleTreeData]);
-    return selectedIds;
-  };
-
-  // 提交表单
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      
-      // 获取选中的权限ID
-      const permissionIds = getSelectedPermissionIds();
-      
-      // 验证是否选择了权限
-      if (permissionIds.length === 0) {
-        message.warning('请至少选择一个权限');
-        return;
-      }
-      
-      // 合并表单数据和权限ID
-      const submitData = {
-        ...values,
-        permission_ids: permissionIds
-      };
-      
-      await onSubmit(submitData);
-    } catch (error) {
-      console.error('表单验证失败:', error);
-    }
-  };
-
-  // 重置权限选择状态
-  const resetPermissions = () => {
-    // 如果角色存在且有权限数据，重置为原始权限
-    if (role && role.permissions) {
-      const originalPermissions = role.permissions.map(perm => perm.id.toString());
-      // 确保首页权限被选中
-      const resetKeys = [...originalPermissions];
-      if (homePagePermissionId && !resetKeys.includes(homePagePermissionId)) {
-        resetKeys.push(homePagePermissionId);
-      }
-      setCheckedKeys(resetKeys);
-    } else {
-      // 如果是新角色，只保留首页权限
-      setCheckedKeys(homePagePermissionId ? [homePagePermissionId] : []);
-    }
-    
-    // 重置表单字段
-    form.resetFields();
-    if (role) {
-      form.setFieldsValue({
-        name: role.name || '',
-        description: role.description || '',
-      });
-    }
-  };
-  
-  // 处理取消按钮点击
-  const handleCancel = () => {
-    resetPermissions();
-    onCancel();
   };
 
   return (
     <Form
       form={form}
       layout="vertical"
-      key={role?.id || 'new'}
       initialValues={{
         name: role?.name || '',
         description: role?.description || '',
+        permission_ids: [],
+      }}
+      onFinish={async (values) => {
+        await onSubmit(values);
       }}
     >
-      <Row gutter={16}>
-        <Col span={8}>
-          <Card title="角色信息" style={{ height: '100%' }}>
-            <Form.Item
-              name="name"
-              label="角色名称"
-              rules={[{ required: true, message: '请输入角色名称' }]}
+      <Spin spinning={loading}>
+        <Row gutter={16}>
+          {/* 左侧角色基本信息 */}
+          <Col span={6}>
+            <Card title="角色信息" className="role-info-card">
+              <Form.Item
+                name="name"
+                label="角色名称"
+                rules={[{ required: true, message: '请输入角色名称' }]}
+              >
+                <Input placeholder="请输入角色名称" />
+              </Form.Item>
+              
+              <Form.Item
+                name="description"
+                label="角色描述"
+              >
+                <TextArea rows={4} placeholder="请输入角色描述" />
+              </Form.Item>
+            </Card>
+          </Col>
+          
+          {/* 右侧权限分配 */}
+          <Col span={18}>
+            <Card 
+              title="权限分配" 
+              className="permissions-card"
+              bodyStyle={{ 
+                height: '500px', 
+                overflowY: 'auto', 
+                padding: '0',
+              }}
             >
-              <Input placeholder="请输入角色名称" />
-            </Form.Item>
-            
-            <Form.Item
-              name="description"
-              label="角色描述"
-            >
-              <TextArea rows={3} placeholder="请输入角色描述" />
-            </Form.Item>
-          </Card>
-        </Col>
-        
-        <Col span={16}>
-          <Card title="权限分配">
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: '20px' }}>
-                <Spin tip="加载权限数据中..." />
-              </div>
-            ) : (
-              <>
-                <div style={{ marginBottom: 8 }}>
-                  <Typography.Text type="secondary">
-                    注意：首页权限为必选项，所有用户都需要首页权限才能正常使用系统
-                  </Typography.Text>
+              <Form.Item
+                name="permission_ids"
+                rules={[{ required: true, message: '请选择至少一个权限' }]}
+                noStyle
+              >
+                <div style={{ height: '100%' }}>
+                  {/* 系统权限和模块权限使用Tabs组件切换 */}
+                  <Tabs 
+                    defaultActiveKey="system" 
+                    style={{ height: '100%' }}
+                    tabBarStyle={{ padding: '0 12px' }}
+                    items={[
+                    {
+                      key: 'system',
+                      label: '系统权限',
+                      children: (
+                        <div className="system-permissions" style={{ padding: '12px' }}>
+                          <SystemTree
+                            treeData={systemTreeData}
+                            globalCheckedKeys={checkedKeys}
+                            onTreeCheck={(checked, info) => handleCheck(checked, info, 'system')}
+                          />
+                        </div>
+                      )
+                    },
+                    {
+                      key: 'modules',
+                      label: '模块权限',
+                      children: (
+                        <div className="module-permissions" style={{ padding: '12px' }}>
+                          {renderWorkspaceCards(moduleTreeData)}
+                        </div>
+                      )
+                    }
+                  ]} />
                 </div>
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <Title level={5}>系统权限</Title>
-                    <Tree
-                      checkable
-                      checkedKeys={checkedKeys}
-                      onCheck={handleCheck}
-                      treeData={systemTreeData}
-                      height={300}
-                      style={{ border: '1px solid #f0f0f0', padding: '8px', borderRadius: '4px' }}
-                    />
-                  </Col>
-                  <Col span={12}>
-                    <Title level={5}>自定义模块权限</Title>
-                    <Tree
-                      checkable
-                      checkedKeys={checkedKeys}
-                      onCheck={handleCheck}
-                      treeData={moduleTreeData}
-                      height={300}
-                      style={{ border: '1px solid #f0f0f0', padding: '8px', borderRadius: '4px' }}
-                    />
-                  </Col>
-                </Row>
-              </>
-            )}
-          </Card>
-        </Col>
-      </Row>
-      
-      <Form.Item style={{ marginTop: 16, textAlign: 'right' }}>
-        <Space>
-          <Button onClick={handleCancel}>取消</Button>
-          <Button type="primary" onClick={handleSubmit} loading={submitting}>
-            {role ? '更新' : '创建'}
-          </Button>
-        </Space>
-      </Form.Item>
+              </Form.Item>
+            </Card>
+          </Col>
+        </Row>
+        
+        {/* 在表单底部添加按钮 */}
+        <Row justify="end" style={{ marginTop: '20px' }}>
+          <Col>
+            <Form.Item style={{ marginBottom: 0 }}>
+              <Space>
+                <Button type="primary" htmlType="submit" loading={submitting}>
+                  保存
+                </Button>
+                <Button onClick={onCancel}>
+                  取消
+                </Button>
+              </Space>
+            </Form.Item>
+          </Col>
+        </Row>
+      </Spin>
     </Form>
   );
 };

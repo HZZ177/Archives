@@ -1,0 +1,83 @@
+.role-info-card {
+  height: 100%;
+  
+  .ant-card-head {
+    background-color: #f5f5f5;
+  }
+  
+  .ant-card-body {
+    padding: 16px;
+  }
+}
+
+.permissions-card {
+  height: 100%;
+  
+  .ant-card-head {
+    background-color: #f5f5f5;
+  }
+  
+  .ant-tabs-content {
+    padding: 8px 0;
+  }
+  
+  .system-permissions {
+    height: 400px;
+    overflow: auto;
+  }
+  
+  .module-permissions {
+    padding: 8px 0;
+    min-height: 400px;
+  }
+}
+
+.workspace-card {
+  margin-bottom: 16px;
+  height: 100%;
+  
+  .ant-card-head {
+    background-color: #f5f5f5;
+  }
+  
+  .ant-card-body {
+    padding: 12px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+}
+
+.workspace-cards-container {
+  margin-top: 16px;
+}
+
+.permission-tree {
+  width: 100%;
+  
+  // 禁用的复选框样式
+  .ant-tree-checkbox-disabled {
+    + .ant-tree-node-content-wrapper {
+      color: rgba(0, 0, 0, 0.65);
+    }
+  }
+}
+
+// 首页权限节点特殊样式
+.home-page-permission {
+  .ant-tree-title {
+    display: flex;
+    align-items: center;
+    
+    .anticon-lock {
+      margin-left: 8px;
+      color: #1890ff;
+    }
+  }
+}
+
+// 工作区区域分隔
+.module-workspace-divider {
+  margin: 12px 0;
+  color: rgba(0, 0, 0, 0.85);
+  font-weight: 500;
+} 

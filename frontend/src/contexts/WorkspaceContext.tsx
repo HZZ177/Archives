@@ -158,10 +158,32 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const allWorkspaces = await fetchWorkspaces(true);
       setWorkspaces(allWorkspaces);
       
-      // 如果当前工作区不在列表中，重新设置为默认
-      if (currentWorkspace && !allWorkspaces.find(w => w.id === currentWorkspace.id)) {
-        const defaultWorkspace = await fetchDefaultWorkspace(true);
-        setCurrentWorkspace(defaultWorkspace);
+      if (currentWorkspace) {
+        // 如果当前工作区不在列表中，重新设置为默认
+        if (!allWorkspaces.find(w => w.id === currentWorkspace.id)) {
+          const defaultWorkspace = await fetchDefaultWorkspace(true);
+          setCurrentWorkspace(defaultWorkspace);
+          // 更新存储
+          try {
+            localStorage.setItem('currentWorkspace', JSON.stringify(defaultWorkspace));
+            sessionStorage.setItem('currentWorkspace', JSON.stringify(defaultWorkspace));
+          } catch (error) {
+            console.error('存储当前工作区失败:', error);
+          }
+        } else {
+          // 当前工作区存在但属性可能已更新，获取最新版本
+          const updatedWorkspace = allWorkspaces.find(w => w.id === currentWorkspace.id)!;
+          setCurrentWorkspace(updatedWorkspace);
+          // 更新存储
+          try {
+            localStorage.setItem('currentWorkspace', JSON.stringify(updatedWorkspace));
+            sessionStorage.setItem('currentWorkspace', JSON.stringify(updatedWorkspace));
+          } catch (error) {
+            console.error('存储当前工作区失败:', error);
+          }
+          
+          console.log(`更新当前工作区信息: ${updatedWorkspace.name}(ID:${updatedWorkspace.id})`);
+        }
       }
     } catch (err) {
       console.error('刷新工作区列表失败:', err);

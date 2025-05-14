@@ -79,5 +79,15 @@ export interface UpdateWorkspaceParams {
 
 export interface WorkspaceUserParams {
   user_id: number;
-  role: 'owner' | 'admin' | 'member' | 'guest';
+  /**
+   * 用户在工作区的角色/访问级别
+   * 注意：后端API使用access_level字段，但前端使用role字段显示
+   * 
+   * 角色映射关系：
+   * - owner：完全控制权限，可以管理所有内容和设置
+   * - admin：可以管理大多数内容和设置，但无法删除工作区
+   * - member/write：可以查看和编辑内容，但无法更改关键设置
+   * - guest/read：仅可查看权限，无法编辑内容
+   */
+  access_level: 'owner' | 'admin' | 'write' | 'read';
 } 

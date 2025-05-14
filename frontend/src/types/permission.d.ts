@@ -10,6 +10,8 @@ export interface Permission {
   description?: string;
   created_at: string;
   updated_at: string;
+  workspace_id?: number;
+  workspace_name?: string;
   children?: Permission[];
 }
 

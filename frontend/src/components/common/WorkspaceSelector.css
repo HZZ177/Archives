@@ -1,32 +1,90 @@
 .workspace-selector-button {
   display: flex;
   align-items: center;
-  padding: 4px 8px;
-  height: 32px;
-  border: none;
-  background: transparent;
+  padding: 16px 12px 8px;
+  min-height: 40px;
+  width: 180px;
+  background: #ffffff;
   font-size: 14px;
   border-radius: 4px;
-  color: #1565c0 !important;
+  color: #333333 !important;
   margin-right: 12px;
-  font-weight: 500;
+  font-weight: normal;
+  border: 1px solid #d9d9d9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  position: relative;
 }
 
 .workspace-selector-button:hover {
-  background: rgba(25, 118, 210, 0.08);
+  background: #f5f9ff;
   color: #0d47a1 !important;
-  border: none;
+  border-color: #bbdefb;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
 }
 
-.workspace-selector-button:focus,
+/* 当点击后，使用与hover相似的轻微样式 */
+.workspace-selector-button:focus {
+  outline: none;
+  border-color: #bbdefb;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+}
+
+/* 仅对键盘焦点使用强调样式 */
+.workspace-selector-button:focus-visible {
+  color: #0d47a1 !important;
+  border-color: #90caf9;
+  background: #e3f2fd;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  outline: none;
+}
+
+/* 清除active状态与focus的区别，让它们视觉上一致 */
 .workspace-selector-button:active {
   color: #0d47a1 !important;
-  border: none;
-  background: rgba(25, 118, 210, 0.12);
+  border-color: #bbdefb;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+}
+
+.workspace-title {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  font-size: 12px;
+  color: #666;
+  padding: 0 8px;
+  background-color: #ffffff;
+  line-height: 18px;
+  transition: all 0.3s ease;
+  z-index: 1;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+/* 固定背景色方案 */
+.workspace-selector-button .workspace-title {
+  background-color: #ffffff;
+}
+
+.dark-theme .workspace-selector-button .workspace-title,
+.ant-layout-dark .workspace-selector-button .workspace-title,
+.ant-layout-header.dark .workspace-selector-button .workspace-title {
+  color: rgba(255, 255, 255, 0.65);
+  background-color: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.workspace-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  line-height: 1.2;
+  padding-top: 2px;
+  justify-content: space-between;
 }
 
 .workspace-name-text {
-  max-width: 150px;
+  max-width: 130px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -60,6 +118,9 @@
 .ant-layout-dark .workspace-selector-button,
 .ant-layout-header.dark .workspace-selector-button {
   color: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .dark-theme .workspace-selector-button:hover,
@@ -67,16 +128,95 @@
 .ant-layout-header.dark .workspace-selector-button:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.25);
+}
+
+.dark-theme .workspace-selector-button:focus,
+.ant-layout-dark .workspace-selector-button:focus,
+.ant-layout-header.dark .workspace-selector-button:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.dark-theme .workspace-selector-button:focus-visible,
+.ant-layout-dark .workspace-selector-button:focus-visible,
+.ant-layout-header.dark .workspace-selector-button:focus-visible {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  outline: none;
+}
+
+.dark-theme .workspace-selector-button:active,
+.ant-layout-dark .workspace-selector-button:active,
+.ant-layout-header.dark .workspace-selector-button:active {
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
 }
 
 /* 浅色主题适配 */
 .light-theme .workspace-selector-button {
   color: #1565c0 !important;
+  background: #ffffff;
+  border-color: #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .light-theme .workspace-selector-button:hover,
 .light-theme .workspace-selector-button:focus,
 .light-theme .workspace-selector-button:active {
   color: #0d47a1 !important;
-  background: rgba(25, 118, 210, 0.08);
+  background: #f5f9ff;
+  border-color: #bbdefb;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* 下拉菜单样式优化 */
+.workspace-selector-dropdown .ant-dropdown-menu {
+  padding: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.workspace-selector-dropdown .ant-dropdown-menu-item {
+  border-radius: 4px;
+  padding: 8px 12px;
+  transition: background-color 0.3s ease;
+}
+
+.workspace-selector-dropdown .ant-dropdown-menu-item:hover {
+  background-color: #f5f9ff;
+}
+
+.workspace-selector-dropdown .ant-dropdown-menu-item-selected {
+  background-color: #e3f2fd;
+  font-weight: 500;
+}
+
+/* 深色主题下标题的颜色 */
+.dark-theme .workspace-title,
+.ant-layout-dark .workspace-title,
+.ant-layout-header.dark .workspace-title {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.dark-theme .workspace-selector-button:hover .workspace-title,
+.ant-layout-dark .workspace-selector-button:hover .workspace-title,
+.ant-layout-header.dark .workspace-selector-button:hover .workspace-title {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .workspace-selector-button:focus .workspace-title,
+.dark-theme .workspace-selector-button:active .workspace-title,
+.ant-layout-dark .workspace-selector-button:focus .workspace-title,
+.ant-layout-dark .workspace-selector-button:active .workspace-title,
+.ant-layout-header.dark .workspace-selector-button:focus .workspace-title,
+.ant-layout-header.dark .workspace-selector-button:active .workspace-title {
+  background-color: rgba(255, 255, 255, 0.15);
 } 

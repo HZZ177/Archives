@@ -3,6 +3,7 @@ import { Card, Table, Tag, Button, Space, message, Tooltip, Modal, Select, Spin 
 import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { fetchWorkspaces, fetchWorkspaceUsers, addUserToWorkspace, updateWorkspaceUserRole, removeUserFromWorkspace } from '../../../apis/workspaceService';
 import { Workspace, WorkspaceUser } from '../../../types/workspace';
+import { roleOptions, roleToAccessLevel, accessLevelToRole, getRoleColor, getRoleLabel, getEffectiveRole } from '../../../utils/roleMapping';
 import './UserWorkspacePermissions.css';
 
 // 用于处理API返回的原始工作区用户数据
@@ -36,22 +37,6 @@ const UserWorkspacePermissions: React.FC<UserWorkspacePermissionsProps> = ({ use
   const [selectedRole, setSelectedRole] = useState<string>('member');
   const [selectedUserWorkspace, setSelectedUserWorkspace] = useState<WorkspaceUser | null>(null);
   const [availableWorkspaces, setAvailableWorkspaces] = useState<Workspace[]>([]);
-
-  // 角色选项
-  const roleOptions = [
-    { value: 'owner', label: '所有者', color: 'gold' },
-    { value: 'admin', label: '管理员', color: 'red' },
-    { value: 'member', label: '成员', color: 'blue' },
-    { value: 'guest', label: '访客', color: 'green' }
-  ];
-
-  // 工作区角色与对应标签颜色映射
-  const roleColorMap: Record<string, string> = {
-    owner: 'gold',
-    admin: 'red',
-    member: 'blue',
-    guest: 'green'
-  };
 
   // 获取工作区列表和用户的工作区权限
   const fetchData = async () => {
@@ -130,7 +115,7 @@ const UserWorkspacePermissions: React.FC<UserWorkspacePermissionsProps> = ({ use
       setLoading(true);
       await addUserToWorkspace(selectedWorkspace.id, {
         user_id: userId,
-        role: selectedRole as any
+        access_level: roleToAccessLevel[selectedRole] || 'read'
       });
       message.success('已成功添加用户到工作区');
       setAddModalVisible(false);
@@ -191,10 +176,23 @@ const UserWorkspacePermissions: React.FC<UserWorkspacePermissionsProps> = ({ use
     });
   };
 
+  // 获取角色标签
+  const getRoleTag = (role: string) => {
+    const effectiveRole = typeof role === 'string' ? 
+      (['write', 'read'].includes(role) ? accessLevelToRole[role] : role) : 'guest';
+    
+    return (
+      <Tag color={getRoleColor(effectiveRole)} className="workspace-role-tag">
+        {getRoleLabel(effectiveRole)}
+      </Tag>
+    );
+  };
+
   // 打开编辑角色模态框
   const openEditModal = (userWorkspace: WorkspaceUser) => {
     setSelectedUserWorkspace(userWorkspace);
-    setSelectedRole(userWorkspace.role);
+    // 使用统一的角色转换函数获取有效角色
+    setSelectedRole(getEffectiveRole(userWorkspace));
     setEditModalVisible(true);
   };
 
@@ -227,22 +225,7 @@ const UserWorkspacePermissions: React.FC<UserWorkspacePermissionsProps> = ({ use
       dataIndex: 'role',
       key: 'role',
       render: (role: string) => {
-        // 将角色映射为易读格式
-        const roleMapping: Record<string, { label: string, color: string }> = {
-          'owner': { label: '所有者', color: 'gold' },
-          'admin': { label: '管理员', color: 'red' },
-          'member': { label: '成员', color: 'blue' },
-          'guest': { label: '访客', color: 'green' },
-          'write': { label: '可编辑', color: 'blue' },  // 兼容旧数据
-          'read': { label: '只读', color: 'green' }     // 兼容旧数据
-        };
-        
-        const roleInfo = roleMapping[role] || { label: role, color: 'default' };
-        return (
-          <Tag color={roleInfo.color} className="workspace-role-tag">
-            {roleInfo.label}
-          </Tag>
-        );
+        return getRoleTag(role);
       }
     },
     {

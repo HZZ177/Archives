@@ -12,7 +12,8 @@ from backend.app.schemas.workspace import (
     WorkspaceUpdate,
     WorkspaceAddUser,
     WorkspaceUserResponse,
-    UserDefaultWorkspace
+    UserDefaultWorkspace,
+    WorkspaceUserRoleUpdate
 )
 from backend.app.schemas.response import APIResponse
 from backend.app.services.workspace_service import workspace_service
@@ -195,6 +196,29 @@ async def remove_user_from_workspace(
     except Exception as e:
         logger.error(f"从工作区移除用户失败: {str(e)}")
         return error_response(message=f"从工作区移除用户失败: {str(e)}")
+
+
+@router.post("/{workspace_id}/users/{user_id}", response_model=APIResponse[WorkspaceUserResponse])
+async def update_workspace_user_role(
+    workspace_id: int,
+    user_id: int,
+    role_data: WorkspaceUserRoleUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    更新工作区用户角色
+    """
+    try:
+        user = await workspace_service.update_workspace_user_role(
+            db, workspace_id, user_id, role_data.access_level, current_user
+        )
+        return success_response(data=user, message="用户角色已更新")
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"更新工作区用户角色失败: {str(e)}")
+        return error_response(message=f"更新工作区用户角色失败: {str(e)}")
 
 
 @router.post("/users/{user_id}/default", response_model=APIResponse)

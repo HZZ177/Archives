@@ -3,6 +3,7 @@ import { Modal, Form, Select, Button, Spin, Empty } from 'antd';
 import { fetchUsers } from '../../../apis/userService';
 import { User } from '../../../types/user';
 import { WorkspaceUserParams } from '../../../types/workspace';
+import { roleOptions, roleToAccessLevel } from '../../../utils/roleMapping';
 
 interface AddUserToWorkspaceModalProps {
   visible: boolean;
@@ -25,14 +26,6 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
-
-  // 角色选项
-  const roleOptions = [
-    { value: 'owner', label: '所有者' },
-    { value: 'admin', label: '管理员' },
-    { value: 'member', label: '成员' },
-    { value: 'guest', label: '访客' }
-  ];
 
   // 获取用户列表
   const fetchAvailableUsers = async () => {
@@ -64,9 +57,10 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
       const values = await form.validateFields();
       setSubmitting(true);
       
+      // 使用统一的角色映射
       await onAdd({
         user_id: values.user_id,
-        role: values.role
+        access_level: roleToAccessLevel[values.role] || 'read'
       });
       
       form.resetFields();
