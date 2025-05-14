@@ -137,6 +137,14 @@ class WorkspaceService:
                     detail="只有工作区管理员可以添加用户"
                 )
         
+        # 检查用户是否已在工作区中
+        user_access = await workspace_repository.get_user_access_level(db, workspace_id, user_data.user_id)
+        if user_access:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="用户已存在于此工作区"
+            )
+        
         # 添加用户到工作区
         await workspace_repository.add_user_to_workspace(
             db, workspace_id, user_data.user_id, user_data.access_level

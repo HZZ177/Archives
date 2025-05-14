@@ -615,10 +615,11 @@ const UserList: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 240,
+      width: 300,
       fixed: 'right' as 'right',
+      align: 'center' as 'center',
       render: (_: any, record: User) => (
-        <Space size="middle">
+        <Space size="small" style={{ display: 'flex', justifyContent: 'center' }}>
           <Button 
             type="link" 
             icon={<EditOutlined />} 
@@ -708,6 +709,8 @@ const UserList: React.FC = () => {
           }}
           onChange={handleTableChange}
           loading={loading}
+          bordered={true}
+          size="middle"
         />
       </Card>
 

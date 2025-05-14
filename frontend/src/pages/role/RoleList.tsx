@@ -308,8 +308,9 @@ const RoleList: React.FC = () => {
       key: 'action',
       width: 180,
       fixed: 'right' as 'right',
+      align: 'center' as 'center',
       render: (_: any, record: Role) => (
-        <Space size="middle">
+        <Space size="middle" style={{ display: 'flex', justifyContent: 'center' }}>
           <Button
             type="link"
             icon={<EditOutlined />}
@@ -363,6 +364,8 @@ const RoleList: React.FC = () => {
         dataSource={roles}
         rowKey="id"
         loading={loading}
+        bordered={true}
+        size="middle"
       />
 
       <Modal
@@ -371,6 +374,7 @@ const RoleList: React.FC = () => {
         onCancel={handleModalClose}
         footer={null}
         width={1200}
+        bodyStyle={{ maxHeight: 'calc(90vh - 108px)', overflowY: 'auto', padding: '24px' }}
       >
         <RoleForm
           role={currentRole}

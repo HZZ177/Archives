@@ -25,6 +25,7 @@ const authAPI = {
 
       console.log('Login response:', response.data);
 
+      // 登录响应需要特殊处理，不使用unwrapResponse
       // 验证响应是否成功
       if (!response.data.success) {
         // 如果后端返回失败信息，将其作为错误抛出
@@ -127,15 +128,12 @@ const authAPI = {
   changePassword: async (params: ChangePasswordParams): Promise<boolean> => {
     try {
       const response = await request.post<APIResponse<any>>('/auth/change-password', params);
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || '修改密码失败');
-      }
-      
+      unwrapResponse(response.data); // 使用unwrapResponse检查响应状态
       return true;
     } catch (error: any) {
       console.error('修改密码失败:', error);
       
+      // 错误处理保持不变，确保友好的错误消息
       let errorMessage = '修改密码失败';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;

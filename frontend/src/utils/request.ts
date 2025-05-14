@@ -138,10 +138,14 @@ request.interceptors.response.use(
 );
 
 // 辅助函数：解析API响应中的data字段
-export function unwrapResponse<T>(response: APIResponse<T>): T {
-  if (response.data === null) {
-    throw new Error('API响应中的data字段为null');
+export function unwrapResponse<T>(response: APIResponse<T>): T | null {
+  // 先检查响应是否成功
+  if (!response.success) {
+    // 如果响应不成功，使用响应中的message抛出错误
+    throw new Error(response.message || '请求失败');
   }
+  
+  // 不再检查data是否为null，直接返回data
   return response.data;
 }
 

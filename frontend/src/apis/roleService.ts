@@ -83,11 +83,6 @@ export const updateUserRoles = async (userId: number, roleIds: number[]) => {
 
 // 添加新函数：更新角色状态
 export const updateRoleStatus = async (roleId: number, status: boolean): Promise<APIResponse<Role>> => {
-  try {
-    const response = await request.post<APIResponse<Role>>(`/roles/update/${roleId}`, { status });
-    return response.data;
-  } catch (error) {
-    // 直接向上抛出错误，由调用方处理
-    throw error;
-  }
+  const response = await request.post<APIResponse<Role>>(`/roles/update/${roleId}`, { status });
+  return response.data;
 }; 

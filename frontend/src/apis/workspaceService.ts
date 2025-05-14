@@ -159,6 +159,7 @@ export const fetchWorkspaceUsers = async (workspaceId: number): Promise<Workspac
 export const addUserToWorkspace = async (workspaceId: number, params: WorkspaceUserParams): Promise<void> => {
   try {
     const response = await request.post<APIResponse<any>>(`/workspaces/${workspaceId}/users`, params);
+    // 仅检查success字段，不再使用unwrapResponse
     if (!response.data.success) {
       throw new Error(response.data.message || '添加用户到工作区失败');
     }

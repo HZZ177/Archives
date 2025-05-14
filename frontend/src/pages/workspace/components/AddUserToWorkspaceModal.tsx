@@ -47,6 +47,7 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
   useEffect(() => {
     if (visible) {
       fetchAvailableUsers();
+      // 确保每次弹窗打开时表单都被重置
       form.resetFields();
     }
   }, [visible, form, existingUserIds]);
@@ -63,6 +64,7 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
         access_level: roleToAccessLevel[values.role] || 'read'
       });
       
+      // 表单提交后重置
       form.resetFields();
       setSubmitting(false);
     } catch (error) {
@@ -71,13 +73,20 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
     }
   };
 
+  // 处理取消操作
+  const handleCancel = () => {
+    // 确保弹窗关闭时表单被重置
+    form.resetFields();
+    onCancel();
+  };
+
   return (
     <Modal
       title={`添加用户到 ${workspaceName}`}
       open={visible}
-      onCancel={onCancel}
+      onCancel={handleCancel}
       footer={[
-        <Button key="cancel" onClick={onCancel}>
+        <Button key="cancel" onClick={handleCancel}>
           取消
         </Button>,
         <Button
@@ -91,6 +100,7 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
         </Button>
       ]}
       maskClosable={false}
+      destroyOnClose={true} // 确保弹窗关闭时销毁其中的组件
     >
       <Spin spinning={loading}>
         {users.length === 0 ? (
@@ -99,7 +109,7 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
             image={Empty.PRESENTED_IMAGE_SIMPLE} 
           />
         ) : (
-          <Form form={form} layout="vertical">
+          <Form form={form} layout="vertical" preserve={false}> {/* 确保表单不保留值 */}
             <Form.Item
               name="user_id"
               label="选择用户"

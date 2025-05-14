@@ -1,6 +1,6 @@
 # 资料管理系统
 
-内部资料管理系统，用于标准化数据录入框架，支持模块化文档管理和图片上传。
+内部资料管理系统，用于标准化数据录入框架，支持工作区多级管理、模块化文档管理和图片上传。
 
 ## 项目目标
 
@@ -8,6 +8,7 @@
 - 支持资料的多模块化管理和内容编辑。
 - 提供友好的用户界面和高效的编辑体验。
 - 实现完善的用户、角色及权限管理体系。
+- 支持工作区管理，实现资料的多级组织和权限隔离。
 - (远期) 为后期RAG（Retrieval Augmented Generation）系统集成打下坚实的数据基础。
 
 ## 项目架构
@@ -29,6 +30,8 @@ Archives/
 │   │   ├── db/           # 数据库相关
 │   │   ├── models/       # 数据模型
 │   │   ├── schemas/      # Pydantic模型
+│   │   ├── services/     # 业务逻辑服务 (新增)
+│   │   ├── repositories/ # 数据访问层 (新增)
 │   │   └── main.py       # 应用入口
 │   ├── static/           # 静态文件
 │   ├── uploads/          # 上传文件存储
@@ -47,6 +50,15 @@ Archives/
 │   │   ├── hooks/        # 自定义Hooks
 │   │   ├── layouts/      # 布局
 │   │   ├── pages/        # 页面
+│   │   │   ├── documents/        # 文档管理
+│   │   │   ├── login/            # 登录页面
+│   │   │   ├── module/           # 模块管理
+│   │   │   ├── module-content/   # 模块内容
+│   │   │   ├── permission/       # 权限管理
+│   │   │   ├── role/             # 角色管理
+│   │   │   ├── structure-management/ # 结构管理
+│   │   │   ├── user/             # 用户管理
+│   │   │   └── workspace/        # 工作区管理 (新增)
 │   │   ├── router.tsx    # 路由配置
 │   │   ├── styles/       # 样式
 │   │   ├── types/        # TypeScript类型
@@ -65,18 +77,23 @@ Archives/
 
 - **`config.py`** - 应用配置，管理环境变量和全局设置
 - **`security.py`** - 安全相关功能，包括JWT和密码哈希
+- **`logger.py`** - 日志配置模块 (新增)
 
 #### 数据库 (`backend/app/db/`)
 
 - **`base.py`** - SQLAlchemy基类，为所有模型提供基础功能
 - **`session.py`** - 数据库会话管理，提供异步数据库连接
+- **`utils.py`** - 数据库工具函数，包括获取本地时间等 (新增)
 
 #### 数据模型 (`backend/app/models/`)
 
 - **`__init__.py`** - 模型初始化文件
 - **`user.py`** - 用户模型 (含 `mobile`, `is_superuser`) 及角色模型 (`Role` 包含 `is_default`, `status` 字段，并关联权限)
 - **`document.py`** - 文档、模板、部分 (含多种类型如 `OVERVIEW`, `FLOW`, `CONTENT`, `DATABASE`, `API`, `CODE`, `CUSTOM` via `SectionTypeEnum`)、图片和关系模型
-- **`permission.py`** - 权限模型 (`Permission` 控制页面级访问，含 `code`, `name`, `page_path`, `icon`, `sort`, `parent_id` 等字段，支持层级结构) 及角色权限关联 (新增)
+- **`permission.py`** - 权限模型 (`Permission` 控制页面级访问，含 `code`, `name`, `page_path`, `icon`, `sort`, `parent_id` 等字段，支持层级结构) 及角色权限关联
+- **`module_structure.py`** - 模块结构节点模型，用于构建层级模块结构树 (新增)
+- **`module_content.py`** - 模块内容模型，存储模块的六个固定内容部分 (新增)
+- **`workspace.py`** - 工作区模型，作为资料的顶级组织单元 (新增)
 
 #### API接口 (`backend/app/api/`)
 
@@ -91,38 +108,71 @@ Archives/
 - **`documents.py`** - 文档管理接口（文档及部分的增删改查）
 - **`templates.py`** - 模板管理接口（增删改查）
 - **`images.py`** - 图片管理接口（上传、获取、删除）
-- **`module_structures.py`** - 模块结构管理接口 (新增)
-- **`module_contents.py`** - 模块内容管理接口 (新增)
-- **`roles.py`** - 角色管理接口 (新增)
-- **`permissions.py`** - 权限管理接口 (新增)
+- **`module_structures.py`** - 模块结构管理接口
+- **`module_contents.py`** - 模块内容管理接口
+- **`roles.py`** - 角色管理接口
+- **`permissions.py`** - 权限管理接口
+- **`workspaces.py`** - 工作区管理接口 (新增)
+
+#### 服务层 (`backend/app/services/`) (新增)
+
+- **`workspace_service.py`** - 工作区业务逻辑服务
+- **`user_service.py`** - 用户业务逻辑服务
+- **`module_service.py`** - 模块业务逻辑服务
+
+#### 数据访问层 (`backend/app/repositories/`) (新增)
+
+- **`base.py`** - 基础仓库类，提供通用CRUD操作
+- **`workspace_repository.py`** - 工作区数据访问实现
+- **`user_repository.py`** - 用户数据访问实现
+- **`module_repository.py`** - 模块数据访问实现
 
 #### Pydantic模型 (`backend/app/schemas/`)
 
 - **`user.py`** - 用户和角色模型
 - **`document.py`** - 文档、模板、部分、图片和关系模型
+- **`workspace.py`** - 工作区数据模型 (新增)
+- **`module.py`** - 模块结构和内容模型 (新增)
+- **`response.py`** - 统一响应模型 (新增)
 
 ### 前端结构
 
 #### 布局 (`frontend/src/layouts/`)
 
+- **`MainLayout.tsx`** - 主应用布局，包含侧边栏和顶部导航
+- **`AuthLayout.tsx`** - 认证相关页面布局
+
 #### 页面 (`frontend/src/pages/`)
 
 - **LoginPage** - 用户登录页面
 - **HomePage** - 主页/仪表盘 (示例)
-- **NoPermissionPage** - 无权限提示页面 (新增)
-- **UserList**, **UserDetail** - 用户列表及详情/编辑页面 (新增)
-- **RoleList** - 角色列表页面 (新增)
-- **PermissionList** - 权限列表页面 (新增)
+- **NoPermissionPage** - 无权限提示页面
+- **UserList**, **UserDetail** - 用户列表及详情/编辑页面
+- **RoleList** - 角色列表页面
+- **PermissionList** - 权限列表页面
 - **DocumentList**, **DocumentEdit** - 文档列表及编辑/新建页面
-- **StructureManagementPage** - 模块结构管理页面 (新增)
-- **ModuleContentPage** - 模块内容填充页面 (新增)
-- **TemplateList**, **TemplateEdit** - 模板管理功能目前主要通过API和文档创建流程支持，独立的前端管理页面正在规划中或已整合。
+- **StructureManagementPage** - 模块结构管理页面
+- **ModuleContentPage** - 模块内容填充页面
+- **WorkspaceManagePage** - 工作区管理页面 (新增)，支持工作区的创建、编辑、删除和用户分配
+
+#### 上下文管理 (`frontend/src/contexts/`)
+
+- **`AuthContext.tsx`** - 用户认证状态管理
+- **`WorkspaceContext.tsx`** - 工作区上下文管理 (新增)
 
 #### 路由 (`frontend/src/router.tsx`)
 
 - `router.tsx`    # 路由配置，使用React Router 6，支持代码分割和私有路由
 
-#### 样式 (`frontend/src/styles/`)
+#### API服务 (`frontend/src/apis/`)
+
+- **`auth.ts`** - 认证API服务
+- **`userService.ts`** - 用户管理API服务
+- **`roleService.ts`** - 角色管理API服务
+- **`permissionService.ts`** - 权限管理API服务
+- **`document.ts`** - 文档管理API服务
+- **`moduleService.ts`** - 模块管理API服务
+- **`workspaceService.ts`** - 工作区管理API服务 (新增)
 
 ## 功能模块
 
@@ -140,35 +190,78 @@ Archives/
 2. **用户管理**
    - 用户信息CRUD (包括 `username`, `mobile`, `email`, `is_active`, `is_superuser` 等字段)
    - 用户角色分配
+   - 用户默认工作区设置 (新增)
 
-3. **文档管理**
+3. **工作区管理** (新增)
+   - 工作区CRUD操作：创建、查询、更新、删除工作区
+   - 工作区用户管理：将用户添加到工作区、从工作区移除用户、更新用户在工作区中的角色
+   - 工作区默认设置：设置和切换默认工作区
+   - 工作区权限隔离：用户只能查看和操作其所属工作区的资源
+   - 工作区主题定制：支持设置工作区图标和主题色彩
+
+4. **文档管理**
    - 文档创建、查询、更新、删除
    - 文档内容的模块化管理：每个文档可由多个"部分 (`Section`)"组成，每个部分可以有不同的类型 (`SectionTypeEnum`：如 `OVERVIEW`, `FLOW`, `CONTENT`, `DATABASE`, `API`, `CODE`, `CUSTOM`)，允许高度结构化和多样化的内容组织。
    - 文档间关联关系
+   - 文档工作区归属 (新增)：文档属于特定的工作区
 
-4. **模板管理**
+5. **模板管理**
    - 模板通过API提供创建、查询、更新、删除功能。
    - 主要用于在创建文档时提供结构化的起点，帮助用户快速建立符合规范的文档框架。
    - 独立的前端模板管理界面目前部分集成于文档创建流程或正在进一步规划完善中。
 
-5. **(新增模块) 模块化结构管理**
+6. **模块化结构管理**
    - 允许管理员通过 `module_structures` API 定义标准化的文档模块/章节结构 (例如：项目背景、需求分析、系统设计、接口定义等)。
    - 用户随后可以通过 `module_contents` API 及对应的前端页面 (`StructureManagementPage`, `ModuleContentPage`) 填充这些预定义模块的内容。
+   - 支持模块结构的树形层级设计，可灵活组织内容结构
+   - 与工作区集成，模块结构可以绑定到特定工作区 (新增)
    - 旨在提高文档编写的规范性和一致性。
 
-6. **图片管理**
+7. **模块内容管理** (新增详情)
+   - 每个模块内容包含六个固定部分：功能概述、逻辑图/数据流向图、功能详解、数据库表、关联模块、涉及接口
+   - 支持富文本编辑，包括图表、代码块等多种内容格式
+   - 记录内容的修改历史和最后编辑者
+
+8. **图片管理**
+   - 图片上传、存储和引用
+   - 支持图片与文档部分关联
+   - 支持在富文本编辑器中直接插入图片
 
 ## 数据模型关系
 
 - **用户(User)** - 系统操作者，可以创建文档和模板，并被分配一个或多个角色。
   - 与 **角色(Role)**: 多对多关系 (`user_role` 关联表)。
+  - 与 **工作区(Workspace)**: 多对多关系 (`workspace_user` 关联表)，用户可以属于多个工作区，并在每个工作区中有特定的访问级别 (新增)。
+  - 拥有自己创建的 **工作区(Workspace)** (一对多，`created_by` 外键) (新增)。
+
 - **角色(Role)** - 定义一组权限集合。一个角色可以包含多个权限，也可以被分配给多个用户。
   - 与 **权限(Permission)**: 多对多关系 (`role_permission` 关联表)。
+
 - **权限(Permission)** - 定义对特定资源或操作的访问许可（例如页面访问、功能操作）。权限可以具有层级关系（通过 `parent_id` 实现父子权限）。
+
+- **工作区(Workspace)** - 系统资源的顶级组织单元，可包含多个模块结构和文档 (新增)。
+  - 与 **用户(User)**: 多对多关系 (`workspace_user` 关联表)，工作区包含多个用户，每个用户有特定的访问级别。
+  - 与 **模块结构节点(ModuleStructureNode)**: 一对多关系，一个工作区可以包含多个模块结构节点。
+
+- **模块结构节点(ModuleStructureNode)** - 定义资料的结构组织，形成树形结构 (新增)。
+  - 与 **工作区(Workspace)**: 多对一关系，归属于特定工作区。
+  - 与自身: 自引用关系，形成树形结构 (通过 `parent_id` 外键)。
+  - 与 **模块内容(ModuleContent)**: 一对一关系，每个内容页面类型的节点有对应的内容。
+  - 与 **权限(Permission)**: 多对一关系，可以关联特定权限控制访问。
+
+- **模块内容(ModuleContent)** - 存储模块的具体内容 (新增)。
+  - 与 **模块结构节点(ModuleStructureNode)**: 一对一关系，属于特定的结构节点。
+  - 与 **用户(User)**: 多对一关系，记录最后编辑者。
+
 - **文档(Document)** - 核心数据实体，包含多个部分 (`Section`)，属于一个用户 (`creator`)，可以选择性地基于一个模板 (`Template`) 创建。
+  - (新增) 与 **工作区(Workspace)** 关联，归属于特定工作区。
+
 - **模板(Template)** - 定义文档的结构框架，由用户创建，可用于快速生成具有统一格式的文档。
+
 - **部分(Section)** - 文档的内容单元，具有特定类型 (`type`)，可以包含文本内容和图片 (`Image`)。
+
 - **图片(Image)** - 存储图片信息，关联到文档和可选的特定部分。
+
 - **关系(Relation)** - 定义文档之间的引用或关联关系 (例如，一个文档引用另一个文档)。
 
 ## 安装与运行
@@ -176,7 +269,7 @@ Archives/
 ### 环境要求
 
 - **后端**
-  - Python 3.8+
+  - Python 3.11+
   - Pip
 
 - **前端**
@@ -192,49 +285,22 @@ cd backend
 pip install -r requirements.txt
 ```
 
-2. 设置环境变量
-
-```bash
-cp .env.example .env  # 编辑配置
+2. 启动服务
 ```
-
-3. 初始化数据库
-
-```bash
-alembic upgrade head  # 初始化数据库
-```
-
-4. 启动服务
-
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+运行 main.py即可
 ```
 
 ### 前端
 
 1. 安装依赖
-
 ```bash
 cd frontend
 npm install
 ```
 
 2. 启动开发服务器
-
 ```bash
 npm run dev
-```
-
-3. 构建生产版本
-
-```bash
-npm run build
-```
-
-4. 预览生产构建
-
-```bash
-npm run preview
 ```
 
 ## API文档

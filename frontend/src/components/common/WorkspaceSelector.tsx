@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Spin, Dropdown, Button, Space, message } from 'antd';
 import type { MenuProps } from 'antd';
-import { DownOutlined, SettingOutlined } from '@ant-design/icons';
+import { DownOutlined, SettingOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { useWorkspaceContext } from '../../contexts/WorkspaceContext';
 import { useUser } from '../../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
@@ -99,6 +99,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
         }
       }}
     >
+      <AppstoreOutlined style={{ marginRight: '6px', verticalAlign: 'middle', fontSize: '16px' }} />
       <span className="workspace-title">工作区</span>
       <div className="workspace-content">
         <span style={{ 
@@ -107,10 +108,11 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
           height: '12px', 
           borderRadius: '6px', 
           backgroundColor: currentWorkspace.color || '#1890ff', 
-          marginRight: '6px' 
+          marginRight: '6px',
+          verticalAlign: 'middle'
         }} />
         <span className="workspace-name-text">{currentWorkspace.name}</span>
-        <DownOutlined style={{ marginLeft: 'auto' }} />
+        <DownOutlined style={{ marginLeft: 'auto', verticalAlign: 'middle' }} />
       </div>
     </Button>
   );

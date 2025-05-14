@@ -24,6 +24,9 @@ const WorkspaceForm: React.FC<WorkspaceFormProps> = ({
 
   // 表单初始化
   useEffect(() => {
+    // 重置表单，确保每次打开弹窗时都是空白表单或正确的初始值
+    form.resetFields();
+    
     if (initialValues) {
       form.setFieldsValue({
         name: initialValues.name,
@@ -41,6 +44,13 @@ const WorkspaceForm: React.FC<WorkspaceFormProps> = ({
       color: typeof values.color === 'object' ? values.color.toHexString() : values.color,
     };
     onFinish(formattedValues);
+  };
+
+  // 处理取消操作
+  const handleCancel = () => {
+    // 先重置表单，再调用onCancel
+    form.resetFields();
+    onCancel();
   };
 
   return (
@@ -78,7 +88,7 @@ const WorkspaceForm: React.FC<WorkspaceFormProps> = ({
 
       <Form.Item>
         <Space>
-          <Button onClick={onCancel}>取消</Button>
+          <Button onClick={handleCancel}>取消</Button>
           <Button type="primary" htmlType="submit" loading={loading}>
             {initialValues ? '保存' : '创建'}
           </Button>

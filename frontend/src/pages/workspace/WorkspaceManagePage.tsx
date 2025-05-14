@@ -200,6 +200,36 @@ const WorkspaceManagePage: React.FC = () => {
     }
   };
 
+  // 处理创建弹窗打开
+  const handleOpenCreateModal = () => {
+    setCreateModalVisible(true);
+  };
+
+  // 处理创建弹窗关闭
+  const handleCloseCreateModal = () => {
+    setCreateModalVisible(false);
+  };
+
+  // 处理编辑弹窗打开
+  const handleOpenEditModal = (workspace: Workspace) => {
+    setSelectedWorkspace(workspace);
+    setEditModalVisible(true);
+  };
+
+  // 处理编辑弹窗关闭
+  const handleCloseEditModal = () => {
+    setEditModalVisible(false);
+    // 延迟重置selectedWorkspace以避免UI闪烁
+    setTimeout(() => {
+      setSelectedWorkspace(null);
+    }, 300);
+  };
+
+  // 处理用户弹窗关闭
+  const handleCloseAddUserModal = () => {
+    setAddUserModalVisible(false);
+  };
+
   // 删除工作区
   const handleDelete = (workspace: Workspace) => {
     Modal.confirm({
@@ -239,10 +269,17 @@ const WorkspaceManagePage: React.FC = () => {
       fetchWorkspaceUsersList(selectedWorkspace.id);
       // 刷新WorkspaceContext中的数据
       await refreshWorkspacesContext();
-    } catch (error) {
+    } catch (error: any) {
       console.error('添加用户到工作区失败:', error);
-      message.error('添加用户到工作区失败');
-      throw error; // 将错误向上传递，让调用方处理
+      
+      // 提取详细错误信息，确保显示适当的错误消息
+      let errorMessage = '添加用户到工作区失败';
+      if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      message.error(errorMessage);
+      // 不要抛出错误，因为已经处理了
     }
   };
 
@@ -254,7 +291,7 @@ const WorkspaceManagePage: React.FC = () => {
         <Button 
           type="primary" 
           icon={<PlusOutlined />} 
-          onClick={() => setCreateModalVisible(true)}
+          onClick={handleOpenCreateModal}
         >
           创建工作区
         </Button>
@@ -262,10 +299,7 @@ const WorkspaceManagePage: React.FC = () => {
       
       <WorkspaceTable 
         workspaces={workspaces}
-        onEdit={(workspace) => {
-          setSelectedWorkspace(workspace);
-          setEditModalVisible(true);
-        }}
+        onEdit={handleOpenEditModal}
         onDelete={handleDelete}
       />
     </div>
@@ -340,7 +374,7 @@ const WorkspaceManagePage: React.FC = () => {
               workspaceName={selectedWorkspace.name}
               existingUserIds={existingUserIds}
               onAdd={handleAddUserToWorkspace}
-              onCancel={() => setAddUserModalVisible(false)}
+              onCancel={handleCloseAddUserModal}
             />
           </div>
         )}
@@ -373,7 +407,7 @@ const WorkspaceManagePage: React.FC = () => {
       <Modal
         title="创建工作区"
         open={createModalVisible}
-        onCancel={() => setCreateModalVisible(false)}
+        onCancel={handleCloseCreateModal}
         footer={null}
         maskClosable={false}
       >
@@ -388,7 +422,7 @@ const WorkspaceManagePage: React.FC = () => {
             };
             handleCreate(createParams);
           }}
-          onCancel={() => setCreateModalVisible(false)}
+          onCancel={handleCloseCreateModal}
         />
       </Modal>
       
@@ -396,7 +430,7 @@ const WorkspaceManagePage: React.FC = () => {
       <Modal
         title="编辑工作区"
         open={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
+        onCancel={handleCloseEditModal}
         footer={null}
         maskClosable={false}
       >
@@ -404,7 +438,7 @@ const WorkspaceManagePage: React.FC = () => {
           initialValues={selectedWorkspace}
           loading={formSubmitting}
           onFinish={handleEdit}
-          onCancel={() => setEditModalVisible(false)}
+          onCancel={handleCloseEditModal}
         />
       </Modal>
     </div>

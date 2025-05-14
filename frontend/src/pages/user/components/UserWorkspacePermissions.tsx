@@ -118,7 +118,7 @@ const UserWorkspacePermissions: React.FC<UserWorkspacePermissionsProps> = ({ use
         access_level: roleToAccessLevel[selectedRole] || 'read'
       });
       message.success('已成功添加用户到工作区');
-      setAddModalVisible(false);
+      closeAddModal();
       fetchData(); // 刷新数据
     } catch (error) {
       console.error('添加用户到工作区失败:', error);
@@ -143,7 +143,7 @@ const UserWorkspacePermissions: React.FC<UserWorkspacePermissionsProps> = ({ use
         selectedRole
       );
       message.success('已成功更新用户在工作区中的角色');
-      setEditModalVisible(false);
+      closeEditModal();
       fetchData(); // 刷新数据
     } catch (error) {
       console.error('更新用户角色失败:', error);
@@ -188,12 +188,39 @@ const UserWorkspacePermissions: React.FC<UserWorkspacePermissionsProps> = ({ use
     );
   };
 
+  // 打开添加工作区权限弹窗
+  const openAddModal = () => {
+    setSelectedWorkspace(availableWorkspaces[0] || null);
+    setSelectedRole('member');
+    setAddModalVisible(true);
+  };
+
+  // 关闭添加工作区权限弹窗
+  const closeAddModal = () => {
+    setAddModalVisible(false);
+    // 延迟重置状态以避免UI闪烁
+    setTimeout(() => {
+      setSelectedWorkspace(null);
+      setSelectedRole('member');
+    }, 300);
+  };
+
   // 打开编辑角色模态框
   const openEditModal = (userWorkspace: WorkspaceUser) => {
     setSelectedUserWorkspace(userWorkspace);
     // 使用统一的角色转换函数获取有效角色
     setSelectedRole(getEffectiveRole(userWorkspace));
     setEditModalVisible(true);
+  };
+  
+  // 关闭编辑工作区角色模态框
+  const closeEditModal = () => {
+    setEditModalVisible(false);
+    // 延迟重置状态以避免UI闪烁
+    setTimeout(() => {
+      setSelectedUserWorkspace(null);
+      setSelectedRole('member');
+    }, 300);
   };
 
   // 表格列配置
@@ -268,11 +295,7 @@ const UserWorkspacePermissions: React.FC<UserWorkspacePermissionsProps> = ({ use
           <Button 
             type="primary" 
             icon={<PlusOutlined />}
-            onClick={() => {
-              setSelectedWorkspace(availableWorkspaces[0] || null);
-              setSelectedRole('member');
-              setAddModalVisible(true);
-            }}
+            onClick={openAddModal}
             disabled={availableWorkspaces.length === 0}
           >
             添加工作区权限
@@ -294,10 +317,11 @@ const UserWorkspacePermissions: React.FC<UserWorkspacePermissionsProps> = ({ use
         title="添加工作区权限"
         open={addModalVisible}
         onOk={handleAddUserToWorkspace}
-        onCancel={() => setAddModalVisible(false)}
+        onCancel={closeAddModal}
         confirmLoading={loading}
         okText="确认"
         cancelText="取消"
+        destroyOnClose={true}
       >
         <div style={{ marginBottom: 16 }}>
           <label style={{ display: 'block', marginBottom: 8 }}>工作区:</label>
@@ -330,10 +354,11 @@ const UserWorkspacePermissions: React.FC<UserWorkspacePermissionsProps> = ({ use
         title={`编辑 ${username} 在 ${selectedUserWorkspace ? getWorkspaceName(selectedUserWorkspace.workspace_id) : ''} 中的角色`}
         open={editModalVisible}
         onOk={handleUpdateUserRole}
-        onCancel={() => setEditModalVisible(false)}
+        onCancel={closeEditModal}
         confirmLoading={loading}
         okText="确认"
         cancelText="取消"
+        destroyOnClose={true}
       >
         <div>
           <label style={{ display: 'block', marginBottom: 8 }}>角色:</label>

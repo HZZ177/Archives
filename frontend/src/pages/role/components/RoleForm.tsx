@@ -521,7 +521,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
               title="权限分配" 
               className="permissions-card"
               bodyStyle={{ 
-                height: '500px', 
+                height: '650px', 
                 overflowY: 'auto', 
                 padding: '0',
               }}
