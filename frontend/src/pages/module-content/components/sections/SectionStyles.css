@@ -1,0 +1,256 @@
+/* 左右分栏Markdown编辑器通用样式 */
+
+.split-editor-container {
+  display: flex;
+  width: 100%;
+  min-height: 400px; /* 提供充足的编辑高度 */
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.editor-pane, .preview-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-header, .preview-header {
+  padding: 8px 12px;
+  background-color: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  font-weight: 500;
+  color: #555;
+}
+
+.split-editor-textarea {
+  flex: 1;
+  height: 100% !important;
+  min-height: 350px !important;
+  resize: none;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 16px !important;
+  line-height: 1.6 !important;
+  white-space: pre-wrap !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+}
+
+.split-editor-textarea:focus {
+  box-shadow: none !important;
+}
+
+.preview-content {
+  flex: 1;
+  padding: 16px;
+  background-color: #fafafa;
+  overflow: auto;
+}
+
+.empty-preview {
+  color: #bbb;
+  font-style: italic;
+  padding: 20px 0;
+}
+
+.editor-divider {
+  height: auto;
+  margin: 0;
+}
+
+/* Markdown内容的统一样式控制 */
+.markdown-content {
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* 针对简化预览模式的特殊样式 */
+.simple-preview {
+  line-height: 1.4 !important;
+}
+
+/* 确保内联显示元素没有额外换行 */
+.simple-preview > * {
+  margin: 0 !important;
+  line-height: inherit !important;
+}
+
+/* 简化预览模式下的特殊处理 */
+.simple-preview p {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+.simple-preview li > p {
+  margin: 0;
+  display: inline;
+}
+
+.simple-preview li {
+  margin: 0;
+  padding: 0;
+}
+
+.simple-preview ul,
+.simple-preview ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+/* 统一Markdown元素的间距 */
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.markdown-content p {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+/* 修复列表间距问题 */
+.markdown-content ul,
+.markdown-content ol {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  padding-left: 20px;
+}
+
+.markdown-content li {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+
+/* 处理列表之间的空白 */
+.markdown-content li p {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* 处理相邻列表项 */
+.markdown-content li + li {
+  margin-top: 1px;
+}
+
+/* 处理ReactMarkdown的特殊结构 */
+.markdown-content li > div {
+  margin: 0;
+  padding: 0;
+}
+
+.markdown-content blockquote {
+  margin: 8px 0;
+  padding-left: 16px;
+  border-left: 4px solid #ddd;
+  color: #666;
+}
+
+.markdown-content code {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+
+.markdown-content pre {
+  margin: 8px 0;
+  padding: 12px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+  overflow: auto;
+}
+
+.markdown-content pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+/* 自定义分栏编辑器样式覆盖 */
+.split-item-editor {
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.split-item-editor .split-editor-container {
+  border: none;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 表格中的分栏编辑器 */
+.table-split-editor {
+  display: flex;
+  width: 100%;
+}
+
+.table-editor-section, .table-preview-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-preview-section {
+  background-color: #fafafa;
+  padding: 8px;
+  border-radius: 2px;
+  overflow: auto;
+}
+
+/* 表格内Markdown内容的特殊控制 */
+.table-preview-section .markdown-content {
+  line-height: 1.4;
+}
+
+.table-preview-section .markdown-content h1,
+.table-preview-section .markdown-content h2,
+.table-preview-section .markdown-content h3,
+.table-preview-section .markdown-content h4,
+.table-preview-section .markdown-content h5,
+.table-preview-section .markdown-content h6,
+.table-preview-section .markdown-content p,
+.table-preview-section .markdown-content ul,
+.table-preview-section .markdown-content ol {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .split-editor-container {
+    flex-direction: column;
+    min-height: 600px;
+  }
+  
+  .split-editor-textarea,
+  .preview-content {
+    min-height: 250px !important;
+  }
+  
+  .editor-divider {
+    height: 1px;
+    width: 100%;
+  }
+  
+  .table-split-editor {
+    flex-direction: column;
+  }
+  
+  .table-editor-section,
+  .table-preview-section {
+    width: 100%;
+  }
+  
+  .table-preview-section {
+    margin-top: 8px;
+  }
+} 

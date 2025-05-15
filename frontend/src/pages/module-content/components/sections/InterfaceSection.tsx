@@ -1,10 +1,12 @@
-import React from 'react';
-import { Button, Input, Form, Select, Space, Table } from 'antd';
+import React, { useState } from 'react';
+import { Button, Input, Form, Select, Table } from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { MdEditor } from 'md-editor-rt';
+import 'md-editor-rt/lib/style.css';
+import './SectionStyles.css';
 
 const { Option } = Select;
-const { TextArea } = Input;
 
 interface InterfaceItem {
   id: string;
@@ -20,6 +22,17 @@ interface InterfaceSectionProps {
 }
 
 const InterfaceSection: React.FC<InterfaceSectionProps> = ({ interfaces, onChange }) => {
+  // 为每个编辑器创建唯一ID
+  const [editorIdsMap] = useState<Record<string, string>>({});
+  
+  // 获取或创建编辑器ID
+  const getEditorId = (id: string) => {
+    if (!editorIdsMap[id]) {
+      editorIdsMap[id] = `interface-${id}-${Date.now()}`;
+    }
+    return editorIdsMap[id];
+  };
+
   // 添加一个新的接口
   const addInterface = () => {
     const newId = `interface_${Date.now()}`;
@@ -101,15 +114,27 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({ interfaces, onChang
       ),
     },
     {
-      title: '说明',
+      title: (
+        <div>
+          说明 <span style={{ fontSize: '12px', color: '#888' }}>(支持Markdown)</span>
+        </div>
+      ),
       dataIndex: 'description',
       key: 'description',
       render: (text, record) => (
-        <TextArea
-          value={text}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => updateInterface(record.id, 'description', e.target.value)}
-          placeholder="接口说明"
-          autoSize={{ minRows: 2, maxRows: 4 }}
+        <MdEditor
+          modelValue={text}
+          onChange={(value) => updateInterface(record.id, 'description', value)}
+          id={getEditorId(record.id)}
+          language="zh-CN"
+          previewTheme="github"
+          preview={true}
+          style={{ height: '150px', boxShadow: '0 0 0 1px #f0f0f0' }}
+          placeholder="接口说明（支持Markdown语法）"
+          noMermaid
+          noKatex
+          tabWidth={2}
+          toolbarsExclude={['github', 'save', 'fullscreen']}
         />
       ),
     },
@@ -123,6 +148,7 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({ interfaces, onChang
           danger 
           icon={<MinusCircleOutlined />} 
           onClick={() => removeInterface(record.id)}
+          size="small"
         >
           删除
         </Button>

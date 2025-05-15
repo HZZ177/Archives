@@ -1,6 +1,9 @@
-import React from 'react';
-import { Button, Input, Form, Space } from 'antd';
+import React, { ChangeEvent, useState } from 'react';
+import { Button, Input, Form } from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import { MdEditor } from 'md-editor-rt';
+import 'md-editor-rt/lib/style.css';
+import './SectionStyles.css';
 
 interface KeyTechItem {
   key: string;
@@ -13,9 +16,16 @@ interface KeyTechSectionProps {
 }
 
 const KeyTechSection: React.FC<KeyTechSectionProps> = ({ items, onChange }) => {
+  // 为每个编辑器创建唯一ID
+  const [editorIds] = useState(() => 
+    items.map((_, index) => `key-tech-editor-${index}-${Date.now()}`)
+  );
+  
   // 添加新的关键技术项
   const addItem = () => {
     const newItems = [...items, { key: '', value: '' }];
+    // 编辑器IDs也需要更新
+    editorIds.push(`key-tech-editor-${items.length}-${Date.now()}`);
     onChange(newItems);
   };
 
@@ -23,6 +33,7 @@ const KeyTechSection: React.FC<KeyTechSectionProps> = ({ items, onChange }) => {
   const removeItem = (index: number) => {
     const newItems = [...items];
     newItems.splice(index, 1);
+    // 不需要改变editorIds，因为React会根据key来匹配组件
     onChange(newItems);
   };
 
@@ -40,40 +51,57 @@ const KeyTechSection: React.FC<KeyTechSectionProps> = ({ items, onChange }) => {
     onChange(newItems);
   };
 
+  // 确保editorIds数组长度与items匹配
+  while (editorIds.length < items.length) {
+    editorIds.push(`key-tech-editor-${editorIds.length}-${Date.now()}`);
+  }
+
   return (
     <div className="section-content">
+      <div className="markdown-hint" style={{ marginBottom: '16px', color: '#888' }}>
+        参数值支持使用Markdown语法，例如: **加粗文本**, *斜体文本*, `代码`, # 标题, 等。
+      </div>
       <Form layout="vertical">
         {items.map((item, index) => (
-          <div key={index} style={{ marginBottom: '16px' }}>
-            <Space 
-              style={{ display: 'flex', alignItems: 'baseline' }}
-              size="middle"
+          <div key={index} className="split-item-editor">
+            <Form.Item 
+              label="参数名称" 
+              style={{ margin: '16px 16px 0', marginBottom: '16px' }}
             >
-              <Form.Item 
-                label="参数名称" 
-                style={{ marginBottom: '8px', flex: 1 }}
-              >
-                <Input
-                  value={item.key}
-                  placeholder="输入参数名称"
-                  onChange={(e) => updateItemKey(index, e.target.value)}
-                />
-              </Form.Item>
-              <Form.Item 
-                label="参数值" 
-                style={{ marginBottom: '8px', flex: 2 }}
-              >
-                <Input
-                  value={item.value}
-                  placeholder="输入参数值"
-                  onChange={(e) => updateItemValue(index, e.target.value)}
-                />
-              </Form.Item>
-              <MinusCircleOutlined
-                style={{ color: '#ff4d4f', marginTop: '30px' }}
-                onClick={() => removeItem(index)}
+              <Input
+                value={item.key}
+                placeholder="输入参数名称"
+                onChange={(e: ChangeEvent<HTMLInputElement>) => updateItemKey(index, e.target.value)}
               />
-            </Space>
+            </Form.Item>
+            
+            <Form.Item 
+              label="参数值" 
+              style={{ margin: '0 16px 16px' }}
+            >
+              <MdEditor
+                modelValue={item.value}
+                onChange={(value) => updateItemValue(index, value)}
+                id={editorIds[index]}
+                language="zh-CN"
+                previewTheme="github"
+                codeTheme="atom"
+                preview={true}
+                style={{ height: '300px', boxShadow: '0 0 0 1px #f0f0f0' }}
+                placeholder="输入参数值（支持Markdown语法）"
+              />
+            </Form.Item>
+            
+            <div style={{ textAlign: 'right', padding: '0 16px 16px' }}>
+              <Button 
+                type="text"
+                danger
+                icon={<MinusCircleOutlined />}
+                onClick={() => removeItem(index)}
+              >
+                删除此参数
+              </Button>
+            </div>
           </div>
         ))}
         <Form.Item>

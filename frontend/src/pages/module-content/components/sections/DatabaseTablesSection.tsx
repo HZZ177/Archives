@@ -1,15 +1,37 @@
-import React from 'react';
+import React, { ChangeEvent, useState } from 'react';
 import { Button, Input, Form, Table, Space } from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { DatabaseTable, DatabaseTableColumn } from '../../../../types/modules';
+import { MdEditor } from 'md-editor-rt';
+import 'md-editor-rt/lib/style.css';
+import './SectionStyles.css';
+
+const { TextArea } = Input;
 
 interface DatabaseTablesSectionProps {
   tables: DatabaseTable[];
   onChange: (tables: DatabaseTable[]) => void;
 }
 
+// 为了表格中的列宽度计算
+const FIELD_NAME_WIDTH = '20%';
+const FIELD_TYPE_WIDTH = '15%';
+const ACTION_WIDTH = '10%';
+
 const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, onChange }) => {
+  // 为描述字段的编辑器创建唯一ID
+  const [editorIdsMap] = useState<Record<string, string>>({});
+  
+  // 获取或创建编辑器ID
+  const getEditorId = (tableIndex: number, columnIndex: number) => {
+    const key = `table-${tableIndex}-column-${columnIndex}`;
+    if (!editorIdsMap[key]) {
+      editorIdsMap[key] = `${key}-${Date.now()}`;
+    }
+    return editorIdsMap[key];
+  };
+
   // 添加新表
   const addTable = () => {
     const newTable: DatabaseTable = {
@@ -41,7 +63,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
     const newColumn: DatabaseTableColumn = {
       field_name: '',
       field_type: 'varchar',
-      description: '',
+      description: ''
     };
     
     const newTables = [...tables];
@@ -86,11 +108,11 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
         title: '字段名',
         dataIndex: 'field_name',
         key: 'field_name',
-        width: '20%',
-        render: (text, record, index) => (
+        width: FIELD_NAME_WIDTH,
+        render: (text: string, record: DatabaseTableColumn, index: number) => (
           <Input
             value={text}
-            onChange={(e) => updateColumn(tableIndex, index, 'field_name', e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => updateColumn(tableIndex, index, 'field_name', e.target.value)}
             placeholder="输入字段名"
           />
         )
@@ -99,37 +121,52 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
         title: '字段类型',
         dataIndex: 'field_type',
         key: 'field_type',
-        width: '15%',
-        render: (text, record, index) => (
+        width: FIELD_TYPE_WIDTH,
+        render: (text: string, record: DatabaseTableColumn, index: number) => (
           <Input
             value={text}
-            onChange={(e) => updateColumn(tableIndex, index, 'field_type', e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => updateColumn(tableIndex, index, 'field_type', e.target.value)}
             placeholder="输入字段类型"
           />
         )
       },
       {
-        title: '描述',
+        title: (
+          <div>
+            描述 <span style={{ fontSize: '12px', color: '#888' }}>(支持Markdown)</span>
+          </div>
+        ),
         dataIndex: 'description',
         key: 'description',
-        render: (text, record, index) => (
-          <Input
-            value={text || ''}
-            onChange={(e) => updateColumn(tableIndex, index, 'description', e.target.value)}
-            placeholder="输入字段描述"
+        render: (text: string | undefined, record: DatabaseTableColumn, index: number) => (
+          <MdEditor
+            modelValue={text || ''}
+            onChange={(value) => updateColumn(tableIndex, index, 'description', value)}
+            id={getEditorId(tableIndex, index)}
+            language="zh-CN"
+            previewTheme="github"
+            codeTheme="atom"
+            preview={true}
+            style={{ height: '150px', boxShadow: '0 0 0 1px #f0f0f0' }}
+            placeholder="输入字段描述（支持Markdown语法）"
+            noMermaid // 禁用mermaid图表以减小空间占用
+            noKatex // 禁用数学公式以减小空间占用
+            tabWidth={2} // 减小tab宽度以节省空间
+            toolbarsExclude={['github', 'save', 'fullscreen']} // 减少工具栏按钮
           />
         )
       },
       {
         title: '操作',
         key: 'action',
-        width: '10%',
-        render: (_, record, index) => (
+        width: ACTION_WIDTH,
+        render: (_: any, record: DatabaseTableColumn, index: number) => (
           <Button
             type="text"
             danger
             icon={<MinusCircleOutlined />}
             onClick={() => removeColumn(tableIndex, index)}
+            size="small"
           >
             删除
           </Button>
@@ -146,7 +183,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
             <Form.Item label="表名" style={{ marginBottom: 0, width: '80%' }}>
               <Input
                 value={table.table_name}
-                onChange={(e) => updateTableName(tableIndex, e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => updateTableName(tableIndex, e.target.value)}
                 placeholder="输入表名"
               />
             </Form.Item>
@@ -164,7 +201,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
             dataSource={table.columns}
             columns={getColumnsDefinition(tableIndex)}
             pagination={false}
-            rowKey={(record, index) => `${tableIndex}_column_${index}`}
+            rowKey={(record: DatabaseTableColumn, index: number) => `${tableIndex}_column_${index}`}
             size="small"
             style={{ marginBottom: '16px' }}
           />

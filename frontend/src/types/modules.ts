@@ -18,6 +18,7 @@ export interface DatabaseTableColumn {
   field_type: string;
   description?: string;
   remark?: string;
+  previewMode?: boolean; // 是否处于预览模式
 }
 
 // 数据库表类型
@@ -41,6 +42,7 @@ export interface ApiInterface {
   type: string;
   required: boolean;
   description: string;
+  previewMode?: boolean; // 是否处于预览模式
 }
 
 // 关键技术项类型
