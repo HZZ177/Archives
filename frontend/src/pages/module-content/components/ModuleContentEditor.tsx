@@ -3,7 +3,8 @@ import {
   Collapse, 
   Button, 
   message, 
-  Spin 
+  Spin,
+  Image 
 } from 'antd';
 import { 
   SaveOutlined,
@@ -23,8 +24,38 @@ import KeyTechSection from './sections/KeyTechSection';
 import DatabaseTablesSection from './sections/DatabaseTablesSection';
 import RelatedModulesSection from './sections/RelatedModulesSection';
 import InterfaceSection from './sections/InterfaceSection';
+import { API_BASE_URL } from '../../../config/constants';
 
 const { Panel } = Collapse;
+
+// 处理图片URL，确保图片能正确显示
+const processImageUrl = (url: string) => {
+  if (!url) return '';
+  
+  // 如果是完整的URL，直接返回
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // 如果是以/api开头的URL，使用API_BASE_URL的域名部分
+  if (url.startsWith('/api')) {
+    // 从API_BASE_URL提取域名部分 (如 http://localhost:8000)
+    const baseUrlParts = API_BASE_URL.split('/api');
+    const baseUrl = baseUrlParts[0]; // 例如 http://localhost:8000
+    return `${baseUrl}${url}`;
+  }
+  
+  // 如果是以/uploads开头的相对URL，使用API_BASE_URL
+  if (url.startsWith('/uploads')) {
+    // 从API_BASE_URL移除末尾的/api/v1部分
+    const baseUrlParts = API_BASE_URL.split('/api');
+    const baseUrl = baseUrlParts[0]; // 例如 http://localhost:8000
+    return `${baseUrl}${url}`;
+  }
+  
+  // 其他情况，假设是API相对路径，添加完整API_BASE_URL
+  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
 interface ModuleContentEditorProps {
   moduleNodeId: number;
@@ -148,8 +179,8 @@ const ModuleContentEditor: React.FC<ModuleContentEditorProps> = ({ moduleNodeId 
           ) : (
             <div className="readonly-content" style={{ textAlign: 'center', padding: '16px' }}>
               {diagramPath ? (
-                <img 
-                  src={diagramPath} 
+                <Image 
+                  src={processImageUrl(diagramPath)} 
                   alt="模块逻辑图" 
                   style={{ maxWidth: '100%' }} 
                 />

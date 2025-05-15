@@ -5,6 +5,7 @@ from typing import Optional, List, Tuple
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.core.config import settings
 from backend.app.core.logger import logger
 from backend.app.models.module_content import ModuleContent
 from backend.app.models.user import User
@@ -193,6 +194,8 @@ class ModuleContentService:
             # 生成文件路径
             filename = f"{module_node_id}_{file.filename}"
             file_path = os.path.join(UPLOAD_DIR, filename)
+            
+            # 修改URL生成逻辑，移除API_V1_STR前缀
             file_url = f"/uploads/module_diagrams/{filename}"
             
             # 保存文件
@@ -209,6 +212,74 @@ class ModuleContentService:
             )
         finally:
             file.file.close()
+    
+    async def delete_diagram_image(
+        self,
+        db: AsyncSession,
+        module_node_id: int,
+        user: User
+    ) -> Tuple[ModuleContent, str]:
+        """
+        删除模块的图片
+        
+        :param db: 数据库会话
+        :param module_node_id: 模块节点ID
+        :param user: 当前用户
+        :return: (模块内容对象, 操作消息)
+        """
+        try:
+            # 验证模块节点存在
+            await self.validate_module_node(db, module_node_id)
+            
+            # 获取模块内容
+            content = await module_content_repository.get_by_node_id(db, module_node_id)
+            
+            if not content:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="模块内容不存在"
+                )
+            
+            # 如果有图片路径，删除文件
+            if content.diagram_image_path:
+                try:
+                    # 从URL路径提取文件名
+                    file_path = content.diagram_image_path
+                    
+                    # 兼容处理：旧格式可能有API_V1_STR前缀
+                    if file_path.startswith(settings.API_V1_STR):
+                        file_path = file_path[len(settings.API_V1_STR):]
+                    
+                    # 处理路径中的斜杠
+                    if file_path.startswith('/'):
+                        file_path = file_path[1:]
+                    
+                    # 获取实际的文件系统路径
+                    fs_path = os.path.join(os.getcwd(), file_path)
+                    
+                    # 如果文件存在，删除文件
+                    if os.path.exists(fs_path):
+                        os.remove(fs_path)
+                        logger.info(f"已删除文件: {fs_path}")
+                    else:
+                        logger.warning(f"文件不存在，无法删除: {fs_path}")
+                except Exception as e:
+                    # 文件删除失败，仅记录错误但继续执行
+                    logger.error(f"删除文件失败: {str(e)}")
+            
+            # 清空数据库中的图片路径
+            updated_content = await module_content_repository.clear_diagram_image(db, module_node_id, user.id)
+            
+            return updated_content, "图片已删除"
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"删除模块图片失败: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"删除模块图片失败: {str(e)}"
+            )
 
 
 # 创建模块内容服务实例

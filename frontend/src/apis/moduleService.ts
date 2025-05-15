@@ -207,4 +207,17 @@ export const uploadDiagramImage = async (moduleNodeId: number, file: File): Prom
   
   const content = unwrapResponse<ModuleContent>(response.data);
   return { diagram_image_path: content.diagram_image_path || '' };
+};
+
+/**
+ * 删除模块逻辑图
+ * @param moduleNodeId 模块节点ID
+ * @returns 已更新的模块内容
+ */
+export const deleteDiagramImage = async (moduleNodeId: number): Promise<ModuleContent> => {
+  const response = await request.delete<APIResponse<ModuleContent>>(
+    `${API_MODULE_CONTENTS}/delete-diagram/${moduleNodeId}`
+  );
+  
+  return unwrapResponse<ModuleContent>(response.data);
 }; 
