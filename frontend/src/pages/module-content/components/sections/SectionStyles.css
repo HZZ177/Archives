@@ -272,6 +272,32 @@
   margin: 16px 0;
 }
 
+.section-title-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-title-with-button {
+  display: flex;
+  align-items: center;
+}
+
+.section-title {
+  margin-bottom: 0 !important; /* 覆盖Ant Design标题的默认下边距 */
+  color: #1e40af;
+  font-weight: 600;
+  padding: 0;
+  border: none;
+  background-color: transparent;
+}
+
+.collapse-all-button {
+  margin-left: 12px; /* 与标题文字的间距 */
+  font-size: 12px;
+  padding: 0 8px;
+}
+
 .interface-card-grid {
   margin-bottom: 16px;
   width: 100%; /* 确保网格宽度为100% */
@@ -280,7 +306,7 @@
 
 .api-interface-card {
   margin-bottom: 12px;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
   border-radius: 8px;
   width: 100%; /* 确保卡片宽度为100% */
   box-sizing: border-box; /* 包含padding和border在内的宽度计算 */
@@ -298,6 +324,10 @@
 .api-interface-card.expanded {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   border: 1px solid #d9d9d9;
+}
+
+.api-interface-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
 }
 
 .api-card-collapsed {
@@ -325,6 +355,7 @@
   flex: 1;
   min-width: 0; /* 确保flex-item能够正确收缩 */
   overflow: hidden;
+  margin-right: 8px; /* 为按钮预留空间 */
 }
 
 .api-card-path {
@@ -343,6 +374,11 @@
   text-overflow: ellipsis;
 }
 
+.api-card-empty-desc {
+  font-style: italic;
+  color: #bbb !important;
+}
+
 .api-card-actions {
   flex: 0 0 auto;
   display: flex;
@@ -351,7 +387,8 @@
 }
 
 .api-card-actions .ant-btn {
-  padding: 0 8px;
+  padding: 0 12px;
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 
 .api-card-expanded {
@@ -360,10 +397,21 @@
 
 .api-card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 0 8px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.api-card-method-container {
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+}
+
+.api-card-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
 }
 
 .api-card-details {
@@ -388,7 +436,6 @@
 .api-param-table-container {
   margin-bottom: 16px;
   width: 100%;
-  overflow-x: auto; /* 添加水平滚动以防止表格溢出 */
   border: 1px solid #f0f0f0;
   border-radius: 4px;
   max-width: 100%; /* 确保不超出父容器 */
@@ -400,11 +447,10 @@
 }
 
 .api-param-table {
-  border: 1px solid #f0f0f0;
   border-radius: 4px;
   overflow: hidden;
   width: 100%;
-  min-width: 600px; /* 设置一个最小宽度确保表格可读性 */
+  min-width: auto; /* 移除固定最小宽度，让表格自适应容器 */
   background-color: #fff; /* 确保表格背景色 */
   table-layout: fixed; /* 固定表格布局，避免内容影响列宽 */
   border-collapse: collapse; /* 合并边框 */
@@ -413,11 +459,22 @@
 
 .api-param-header {
   display: flex;
-  background-color: #fafafa;
-  padding: 8px;
+  background-color: #f0f0f0;
+  padding: 10px 8px;
   font-weight: 500;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #e0e0e0;
   width: 100%;
+}
+
+/* 表格头部列样式 */
+.api-param-header .api-param-name,
+.api-param-header .api-param-type,
+.api-param-header .api-param-required,
+.api-param-header .api-param-desc,
+.api-param-header .api-param-example {
+  border-right: 1px solid #e0e0e0;
+  color: #333;
+  font-weight: 600;
 }
 
 .api-param-row {
@@ -427,43 +484,60 @@
   width: 100%;
 }
 
+/* 添加交替背景色 */
+.api-param-row:nth-child(even) {
+  background-color: #fafafa;
+}
+
 .api-param-row:last-child {
   border-bottom: none;
 }
 
+/* 统一表格列样式，添加文本溢出处理 */
 .api-param-name {
   flex: 2;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 4px;
-  min-width: 100px;
+  white-space: nowrap;
+  padding: 0 8px;
+  min-width: 80px;
+  border-right: 1px solid #f0f0f0;
 }
 
 .api-param-type {
   flex: 1;
   text-align: center;
-  min-width: 80px;
-  padding: 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 60px;
+  padding: 0 8px;
+  border-right: 1px solid #f0f0f0;
 }
 
 .api-param-required {
   flex: 1;
   text-align: center;
-  min-width: 60px;
-  padding: 0 4px;
+  min-width: 50px;
+  padding: 0 8px;
+  border-right: 1px solid #f0f0f0;
 }
 
 .api-param-desc {
   flex: 3;
-  padding: 0 4px;
-  min-width: 140px;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 100px;
+  border-right: 1px solid #f0f0f0;
 }
 
 .api-param-example {
   flex: 2;
-  padding: 0 4px;
-  min-width: 120px;
+  padding: 0 8px;
+  min-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -471,64 +545,73 @@
 
 /* 响应式调整 */
 @media (max-width: 768px) {
-  .api-card-collapsed {
-    flex-wrap: wrap;
-  }
-  
-  .api-card-method {
-    margin-bottom: 4px;
-  }
-  
-  .api-card-content {
-    width: calc(100% - 80px);
-    margin-bottom: 4px;
-  }
-  
-  .api-card-actions {
-    margin-left: auto;
-  }
-
-  /* 表格响应式布局 - 保持水平滚动而不是转为垂直布局 */
+  /* 表格响应式布局 - 移除水平滚动 */
   .api-param-table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch; /* 增强iOS设备的滚动体验 */
+    overflow-x: visible;
   }
   
   .api-param-table {
-    min-width: 500px; /* 在移动设备上稍微减小最小宽度 */
+    min-width: auto; /* 移除最小宽度 */
   }
   
-  /* 表格行保持水平布局 */
-  .api-param-header, .api-param-row {
-    flex-direction: row;
+  .api-param-header {
+    padding: 8px 4px;
+  }
+  
+  .api-param-row {
+    padding: 6px 4px;
+  }
+  
+  /* 标题和按钮在小屏幕上的样式调整 */
+  .section-title {
+    font-size: 16px !important;
+  }
+  
+  .collapse-all-button {
+    margin-left: 8px;
+    font-size: 11px;
+    padding: 0 6px;
+  }
+  
+  /* API模块按钮在小屏幕上的特殊样式 */
+  .api-section-header .collapse-all-button {
+    font-size: 12px;
+    padding: 0 8px;
+    height: 26px;
+    line-height: 24px;
   }
   
   /* 调整列宽 */
   .api-param-name {
-    flex: 3;
-    min-width: 80px;
+    flex: 2;
+    min-width: 60px;
+    padding: 0 4px;
   }
   
   .api-param-type {
-    flex: 2;
-    min-width: 60px;
+    flex: 1;
+    min-width: 50px;
+    padding: 0 4px;
   }
   
   .api-param-required {
-    flex: 2;
-    min-width: 50px;
+    flex: 1;
+    min-width: 40px;
+    padding: 0 4px;
   }
   
   .api-param-desc {
-    flex: 3;
-    min-width: 100px;
+    flex: 2;
+    min-width: 70px;
+    padding: 0 4px;
   }
   
   .api-param-example {
-    flex: 2;
-    min-width: 80px;
+    flex: 1;
+    min-width: 60px;
+    padding: 0 4px;
   }
-} 
+}
 
 .api-param-empty {
   padding: 8px 12px;
@@ -548,7 +631,8 @@
 
 .database-table-container {
   margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e8e8e8;
   border-radius: 4px;
   transition: all 0.3s ease;
 }
@@ -808,4 +892,120 @@
   font-family: 'Courier New', Courier, monospace;
   font-size: 13px;
   line-height: 1.5;
+}
+
+/* API接口卡片动画效果 */
+.api-card-container {
+  width: 100%;
+  position: relative;
+}
+
+/* 展开/收起动画 */
+.api-expand-enter {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-10px);
+}
+
+.api-expand-enter-active {
+  max-height: 2000px; /* 设置一个足够大的高度以适应内容 */
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+  transition: all 300ms ease-in-out;
+}
+
+.api-expand-exit {
+  max-height: 2000px;
+  opacity: 1;
+  overflow: hidden;
+  transform: translateY(0);
+}
+
+.api-expand-exit-active {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-10px);
+  transition: all 300ms ease-in-out;
+}
+
+.api-card-details-container {
+  padding-top: 16px;
+}
+
+/* 图标按钮样式 */
+.api-card-icon-buttons {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+/* 图标按钮基础样式 */
+.api-card-icon-button {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  margin-left: 4px;
+  transition: all 0.3s;
+  padding: 0; /* 移除内边距，确保图标居中 */
+}
+
+/* 编辑按钮样式 */
+.api-card-icon-button.edit-button {
+  color: #1890ff;
+  background-color: rgba(24, 144, 255, 0.1);
+}
+
+.api-card-icon-button.edit-button:hover {
+  background-color: rgba(24, 144, 255, 0.2);
+}
+
+/* 删除按钮样式 */
+.api-card-icon-button.delete-button {
+  color: #ff4d4f;
+  background-color: rgba(255, 77, 79, 0.1);
+}
+
+.api-card-icon-button.delete-button:hover {
+  background-color: rgba(255, 77, 79, 0.2);
+}
+
+/* 接口模块特定样式 */
+.api-section-header {
+  background-color: #f0f5ff;
+  padding: 12px 16px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border: 1px solid #d6e4ff;
+  border-bottom: none;
+  justify-content: flex-start;
+}
+
+.api-section-header .section-title-with-button {
+  justify-content: flex-start;
+}
+
+.api-section-header .section-title {
+  color: #000000; /* 修改为黑色 */
+  font-weight: 600;
+  margin: 0;
+  padding: 0;
+  background-color: transparent;
+  border: none;
+}
+
+.api-section-header .collapse-all-button {
+  background-color: rgba(255, 255, 255, 0.8);
+  border-color: #d6e4ff;
+  margin-left: 12px;
+  font-size: 14px;
+  padding: 0 12px;
+  height: 30px;
+  line-height: 28px;
+  font-weight: 500;
 } 

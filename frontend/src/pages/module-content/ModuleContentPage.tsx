@@ -27,6 +27,9 @@ const ModuleContentPage: React.FC = () => {
   const [moduleNode, setModuleNode] = useState<ModuleStructureNode | null>(null);
   const [activeSection, setActiveSection] = useState('overview');
   const [filledSections, setFilledSections] = useState<Set<string>>(new Set());
+  // 添加编辑状态相关状态
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const loadModuleNode = async () => {
@@ -61,6 +64,37 @@ const ModuleContentPage: React.FC = () => {
     setActiveSection(key);
   };
 
+  // 添加处理编辑和保存函数
+  const handleEdit = () => {
+    setIsEditMode(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    if (editorRef.current) {
+      const success = await editorRef.current.saveContent();
+      if (success) {
+        setIsEditMode(false);
+      }
+    }
+    setSaving(false);
+  };
+
+  // 处理取消编辑
+  const handleCancel = () => {
+    // 直接切换回阅读模式，不保存修改
+    setIsEditMode(false);
+    // 重新加载内容，丢弃未保存的修改
+    if (editorRef.current) {
+      editorRef.current.reloadContent();
+    }
+  };
+
+  // 添加回调函数以同步填充部分
+  const handleSectionsUpdate = (filledKeys: Set<string>) => {
+    setFilledSections(filledKeys);
+  };
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '50px 0' }}>
@@ -90,6 +124,11 @@ const ModuleContentPage: React.FC = () => {
                 items={navItemsWithState}
                 activeKey={activeSection}
                 onNavClick={handleNavClick}
+                isEditMode={isEditMode}
+                saving={saving}
+                onSave={handleSave}
+                onEdit={handleEdit}
+                onCancel={handleCancel}
               />
             </div>
             <div className="content-column">
@@ -97,6 +136,11 @@ const ModuleContentPage: React.FC = () => {
                 ref={editorRef}
                 moduleNodeId={parseInt(moduleId || '0')} 
                 onSectionVisibilityChange={handleSectionVisibilityChange}
+                isEditMode={isEditMode}
+                setIsEditMode={setIsEditMode}
+                saving={saving}
+                setSaving={setSaving}
+                onSectionsUpdate={handleSectionsUpdate}
               />
             </div>
           </div>

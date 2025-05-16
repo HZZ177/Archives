@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Card, Typography, Tag, Space, Button, Collapse, Divider, Empty } from 'antd';
+import React, { useState, useRef, useEffect } from 'react';
+import { Card, Typography, Tag, Space, Button, Collapse, Divider, Empty, Tooltip } from 'antd';
 import { EditOutlined, DeleteOutlined, EllipsisOutlined } from '@ant-design/icons';
 import { ApiInterfaceCard as ApiCardType, ApiParam } from '../../../../types/modules';
+import { CSSTransition } from 'react-transition-group';
 import './SectionStyles.css';
 
 const { Text, Title } = Typography;
@@ -21,15 +22,37 @@ interface ApiInterfaceCardProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   isEditable?: boolean;
+  isExpanded?: boolean;
+  onToggleExpand?: (id: string, expanded: boolean) => void;
 }
 
 const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
   data,
   onEdit,
   onDelete,
-  isEditable = true
+  isEditable = true,
+  isExpanded = false,
+  onToggleExpand
 }) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(isExpanded);
+
+  // 监听外部isExpanded属性变化
+  useEffect(() => {
+    setExpanded(isExpanded);
+  }, [isExpanded]);
+
+  // 切换展开状态
+  const toggleExpand = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    
+    const newExpanded = !expanded;
+    setExpanded(newExpanded);
+    
+    // 通知父组件
+    if (onToggleExpand) {
+      onToggleExpand(data.id, newExpanded);
+    }
+  };
 
   // 获取方法对应的颜色
   const getMethodColor = (method: string | null | undefined): string => {
@@ -55,15 +78,27 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
           </div>
           {params.map((param, index) => (
             <div key={index} className="api-param-row">
-              <div className="api-param-name">{param.name}</div>
+              <div className="api-param-name">
+                <Tooltip title={param.name}>
+                  {param.name}
+                </Tooltip>
+              </div>
               <div className="api-param-type">
                 <Tag>{param.type}</Tag>
               </div>
               <div className="api-param-required">
                 {param.required ? <Tag color="red">是</Tag> : <Tag color="green">否</Tag>}
               </div>
-              <div className="api-param-desc">{param.description || '-'}</div>
-              <div className="api-param-example">{param.example || '-'}</div>
+              <div className="api-param-desc">
+                <Tooltip title={param.description || '-'}>
+                  {param.description || '-'}
+                </Tooltip>
+              </div>
+              <div className="api-param-example">
+                <Tooltip title={param.example || '-'}>
+                  {param.example || '-'}
+                </Tooltip>
+              </div>
             </div>
           ))}
         </div>
@@ -71,124 +106,99 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
     );
   };
 
-  // 卡片折叠状态内容 - 改进为更紧凑的水平布局
-  const renderCollapsedContent = () => (
-    <div className="api-card-collapsed">
-      <div className="api-card-method">
-        <Tag color={getMethodColor(data.method)}>{data.method}</Tag>
-      </div>
-      <div className="api-card-content">
-        <div className="api-card-path">
-          <Text strong>{data.path}</Text>
-        </div>
-        {data.description && (
-          <div className="api-card-desc">
-            <Text type="secondary" ellipsis={{ tooltip: data.description }}>
-              {data.description}
-            </Text>
-          </div>
-        )}
-      </div>
-      <div className="api-card-actions">
-        <Button
-          type="primary"
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpanded(!expanded);
-          }}
-        >
-          {expanded ? '收起' : '查看详情'}
-        </Button>
-        {isEditable && (
-          <>
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(data.id);
-              }}
-            />
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(data.id);
-              }}
-            />
-          </>
-        )}
-      </div>
-    </div>
-  );
+  // 创建对内容区域的引用，用于动画效果
+  const contentRef = useRef(null);
 
-  // 卡片展开状态内容
-  const renderExpandedContent = () => (
-    <div className="api-card-expanded">
-      <div className="api-card-header">
-        <Space align="center">
-          <Tag color={getMethodColor(data.method)}>{data.method}</Tag>
-          <Text strong>{data.path}</Text>
-        </Space>
+  // 渲染统一的卡片内容
+  const renderCardContent = () => (
+    <div className="api-card-container">
+      {/* 卡片头部区域 - 始终显示 */}
+      <div className="api-card-header" onClick={toggleExpand}>
+        <div className="api-card-method-container">
+          <Tag color={getMethodColor(data.method)}>
+            {data.method || "GET"}
+          </Tag>
+        </div>
+        <div className="api-card-content">
+          <div className="api-card-path">
+            <Text strong>{data.path}</Text>
+          </div>
+          <div className="api-card-desc">
+            {data.description ? (
+              <Text type="secondary" ellipsis={{ tooltip: data.description }}>
+                {data.description}
+              </Text>
+            ) : (
+              <Text type="secondary" className="api-card-empty-desc">
+                暂无接口描述
+              </Text>
+            )}
+          </div>
+        </div>
         <div className="api-card-actions">
           <Button
             type="primary"
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpanded(!expanded);
-            }}
+            size="small"
+            onClick={toggleExpand}
           >
-            收起
+            {expanded ? '收起' : '查看详情'}
           </Button>
           {isEditable && (
-            <>
-              <Button
-                type="text"
-                icon={<EditOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(data.id);
-                }}
-              />
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(data.id);
-                }}
-              />
-            </>
+            <div className="api-card-icon-buttons">
+              <Tooltip title="编辑">
+                <Button
+                  type="text"
+                  size="small"
+                  className="api-card-icon-button edit-button"
+                  icon={<EditOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(data.id);
+                  }}
+                />
+              </Tooltip>
+              <Tooltip title="删除">
+                <Button
+                  type="text"
+                  size="small"
+                  className="api-card-icon-button delete-button"
+                  icon={<DeleteOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(data.id);
+                  }}
+                />
+              </Tooltip>
+            </div>
           )}
         </div>
       </div>
 
-      <div className="api-card-details">
-        {data.description && (
-          <div className="api-detail-item">
-            <Text type="secondary">描述:</Text>
-            <Text>{data.description}</Text>
+      {/* 详细内容区域 - 使用CSSTransition实现展开/收起动效 */}
+      <CSSTransition
+        in={expanded}
+        timeout={300}
+        classNames="api-expand"
+        unmountOnExit
+        nodeRef={contentRef}
+      >
+        <div className="api-card-details-container" ref={contentRef}>
+          <div className="api-card-details">
+            {data.contentType && (
+              <div className="api-detail-item">
+                <Text type="secondary">内容类型:</Text>
+                <Text>{data.contentType}</Text>
+              </div>
+            )}
           </div>
-        )}
-        {data.contentType && (
-          <div className="api-detail-item">
-            <Text type="secondary">内容类型:</Text>
-            <Text>{data.contentType}</Text>
-          </div>
-        )}
-      </div>
 
-      <Divider orientation="left">请求参数</Divider>
-      {renderParamTable(data.requestParams)}
+          <Divider orientation="left">请求参数</Divider>
+          {renderParamTable(data.requestParams)}
 
-      <Divider orientation="left">响应参数</Divider>
-      {renderParamTable(data.responseParams)}
+          <Divider orientation="left">响应参数</Divider>
+          {renderParamTable(data.responseParams)}
+        </div>
+      </CSSTransition>
     </div>
   );
 
@@ -198,7 +208,7 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
       hoverable={false}
       bodyStyle={{ padding: expanded ? '16px' : '12px 16px' }}
     >
-      {expanded ? renderExpandedContent() : renderCollapsedContent()}
+      {renderCardContent()}
     </Card>
   );
 };

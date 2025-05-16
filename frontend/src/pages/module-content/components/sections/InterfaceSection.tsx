@@ -9,15 +9,35 @@ import './SectionStyles.css';
 interface InterfaceSectionProps {
   interfaces: ApiInterfaceCard[];
   onChange: (interfaces: ApiInterfaceCard[]) => void;
+  expandedApiCards?: string[];
+  setExpandedApiCards?: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-const InterfaceSection: React.FC<InterfaceSectionProps> = ({ interfaces, onChange }) => {
+const InterfaceSection: React.FC<InterfaceSectionProps> = ({ 
+  interfaces, 
+  onChange, 
+  expandedApiCards = [], 
+  setExpandedApiCards 
+}) => {
   // 表单可见性状态
   const [formVisible, setFormVisible] = useState(false);
   // 当前编辑的接口
   const [currentInterface, setCurrentInterface] = useState<ApiInterfaceCard | undefined>(undefined);
   // 表单标题
   const [formTitle, setFormTitle] = useState('添加接口');
+
+  // 处理接口的展开/收起状态
+  const handleToggleExpand = (id: string, expanded: boolean) => {
+    if (setExpandedApiCards) {
+      setExpandedApiCards(prev => {
+        if (expanded) {
+          return [...prev, id];
+        } else {
+          return prev.filter(apiId => apiId !== id);
+        }
+      });
+    }
+  };
 
   // 添加接口
   const handleAdd = () => {
@@ -93,6 +113,8 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({ interfaces, onChang
               data={item}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onToggleExpand={handleToggleExpand}
+              isExpanded={expandedApiCards.includes(item.id)}
             />
           </Col>
         ))}

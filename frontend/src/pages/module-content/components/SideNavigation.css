@@ -8,6 +8,52 @@
   box-shadow: none;
 }
 
+/* 模式面板样式 */
+.nav-mode-panel {
+  margin-bottom: 20px;
+  padding: 12px 8px;
+  background: rgba(240, 245, 255, 0.6);
+  border-radius: 8px;
+  border: 1px solid rgba(24, 144, 255, 0.2);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nav-mode-indicator {
+  font-size: 12px;
+  color: #595959;
+  margin-bottom: 0;
+}
+
+.nav-mode-text-container {
+  margin-bottom: 2px;
+}
+
+.nav-mode-text {
+  font-weight: 500;
+  color: #1890ff;
+  background: rgba(24, 144, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.nav-action-button {
+  width: 100%;
+}
+
+.nav-cancel-button {
+  background-color: transparent;
+  border-color: #d9d9d9;
+}
+
+.nav-cancel-button:hover {
+  color: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
 /* 创建一个定位容器，用于精确控制线条和节点的位置关系 */
 .nav-item {
   display: flex;
@@ -23,7 +69,7 @@
 .nav-line {
   position: absolute;
   /* 线条从第一个节点开始，到最后一个节点结束 */
-  top: 53px; /* 增加top值，使线条正好从第一个节点开始，调整为53px */
+  top: 65px; /* 增加top值，确保线条从第一个节点开始 */
   bottom: 48px; /* 最后一个节点的中心位置同理，通过约等于视图高度减去最后一个节点位置 */
   /* 线条的水平位置，使其与节点中心对齐 */
   left: 8px; /* 从4px增加为8px，找到准确的居中位置 */
@@ -31,6 +77,16 @@
   background: #1890ff; /* 纯色 */
   opacity: 0.8;
   z-index: 0;
+}
+
+/* 当有模式面板时，调整线条起始位置 */
+.nav-mode-panel + .nav-line {
+  top: 185px; /* 进一步增加top值，确保不超出第一个节点 */
+}
+
+/* 编辑模式下模式面板更高，需要进一步调整线条起始位置 */
+.nav-mode-panel.edit-mode + .nav-line {
+  top: 220px; /* 适应编辑模式的面板高度，确保线条从第一个节点开始 */
 }
 
 .nav-column .side-navigation {
@@ -118,6 +174,34 @@
     border-radius: 0;
     background-color: transparent; /* 保持背景透明 */
     border-bottom: 1px solid #f0f0f0; /* 保留底部边框 */
+  }
+  
+  /* 调整模式面板在移动设备上的样式 */
+  .nav-mode-panel {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .nav-mode-indicator {
+    margin-bottom: 0;
+    flex: 0;
+    text-align: left;
+  }
+  
+  .nav-mode-text-container {
+    flex: 1;
+    margin-bottom: 0;
+    text-align: center;
+  }
+  
+  .nav-action-button {
+    width: auto;
+    margin-left: 0;
   }
   
   .nav-line {

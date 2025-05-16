@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { Button } from 'antd';
+import { SaveOutlined, EditOutlined, CloseOutlined } from '@ant-design/icons';
 import './SideNavigation.css';
 
 interface NavItem {
@@ -12,12 +14,22 @@ interface SideNavigationProps {
   items: NavItem[];
   activeKey: string;
   onNavClick: (key: string) => void;
+  isEditMode?: boolean;
+  saving?: boolean;
+  onSave?: () => void;
+  onEdit?: () => void;
+  onCancel?: () => void;
 }
 
 const SideNavigation: React.FC<SideNavigationProps> = ({
   items,
   activeKey,
   onNavClick,
+  isEditMode = false,
+  saving = false,
+  onSave,
+  onEdit,
+  onCancel,
 }) => {
   useEffect(() => {
     console.log('SideNavigation rendered:', { items, activeKey });
@@ -40,6 +52,50 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
 
   return (
     <div className="side-navigation">
+      {(onSave || onEdit) && (
+        <div className={`nav-mode-panel ${isEditMode ? 'edit-mode' : ''}`}>
+          <div className="nav-mode-indicator">
+            当前模式
+          </div>
+          <div className="nav-mode-text-container">
+            <span className="nav-mode-text">{isEditMode ? '编辑' : '阅读'}</span>
+          </div>
+          {isEditMode ? (
+            <>
+              <Button 
+                type="primary" 
+                icon={<SaveOutlined />} 
+                onClick={onSave}
+                loading={saving}
+                className="nav-action-button"
+                size="small"
+              >
+                保存
+              </Button>
+              <Button 
+                icon={<CloseOutlined />} 
+                onClick={onCancel}
+                className="nav-action-button nav-cancel-button"
+                size="small"
+                style={{ marginTop: '8px' }}
+              >
+                取消
+              </Button>
+            </>
+          ) : (
+            <Button 
+              type="primary" 
+              icon={<EditOutlined />} 
+              onClick={onEdit}
+              className="nav-action-button"
+              size="small"
+            >
+              编辑
+            </Button>
+          )}
+        </div>
+      )}
+      
       <div className="nav-line"></div>
       {items.map((item) => (
         <div 

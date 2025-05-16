@@ -22,6 +22,15 @@
   background: linear-gradient(to right, rgba(249, 250, 251, 0.5), rgba(240, 245, 255, 0.3), rgba(249, 250, 251, 0.5)); /* 更柔和的渐变 */
 }
 
+/* 如果有外部控制编辑模式，则隐藏editor-header */
+.module-content-editor .editor-header {
+  display: none;
+}
+
+.module-content-editor .editor-header:only-child {
+  display: flex;
+}
+
 /* 添加底部分隔线 */
 .editor-header::after {
   content: "";
@@ -223,6 +232,41 @@ div.markdown-content p:last-child {
   color: #40a9ff;
 }
 
+/* 表格内容区域动画 */
+.table-content {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.45s cubic-bezier(0.215, 0.61, 0.355, 1), 
+              opacity 0.3s ease-in-out, 
+              margin 0.3s ease;
+  will-change: max-height, opacity, transform;
+  transform: scaleY(0.95);
+  transform-origin: top;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.database-table-item .table-content {
+  max-height: 1000px;
+  opacity: 1;
+  transform: scaleY(1);
+  margin-top: 10px;
+  margin-bottom: 10px;
+  transition: max-height 0.5s cubic-bezier(0.215, 0.61, 0.355, 1), 
+              opacity 0.35s ease-in-out,
+              transform 0.4s ease,
+              margin 0.35s ease;
+}
+
+.database-table-item.collapsed .table-content {
+  max-height: 0;
+  opacity: 0;
+  transform: scaleY(0.95);
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 .table-collapsed-summary {
   color: #666;
   font-size: 12px;
@@ -231,6 +275,7 @@ div.markdown-content p:last-child {
   border-radius: 4px;
   display: inline-block;
   margin-top: 8px;
+  margin-bottom: 4px;
 }
 
 .table-actions {
@@ -679,4 +724,189 @@ div.markdown-content p:last-child {
 .md-preview img {
   max-width: 100%;
   height: auto;
+}
+
+/* 表格折叠状态下的字段标签容器 */
+.table-fields-tags {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0 10px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.45s cubic-bezier(0.55, 0.055, 0.675, 0.19) 0.05s, 
+              opacity 0.35s ease-in-out 0.05s,
+              margin 0.3s ease;
+  will-change: max-height, opacity;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.database-table-item.collapsed .table-fields-tags {
+  max-height: 500px;
+  opacity: 1;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  transition: max-height 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+              opacity 0.35s ease-in-out,
+              margin 0.35s ease;
+}
+
+/* 字段标签样式 */
+.field-tag-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  margin: 2px 4px;
+  border-radius: 12px;
+  font-size: 12px;
+  background-color: #f0f2f5;
+  border: 1px solid #e0e0e0;
+  color: #595959;
+  cursor: default;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.field-tag-item:hover {
+  background-color: #e6f7ff;
+  border-color: #91d5ff;
+  color: #1890ff;
+  box-shadow: 0 0 5px rgba(24, 144, 255, 0.15);
+  z-index: 1;
+  max-width: 200px;
+}
+
+/* 主键标签 */
+.field-tag-item.primary {
+  background: #e6f7ff;
+  border-color: #91d5ff;
+  color: #1890ff;
+}
+
+.field-tag-item.primary::before {
+  content: "🔑";
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+/* 外键标签 */
+.field-tag-item.foreign {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #52c41a;
+}
+
+.field-tag-item.foreign::before {
+  content: "🔗";
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+/* 唯一键标签 */
+.field-tag-item.unique {
+  background: #fff7e6;
+  border-color: #ffd591;
+  color: #fa8c16;
+}
+
+.field-tag-item.unique::before {
+  content: "★";
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+/* 索引标签 */
+.field-tag-item.index {
+  background: #f9f0ff;
+  border-color: #d3adf7;
+  color: #722ed1;
+}
+
+.field-tag-item.index::before {
+  content: "⊙";
+  font-size: 10px;
+  margin-right: 4px;
+}
+
+/* 增强表格折叠摘要的样式 */
+.table-collapsed-summary {
+  color: #666;
+  font-size: 12px;
+  background-color: #f0f0f0;
+  padding: 4px 10px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .field-tag-item {
+    max-width: 120px;
+    padding: 1px 6px;
+    margin: 1px 3px;
+    font-size: 11px;
+  }
+  
+  .field-tag-item:hover {
+    max-width: 150px;
+  }
+  
+  .table-fields-tags {
+    padding: 0 5px;
+  }
+  
+  .database-table-item .table-name {
+    font-size: 14px;
+  }
+  
+  .table-collapsed-summary {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .field-tag-item {
+    max-width: 100px;
+    padding: 1px 4px;
+    margin: 1px 2px;
+    font-size: 10px;
+  }
+  
+  .field-tag-item:hover {
+    max-width: 130px;
+  }
+  
+  .database-table-header {
+    padding: 8px;
+  }
+  
+  .database-table-item .table-name {
+    font-size: 12px;
+  }
+  
+  .table-collapsed-summary {
+    font-size: 10px;
+  }
+}
+
+.field-tag-item.more-tag {
+  background-color: #f0f0f0;
+  border-color: #d9d9d9;
+  color: #8c8c8c;
+  font-weight: bold;
+  padding: 2px 8px;
+}
+
+.field-tag-item.more-tag:hover {
+  background-color: #e6f7ff;
+  border-color: #1890ff;
+  color: #1890ff;
+  cursor: pointer;
 } 

@@ -1,5 +1,5 @@
 import React, { ChangeEvent, useState } from 'react';
-import { Button, Input, Form, Table, Space, Select, Checkbox, Tooltip, Card, Tabs, Typography, Row, Col, message } from 'antd';
+import { Button, Input, Form, Table, Space, Select, Checkbox, Tooltip, Card, Tabs, Typography, Row, Col, message, Modal } from 'antd';
 import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined, LinkOutlined, KeyOutlined, ExclamationCircleOutlined, ImportOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { DatabaseTable, DatabaseTableColumn } from '../../../../types/modules';
@@ -293,6 +293,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
   const [sqlInput, setSqlInput] = useState<string>('');
   const [importLoading, setImportLoading] = useState<boolean>(false);
   const [collapsedTables, setCollapsedTables] = useState<Record<number, boolean>>({});
+  const [sqlImportModalVisible, setSqlImportModalVisible] = useState<boolean>(false);
   const newTableRef = React.useRef<HTMLDivElement>(null);
   
   // 验证单个表的数据
@@ -779,6 +780,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
         onChange(newTables);
         message.success(`成功导入表 ${parsedTable.table_name}`);
         setSqlInput(''); // 清空输入框
+        closeSqlImportModal(); // 关闭弹窗
         
         // 使用setTimeout以确保DOM已更新
         setTimeout(() => {
@@ -839,6 +841,16 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
   // 检查表格是否折叠
   const isTableCollapsed = (tableIndex: number): boolean => {
     return !!collapsedTables[tableIndex];
+  };
+
+  // 打开SQL导入弹窗
+  const showSqlImportModal = () => {
+    setSqlImportModalVisible(true);
+  };
+
+  // 关闭SQL导入弹窗
+  const closeSqlImportModal = () => {
+    setSqlImportModalVisible(false);
   };
 
   return (
@@ -972,7 +984,83 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
         </div>
       ))}
       
-      <Card title="从SQL导入表结构" style={{ marginBottom: 24 }}>
+      <Button
+        type="dashed"
+        onClick={addTable}
+        block
+        icon={<PlusOutlined />}
+        style={{ marginTop: 16 }}
+      >
+        添加数据库表
+      </Button>
+      
+      {/* 操作按钮组 */}
+      <Space style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}>
+        <Button
+          type="primary"
+          style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+          icon={<ImportOutlined />}
+          onClick={showSqlImportModal}
+        >
+          从SQL导入表结构
+        </Button>
+        
+        <Button
+          type="primary"
+          onClick={() => {
+            const isValid = validateAllTables();
+            if (isValid) {
+              message.success('所有表格数据验证通过');
+            } else {
+              message.error('表格数据存在错误，请查看错误提示修复');
+            }
+          }}
+          disabled={tables.length === 0}
+        >
+          验证表结构
+          <Tooltip title="验证所有表格结构是否符合规范，包括检查表名是否为空、字段名是否重复、主键是否唯一、外键引用是否完整等">
+            <InfoCircleOutlined style={{ marginLeft: 8 }} />
+          </Tooltip>
+        </Button>
+        
+        <Button
+          onClick={() => {
+            // 全部展开
+            const newCollapsedState: Record<number, boolean> = {};
+            tables.forEach((_, index) => {
+              newCollapsedState[index] = false;
+            });
+            setCollapsedTables(newCollapsedState);
+          }}
+          disabled={tables.length === 0}
+        >
+          全部展开
+        </Button>
+        
+        <Button
+          onClick={() => {
+            // 全部折叠
+            const newCollapsedState: Record<number, boolean> = {};
+            tables.forEach((_, index) => {
+              newCollapsedState[index] = true;
+            });
+            setCollapsedTables(newCollapsedState);
+          }}
+          disabled={tables.length === 0}
+        >
+          全部折叠
+        </Button>
+      </Space>
+      
+      {/* SQL导入弹窗 */}
+      <Modal
+        title="从SQL导入表结构"
+        open={sqlImportModalVisible}
+        onCancel={closeSqlImportModal}
+        footer={null}
+        width={800}
+        destroyOnClose={true}
+      >
         <div className="sql-import">
           <Form layout="vertical">
             <Form.Item label="粘贴MySQL CREATE TABLE语句">
@@ -1006,66 +1094,14 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
                 >
                   清空
                 </Button>
+                <Button onClick={closeSqlImportModal}>
+                  取消
+                </Button>
               </Space>
             </Form.Item>
           </Form>
         </div>
-      </Card>
-      
-      <Button
-        type="dashed"
-        onClick={addTable}
-        block
-        icon={<PlusOutlined />}
-        style={{ marginTop: 16 }}
-      >
-        添加数据库表
-      </Button>
-      
-      {/* 添加验证所有表的按钮 */}
-      {tables.length > 0 && (
-        <Space style={{ marginTop: 16 }}>
-          <Button
-            type="primary"
-            onClick={() => {
-              const isValid = validateAllTables();
-              if (isValid) {
-                message.success('所有表格数据验证通过');
-              } else {
-                message.error('表格数据存在错误，请查看错误提示修复');
-              }
-            }}
-          >
-            验证表结构
-          </Button>
-          
-          <Button
-            onClick={() => {
-              // 全部展开
-              const newCollapsedState: Record<number, boolean> = {};
-              tables.forEach((_, index) => {
-                newCollapsedState[index] = false;
-              });
-              setCollapsedTables(newCollapsedState);
-            }}
-          >
-            全部展开
-          </Button>
-          
-          <Button
-            onClick={() => {
-              // 全部折叠
-              const newCollapsedState: Record<number, boolean> = {};
-              tables.forEach((_, index) => {
-                newCollapsedState[index] = true;
-              });
-              setCollapsedTables(newCollapsedState);
-            }}
-          >
-            全部折叠
-          </Button>
-        </Space>
-      )}
+      </Modal>
     </div>
   );
 };
