@@ -27,7 +27,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({ value, onChange }) =>
         codeTheme="atom"
         preview={true}
         style={{ height: '400px', boxShadow: '0 0 0 1px #f0f0f0' }}
-        placeholder="请输入模块功能概述（支持换行和基本Markdown语法）"
+        placeholder="请输入功能概述（支持换行和基本Markdown语法）"
       />
     </div>
   );

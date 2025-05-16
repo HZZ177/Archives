@@ -1,25 +1,55 @@
 .module-content-editor {
   display: flex;
   flex-direction: column;
+  background-color: #fff;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  width: 100%;
+  max-width: 100%; /* 容器宽度为100%，从1200px改为100% */
+  margin: 0 auto; /* 居中显示 */
+  overflow-x: hidden; /* 防止水平溢出 */
 }
 
 .editor-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 28px;
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 20px; /* 减少底部间距 */
+  padding: 14px 16px; /* 增加左右内边距 */
+  border-bottom: none;
+  position: relative;
+  background: linear-gradient(to right, rgba(249, 250, 251, 0.5), rgba(240, 245, 255, 0.3), rgba(249, 250, 251, 0.5)); /* 更柔和的渐变 */
+}
+
+/* 添加底部分隔线 */
+.editor-header::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 5%;
+  right: 5%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(24, 144, 255, 0.08), transparent);
 }
 
 .editor-content {
-  margin-top: 10px;
+  margin-top: 5px; /* 减少顶部间距 */
+  padding: 0 5px; /* 添加轻微的内边距 */
+  width: 100%;
+  max-width: 100%; /* 确保内容区域不会超出父容器 */
+  box-sizing: border-box; /* 确保padding计入宽度 */
+  overflow-x: hidden; /* 防止水平溢出 */
 }
 
 .content-section {
-  margin-bottom: 40px;
+  margin-bottom: 60px;
   scroll-margin-top: 85px; /* 增加顶部边距，考虑固定头部的高度和一点额外空间 */
   position: relative;
+  min-height: 40vh; /* 将最小高度减少为视口高度的40%，原来是80% */
+  width: 100%;
+  max-width: 100%; /* 确保section不会超出父容器 */
+  box-sizing: border-box; /* 确保padding和border计入宽度 */
 }
 
 .section-title {
@@ -34,23 +64,33 @@
   color: #1e40af;
   font-weight: 600;
   transition: background-color 0.3s ease; /* 添加过渡效果 */
+  width: 100%;
+  max-width: 100%; /* 确保标题不会超出父容器 */
+  box-sizing: border-box; /* 确保padding和border计入宽度 */
 }
 
 .section-divider {
   margin: 0 !important;
   background-color: #d6e4ff;
   height: 1px;
+  width: 100%;
 }
 
 .section-content {
   padding: 16px;
-  min-height: 60px;
   background-color: #ffffff;
   border: 1px solid #d6e4ff;
   border-top: none;
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
   margin-bottom: 24px;
+  min-height: calc(40vh - 110px); /* 将内容区域最小高度减少到一半，原来是80vh */
+  display: flex; /* 添加flex布局 */
+  flex-direction: column; /* 垂直方向排列 */
+  width: 100%;
+  max-width: 100%; /* 确保内容不会超出父容器 */
+  box-sizing: border-box; /* 包含padding和border在内的宽度计算 */
+  overflow-x: hidden; /* 防止水平溢出 */
 }
 
 .section-content.text-center {
@@ -62,6 +102,9 @@
 .markdown-content {
   line-height: 1.6;
   white-space: pre-wrap;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word; /* 确保长单词可以断行 */
 }
 
 /* 确保嵌套在其他元素内的Markdown内容也能正确显示 */
@@ -154,6 +197,50 @@ div.markdown-content p:last-child {
 
 .database-table-item {
   margin-bottom: 24px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  padding: 16px;
+  background-color: #fff;
+  transition: all 0.3s ease;
+}
+
+.database-table-item.collapsed {
+  background-color: #fafafa;
+}
+
+.database-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.table-collapse-button {
+  color: #1890ff;
+}
+
+.table-collapse-button:hover {
+  color: #40a9ff;
+}
+
+.table-collapsed-summary {
+  color: #666;
+  font-size: 12px;
+  background-color: #f0f0f0;
+  padding: 4px 10px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 8px;
+}
+
+.table-actions {
+  margin-top: 16px;
+  text-align: right;
+}
+
+.table-name {
+  font-weight: 500;
+  margin-bottom: 8px;
 }
 
 .table-columns {
@@ -194,15 +281,106 @@ div.markdown-content p:last-child {
 .empty-content {
   color: #8c8c8c;
   text-align: center;
-  padding: 24px;
-  background: #f5f5f5;
-  border-radius: 4px;
-  font-style: italic;
+  padding: 40px 24px; /* 增加上下内边距 */
+  background: linear-gradient(135deg, #f9f9f9, #f5f5f5); /* 对角线渐变 */
+  border-radius: 8px;
+  font-style: normal;
+  border: 1px dashed #d9d9d9; /* 更淡的边框色 */
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.03), 0 2px 5px rgba(0, 0, 0, 0.02); /* 增强阴影效果 */
+  position: relative;
+  transition: all 0.3s ease;
+  margin: 0;
+  font-size: 15px; /* 稍微增大字体 */
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  user-select: none;
+  height: calc(100% - 2px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%; /* 确保宽度占满 */
+}
+
+/* 通用的空内容提示图标 */
+.empty-content::before {
+  content: "📝";
+  display: block;
+  font-size: 32px; /* 进一步增大图标 */
+  margin-bottom: 18px;
+  opacity: 0.75;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.1)); /* 添加图标阴影 */
+  transition: all 0.3s ease;
+}
+
+/* 为每个特定的部分自定义样式，微调每种图标的颜色 */
+#section-overview .empty-content::before {
+  content: "📋";
+  color: #1890ff;
+}
+
+#section-diagram .empty-content::before {
+  content: "📊";
+  color: #52c41a;
+}
+
+#section-keyTech .empty-content::before {
+  content: "🔍";
+  color: #722ed1;
+}
+
+#section-database .empty-content::before {
+  content: "💾";
+  color: #fa8c16;
+}
+
+#section-related .empty-content::before {
+  content: "🔗";
+  color: #eb2f96;
+}
+
+#section-interface .empty-content::before {
+  content: "🔌";
+  color: #13c2c2;
+}
+
+/* 添加"点击编辑"的小提示 */
+.empty-content::after {
+  content: "点击进入编辑模式";
+  display: block;
+  font-size: 13px;
+  margin-top: 15px;
+  opacity: 0;
+  color: #1890ff;
+  transform: translateY(-5px);
+  transition: all 0.3s ease;
+  font-weight: 500; /* 加粗提示文字 */
+}
+
+/* 鼠标悬停时的效果 */
+.empty-content:hover {
+  border-color: #91caff;
+  background: linear-gradient(135deg, #f0f7ff, #e6f4ff); /* 更亮的蓝色调渐变 */
+  box-shadow: inset 0 0 20px rgba(24, 144, 255, 0.05), 0 3px 8px rgba(0, 0, 0, 0.03);
+}
+
+.empty-content:hover::before {
+  transform: scale(1.15) translateY(-3px); /* 图标放大并微微上移 */
+  opacity: 0.9;
+}
+
+.empty-content:hover::after {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* 优化MdEditor预览的样式 */
 .md-editor-preview-wrapper {
   padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .key-tech-value .md-editor {
@@ -212,7 +390,8 @@ div.markdown-content p:last-child {
 .api-description .md-editor {
   display: inline-block;
   margin-left: 8px;
-  min-width: 300px;
+  max-width: 100%; /* 替换min-width为max-width */
+  width: auto; /* 根据内容自适应宽度 */
 }
 
 .column-desc .md-editor {
@@ -229,22 +408,37 @@ div.markdown-content p:last-child {
 }
 
 /* MdPreview样式优化 */
+.md-editor-rt {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
 .md-preview-wrapper {
   background-color: transparent !important;
   margin: 0 !important;
   padding: 0 !important;
+  max-width: 100% !important; /* 确保不超出容器 */
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-x: auto !important; /* 添加水平滚动条 */
 }
 
 .md-preview-wrapper .md-preview {
   background-color: transparent !important;
   padding: 0 !important;
   margin: 0 !important;
+  max-width: 100% !important; /* 确保内容不超出容器 */
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-wrap: break-word !important; /* 确保长文本可以换行 */
 }
 
 .api-description .md-preview {
   display: inline-block;
   margin-left: 8px;
-  min-width: 300px;
+  max-width: 100%; /* 替换min-width为max-width */
+  overflow-wrap: break-word; /* 确保长文本可以换行 */
 }
 
 .column-desc .md-preview {
@@ -275,17 +469,214 @@ div.markdown-content p:last-child {
 /* 模式指示器样式 */
 .mode-indicator {
   font-size: 14px;
-  color: #606060;
+  color: #666;
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.8); /* 添加微妙的白色背景 */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(232, 232, 232, 0.5); /* 添加非常淡的边框 */
+}
+
+/* 增加一个更精致的模式标签 */
+.mode-indicator::before {
+  content: "•";
+  margin-right: 8px;
+  font-size: 18px;
+  color: #1890ff;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
 }
 
 .mode-text {
-  font-weight: 600;
+  font-weight: 500; /* 稍微减轻字体粗细 */
   margin-left: 4px;
   color: #1890ff;
+  background-color: rgba(24, 144, 255, 0.06); /* 更淡的背景色 */
+  padding: 3px 10px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 2px rgba(24, 144, 255, 0.05); /* 添加微妙的阴影 */
 }
 
 /* 当定位到某一节时，使标题高亮 */
 .content-section:target .section-title {
   background-color: #e6f7ff;
   box-shadow: 0 0 8px rgba(24, 144, 255, 0.2);
+}
+
+/* 单独设置关联模块的高度为其他模块的一半 */
+#section-related.content-section {
+  min-height: 20vh; /* 当前内容区块高度的一半 */
+}
+
+#section-related .section-content {
+  min-height: calc(20vh - 110px); /* 相应调整内容区域的最小高度 */
+}
+
+/* 确保内容区域在编辑模式下有足够空间 */
+#section-diagram .section-content {
+  display: flex;
+  align-items: stretch;
+  padding: 20px; /* 减少内边距，给上传区域更多空间 */
+  min-height: calc(40vh - 110px);
+}
+
+/* 使Upload.Dragger占满整个框体的样式 */
+#section-diagram .section-content .ant-upload.ant-upload-drag {
+  height: auto !important; /* 改为自动高度 */
+  flex: 1; /* 让上传区域填充所有可用空间 */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.3s;
+  padding: 40px 20px; /* 增加内部填充 */
+  margin: 0; /* 移除外边距 */
+}
+
+#section-diagram .section-content .ant-upload.ant-upload-drag:hover {
+  border-color: #1890ff;
+  background: #f0f7ff;
+  box-shadow: 0 0 10px rgba(24, 144, 255, 0.1); /*.添加悬停时的阴影效果 */
+}
+
+/* 优化拖拽区域中的文字和图标样式 */
+#section-diagram .section-content .ant-upload-drag .ant-upload-drag-icon {
+  margin-bottom: 20px;
+  font-size: 48px;
+  color: #1890ff;
+}
+
+#section-diagram .section-content .ant-upload-drag .ant-upload-text {
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: #333;
+  font-weight: 500; /* 增加文字权重 */
+}
+
+#section-diagram .section-content .ant-upload-drag .ant-upload-hint {
+  color: #999;
+  padding: 0 15%;
+  line-height: 1.6; /* 增加行高 */
+  max-width: 500px; /* 限制宽度，使文本更易读 */
+  margin: 0 auto; /* 居中显示 */
+}
+
+/* 为Upload.Dragger内部的图标设置过渡动画 */
+#section-diagram .section-content .ant-upload-drag .anticon {
+  transition: transform 0.3s ease;
+}
+
+#section-diagram .section-content .ant-upload-drag:hover .anticon {
+  transform: scale(1.1); /* 鼠标悬停时图标放大 */
+}
+
+/* 关联模块标签样式 */
+.related-modules-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 15px 0;
+}
+
+.module-tag {
+  padding: 6px 10px;
+  margin: 0;
+  font-size: 14px;
+  border-radius: 4px;
+}
+
+/* 编辑模式下的标签容器 */
+.module-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 10px 0;
+  min-height: 40px;
+}
+
+/* 标题样式 */
+.related-modules-title {
+  font-size: 15px;
+  color: #333;
+  margin-bottom: 10px;
+  padding-left: 4px;
+  position: relative;
+}
+
+.related-modules-title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  background-color: #1890ff;
+  border-radius: 3px;
+}
+
+/* 空模块提示文本 */
+.empty-modules-tip {
+  color: #999;
+  padding: 10px 0;
+  font-style: italic;
+}
+
+/* 选择框容器 */
+.module-select-container {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.modules-select {
+  width: 100%;
+}
+
+/* 选择帮助文本 */
+.select-help-text {
+  color: #666;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* 关联模块编辑器容器 */
+.related-modules-editor {
+  padding: 5px;
+}
+
+.related-modules-tags-wrapper {
+  margin-bottom: 10px;
+}
+
+/* 为关联模块部分设置合适的高度 */
+#section-related .section-content {
+  min-height: calc(20vh - 110px);
+}
+
+/* 增加图片的响应式行为 */
+.markdown-content img,
+.section-content img,
+.md-preview img {
+  max-width: 100%;
+  height: auto;
 } 

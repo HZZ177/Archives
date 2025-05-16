@@ -5,11 +5,19 @@ import {
   Spin,
   Image, 
   Typography,
-  Divider
+  Divider,
+  Tag,
+  Row,
+  Col,
+  Table,
+  Space
 } from 'antd';
 import { 
   SaveOutlined,
-  EditOutlined
+  EditOutlined,
+  LoadingOutlined,
+  PlusOutlined,
+  MinusCircleOutlined
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -21,15 +29,19 @@ import {
   ModuleContentRequest, 
   KeyTechItem, 
   ApiInterface as InterfaceItem,
-  DatabaseTable
+  DatabaseTable,
+  ModuleStructureNode,
+  ApiInterface,
+  ApiInterfaceCard
 } from '../../../types/modules';
-import { fetchModuleContent, saveModuleContent } from '../../../apis/moduleService';
+import { fetchModuleContent, saveModuleContent, fetchModuleTree } from '../../../apis/moduleService';
 import OverviewSection from './sections/OverviewSection';
 import DiagramSection from './sections/DiagramSection';
 import KeyTechSection from './sections/KeyTechSection';
 import DatabaseTablesSection from './sections/DatabaseTablesSection';
 import RelatedModulesSection from './sections/RelatedModulesSection';
 import InterfaceSection from './sections/InterfaceSection';
+import ApiInterfaceCardComponent from './sections/ApiInterfaceCard';
 import { API_BASE_URL } from '../../../config/constants';
 import './ModuleContentEditor.css';
 
@@ -66,7 +78,10 @@ const processImageUrl = (url: string) => {
 
 // 为阅读模式下的Markdown编辑器生成唯一ID
 const getViewerId = (prefix: string, suffix: string | number) => {
-  return `viewer-${prefix}-${suffix}-${Date.now()}`;
+  // 使用时间戳和随机数字，避免使用特殊字符
+  const timestamp = Date.now();
+  const randomNum = Math.floor(Math.random() * 10000);
+  return `viewer-${prefix}-${suffix}-${timestamp}${randomNum}`;
 };
 
 // 编辑器组件接口，暴露方法给父组件
@@ -94,7 +109,8 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
   const [principleText, setPrincipleText] = useState<string>('');
   const [databaseTables, setDatabaseTables] = useState<DatabaseTable[]>([]);
   const [relatedModuleIds, setRelatedModuleIds] = useState<number[]>([]);
-  const [apiInterfaces, setApiInterfaces] = useState<InterfaceItem[]>([]);
+  const [relatedModules, setRelatedModules] = useState<ModuleStructureNode[]>([]);
+  const [apiInterfaces, setApiInterfaces] = useState<ApiInterfaceCard[]>([]);
   const [diagramPath, setDiagramPath] = useState<string>('');
 
   // 创建各部分的ref，用于滚动定位
@@ -105,35 +121,220 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
   const relatedRef = useRef<HTMLDivElement>(null);
   const interfaceRef = useRef<HTMLDivElement>(null);
 
+  // 表格折叠状态管理
+  const [collapsedTables, setCollapsedTables] = useState<Record<number, boolean>>({});
+
+  // 切换表格折叠状态
+  const toggleTableCollapse = (tableIndex: number) => {
+    setCollapsedTables(prev => ({
+      ...prev,
+      [tableIndex]: !prev[tableIndex]
+    }));
+  };
+
+  // 检查表格是否折叠
+  const isTableCollapsed = (tableIndex: number): boolean => {
+    return !!collapsedTables[tableIndex];
+  };
+
+  // 全部展开
+  const expandAllTables = () => {
+    const newCollapsedState: Record<number, boolean> = {};
+    databaseTables.forEach((_, index) => {
+      newCollapsedState[index] = false;
+    });
+    setCollapsedTables(newCollapsedState);
+  };
+
+  // 全部折叠
+  const collapseAllTables = () => {
+    const newCollapsedState: Record<number, boolean> = {};
+    databaseTables.forEach((_, index) => {
+      newCollapsedState[index] = true;
+    });
+    setCollapsedTables(newCollapsedState);
+  };
+
   // 获取模块内容
   useEffect(() => {
     const loadContent = async () => {
-      if (!moduleNodeId) return;
-      
       try {
         setLoading(true);
-        const data = await fetchModuleContent(moduleNodeId);
-        setContent(data);
+        const moduleContent = await fetchModuleContent(moduleNodeId);
+        console.log('模块内容数据:', moduleContent);
         
         // 初始化各部分状态
-        setOverviewText(data.overview_text || '');
-        setKeyTechItems(data.key_tech_items_json || []);
-        setPrincipleText(data.principle_text || '');
-        setDatabaseTables(data.database_tables_json || []);
-        setRelatedModuleIds(data.related_module_ids_json || []);
-        setApiInterfaces(data.api_interfaces_json || []);
-        setDiagramPath(data.diagram_image_path || '');
+        setOverviewText(moduleContent.overview_text || '');
+        setPrincipleText(moduleContent.principle_text || '');
+        setDiagramPath(moduleContent.diagram_image_path || '');
+        
+        // 处理数据库表数据，兼容旧格式
+        if (moduleContent.database_tables_json && Array.isArray(moduleContent.database_tables_json)) {
+          // 检查是否为新格式（包含扩展字段）
+          const isNewFormat = moduleContent.database_tables_json.length > 0 && 
+                             ('nullable' in (moduleContent.database_tables_json[0].columns?.[0] || {}));
+          
+          if (isNewFormat) {
+            // 如果是新格式，直接使用
+            setDatabaseTables(moduleContent.database_tables_json);
+          } else {
+            // 如果是旧格式，转换为新格式
+            const convertedTables = moduleContent.database_tables_json.map(table => ({
+              table_name: table.table_name,
+              schema_name: '',
+              description: '',
+              columns: (table.columns || []).map(column => ({
+                field_name: column.field_name,
+                field_type: column.field_type,
+                length: undefined,
+                nullable: true,
+                default_value: undefined,
+                description: column.description || '',
+                remark: column.remark || '',
+                is_primary_key: false,
+                is_unique: false,
+                is_index: false,
+                foreign_key: undefined
+              })),
+              relationships: []
+            }));
+            setDatabaseTables(convertedTables);
+          }
+        } else {
+          setDatabaseTables([]);
+        }
+        
+        setRelatedModuleIds(moduleContent.related_module_ids_json || []);
+        
+        // 将现有接口数据转换为新的ApiInterfaceCard格式
+        if (moduleContent.api_interfaces_json && Array.isArray(moduleContent.api_interfaces_json)) {
+          // 检查是否是新接口格式(ApiInterfaceCard)
+          const isNewFormat = moduleContent.api_interfaces_json.length > 0 && 
+                              'path' in moduleContent.api_interfaces_json[0];
+                              
+          if (isNewFormat) {
+            // 如果是新格式，确保每个接口都有method字段
+            const safeInterfaces = moduleContent.api_interfaces_json.map((api: any) => ({
+              ...api,
+              method: api.method || 'GET', // 如果method缺失，设置默认值为GET
+              // 转换请求和响应参数格式，如果存在
+              requestParams: api.request_params ? api.request_params.map((param: any) => ({
+                name: param.param_name,
+                type: param.param_type,
+                required: param.required || false,
+                description: param.description || '',
+                example: param.example || ''
+              })) : [],
+              responseParams: api.response_params ? api.response_params.map((param: any) => ({
+                name: param.param_name,
+                type: param.param_type,
+                required: param.required || false,
+                description: param.description || '',
+                example: param.example || ''
+              })) : []
+            }));
+            setApiInterfaces(safeInterfaces as unknown as ApiInterfaceCard[]);
+          } else {
+            // 旧接口格式(ApiInterface)，转换为新格式
+            const convertedInterfaces = moduleContent.api_interfaces_json.map((api: ApiInterface) => ({
+              id: api.id,
+              path: `/api/${api.name.toLowerCase().replace(/\s+/g, '-')}`,
+              method: api.type || 'GET', // 使用type字段作为method，如果type缺失，设置默认值为GET
+              description: api.description,
+              contentType: 'application/json',
+              // 设置为空数组
+              requestParams: [],
+              responseParams: []
+            }));
+            setApiInterfaces(convertedInterfaces);
+          }
+        } else {
+          setApiInterfaces([]);
+        }
         
         setLoading(false);
       } catch (error) {
         console.error('加载模块内容失败:', error);
-        message.error('加载模块内容失败');
+        message.error('加载模块内容失败，请刷新页面重试');
         setLoading(false);
       }
     };
     
     loadContent();
   }, [moduleNodeId]);
+
+  // 获取关联模块的详细信息
+  useEffect(() => {
+    const loadRelatedModules = async () => {
+      if (relatedModuleIds.length === 0) {
+        setRelatedModules([]);
+        return;
+      }
+
+      try {
+        // 获取所有模块的树形结构
+        const response = await fetchModuleTree();
+        
+        // 将树形结构扁平化为一维数组
+        const flattenModuleTree = (nodes: ModuleStructureNode[]): ModuleStructureNode[] => {
+          let result: ModuleStructureNode[] = [];
+          
+          for (const node of nodes) {
+            result.push(node);
+            if (node.children && node.children.length > 0) {
+              result = result.concat(flattenModuleTree(node.children));
+            }
+          }
+          
+          return result;
+        };
+        
+        const allModules = flattenModuleTree(response.items);
+        
+        // 找出关联模块的详细信息
+        const relatedModuleDetails = relatedModuleIds.map(id => {
+          const module = allModules.find(m => m.id === id);
+          if (module) {
+            return module;
+          } else {
+            // 创建一个符合ModuleStructureNode类型的最小对象
+            return {
+              id,
+              name: `未知模块(${id})`,
+              parent_id: null,
+              order_index: 0,
+              user_id: 0,
+              created_at: '',
+              updated_at: '',
+              children: [],
+              has_content: false,
+              is_content_page: false
+            };
+          }
+        });
+        
+        setRelatedModules(relatedModuleDetails);
+      } catch (error) {
+        console.error('获取关联模块信息失败:', error);
+        // 如果获取失败，使用ID创建符合ModuleStructureNode类型的对象
+        const fallbackModules = relatedModuleIds.map(id => ({
+          id,
+          name: `模块${id}`,
+          parent_id: null,
+          order_index: 0,
+          user_id: 0,
+          created_at: '',
+          updated_at: '',
+          children: [],
+          has_content: false,
+          is_content_page: false
+        }));
+        setRelatedModules(fallbackModules);
+      }
+    };
+    
+    loadRelatedModules();
+  }, [relatedModuleIds]);
 
   // 滚动到指定部分
   const scrollToSection = (key: string) => {
@@ -197,22 +398,55 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
     try {
       setSaving(true);
       
-      const contentData: ModuleContentRequest = {
+      // 构建保存数据对象，并转换 apiInterfaces 为 ApiInterface[] 类型
+      const contentData = {
         overview_text: overviewText,
-        key_tech_items_json: keyTechItems,
         principle_text: principleText,
+        diagram_image_path: diagramPath,
         database_tables_json: databaseTables,
         related_module_ids_json: relatedModuleIds,
-        api_interfaces_json: apiInterfaces
+        // 将 ApiInterfaceCard[] 转换为后端需要的 ApiInterface[] 格式
+        api_interfaces_json: apiInterfaces.map(card => ({
+          id: card.id,
+          name: card.path || '',  // 确保path不为空
+          type: card.method || 'GET',  // 确保method不为空，默认使用GET
+          required: true,
+          description: card.description || '',
+          // 添加请求参数和响应参数
+          path: card.path || '',
+          method: card.method || 'GET',
+          // 将ApiParam结构转换为后端期望的ApiInterfaceParameter结构
+          request_params: (card.requestParams || []).map(param => ({
+            param_name: param.name,
+            param_type: param.type,
+            required: param.required,
+            description: param.description,
+            example: param.example
+          })),
+          response_params: (card.responseParams || []).map(param => ({
+            param_name: param.name,
+            param_type: param.type,
+            required: param.required,
+            description: param.description,
+            example: param.example
+          }))
+        }))
       };
       
-      await saveModuleContent(moduleNodeId, contentData);
+      console.log('保存数据:', contentData);
+      
+      const result = await saveModuleContent(moduleNodeId, contentData);
+      if (result) {
       message.success('保存成功');
+        setIsEditMode(false);
+      } else {
+        message.error('保存失败');
+      }
+      
       setSaving(false);
-      setIsEditMode(false); // 保存成功后切换回阅读模式
     } catch (error) {
-      console.error('保存失败:', error);
-      message.error('保存失败');
+      console.error('保存模块内容失败:', error);
+      message.error('保存失败，请稍后重试');
       setSaving(false);
     }
   };
@@ -237,6 +471,18 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
     }
   };
 
+  // 处理点击编辑按钮
+  const handleEdit = () => {
+    setIsEditMode(true);
+  };
+
+  // 处理点击空内容区域
+  const handleEmptyContentClick = () => {
+    if (!isEditMode) {
+      setIsEditMode(true);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '24px 0' }}>
@@ -254,7 +500,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
         <Button 
           type="primary" 
           icon={isEditMode ? <SaveOutlined /> : <EditOutlined />} 
-          onClick={isEditMode ? handleSave : () => setIsEditMode(true)}
+          onClick={isEditMode ? handleSave : handleEdit}
           loading={saving}
         >
           {isEditMode ? '保存' : '编辑'}
@@ -262,9 +508,9 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
       </div>
       
       <div className="editor-content">
-        {/* 模块功能概述 */}
+        {/* 功能概述 */}
         <div id="section-overview" className="content-section" ref={overviewRef}>
-          <Title level={4} className="section-title">模块功能概述</Title>
+          <Title level={4} className="section-title">功能概述</Title>
           <Divider className="section-divider" />
           
           {isEditMode ? (
@@ -282,19 +528,19 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
                   id={getViewerId('overview', moduleNodeId)}
                 />
               ) : (
-                <div className="empty-content">暂无内容</div>
+                <div className="empty-content" onClick={handleEmptyContentClick}>点击"编辑"添加功能概述</div>
               )}
             </div>
           )}
         </div>
         
-        {/* 逻辑图/数据流向图 */}
+        {/* 逻辑图 */}
         <div id="section-diagram" className="content-section" ref={diagramRef}>
-          <Title level={4} className="section-title">逻辑图/数据流向图</Title>
+          <Title level={4} className="section-title">逻辑图</Title>
           <Divider className="section-divider" />
           
           {isEditMode ? (
-            <DiagramSection 
+            <DiagramSection
               moduleNodeId={moduleNodeId}
               imagePath={diagramPath}
               onImagePathChange={setDiagramPath}
@@ -308,7 +554,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
                   style={{ maxWidth: '100%' }} 
                 />
               ) : (
-                <div className="empty-content">暂无图片</div>
+                <div className="empty-content" onClick={handleEmptyContentClick}>暂未上传模块流程图</div>
               )}
             </div>
           )}
@@ -334,7 +580,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
                   id={getViewerId('principle', moduleNodeId)}
                 />
               ) : (
-                <div className="empty-content">暂无内容</div>
+                <div className="empty-content" onClick={handleEmptyContentClick}>点击"编辑"添加模块功能详解</div>
               )}
             </div>
           )}
@@ -353,32 +599,159 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
           ) : (
             <div className="section-content">
               {databaseTables.length > 0 ? (
-                databaseTables.map((table, index) => (
-                  <div key={index} className="database-table-item">
-                    <h4>{table.table_name}</h4>
-                    <div>包含 {table.columns.length} 个字段</div>
-                    <div className="table-columns">
-                      {table.columns.map((column, colIndex) => (
-                        <div key={colIndex} className="table-column">
-                          <span className="column-name">{column.field_name}</span>
-                          <span className="column-type">{column.field_type}</span>
-                          {column.description && (
-                            <span className="column-desc">
-                              <MdPreview
-                                modelValue={column.description}
-                                previewTheme="github"
-                                style={{ background: 'transparent' }}
-                                id={getViewerId('database', `${index}-${colIndex}`)}
-                              />
-                            </span>
+                <>
+                  {databaseTables.map((table, index) => (
+                    <div key={index} className={`database-table-item ${isTableCollapsed(index) ? 'collapsed' : ''}`}>
+                      <div className="database-table-header">
+                        <h4 className="table-name">
+                          {table.schema_name && <span className="table-schema">{table.schema_name}.</span>}
+                          {table.table_name}
+                        </h4>
+                        <Button 
+                          type="text"
+                          className="table-collapse-button"
+                          icon={isTableCollapsed(index) ? <PlusOutlined /> : <MinusCircleOutlined />}
+                          onClick={() => toggleTableCollapse(index)}
+                          size="small"
+                        >
+                          {isTableCollapsed(index) ? '展开' : '折叠'}
+                        </Button>
+                      </div>
+                      
+                      {table.description && (
+                        <div className="table-description">{table.description}</div>
+                      )}
+                      
+                      {!isTableCollapsed(index) && (
+                        <>
+                          <Table
+                            dataSource={table.columns}
+                            pagination={false}
+                            size="small"
+                            className="table-columns"
+                            rowKey={(record, colIndex) => `${index}_${colIndex}`}
+                            columns={[
+                              {
+                                title: '字段名',
+                                dataIndex: 'field_name',
+                                key: 'field_name',
+                                width: '15%',
+                                render: (text, record) => (
+                                  <div className="field-name">
+                                    {text}
+                                    {record.is_primary_key && <span className="field-tag primary-key">主键</span>}
+                                    {record.is_unique && !record.is_primary_key && <span className="field-tag unique">唯一</span>}
+                                    {record.is_index && !record.is_primary_key && !record.is_unique && <span className="field-tag index">索引</span>}
+                                  </div>
+                                )
+                              },
+                              {
+                                title: '类型',
+                                dataIndex: 'field_type',
+                                key: 'field_type',
+                                width: '15%',
+                                render: (text, record) => (
+                                  <span>
+                                    {text.toUpperCase()}
+                                    {record.length && `(${record.length})`}
+                                  </span>
+                                )
+                              },
+                              {
+                                title: '允许为空',
+                                dataIndex: 'nullable',
+                                key: 'nullable',
+                                width: '10%',
+                                render: (nullable) => (
+                                  <span className={`nullable-status ${nullable ? 'nullable' : 'not-nullable'}`}>
+                                    {nullable ? '是' : '否'}
+                                  </span>
+                                )
+                              },
+                              {
+                                title: '默认值',
+                                dataIndex: 'default_value',
+                                key: 'default_value',
+                                width: '10%',
+                                render: (text) => text || '-'
+                              },
+                              {
+                                title: '外键',
+                                dataIndex: 'foreign_key',
+                                key: 'foreign_key',
+                                width: '15%',
+                                render: (foreignKey) => (
+                                  foreignKey ? (
+                                    <span className="foreign-key-reference">
+                                      {foreignKey.reference_table}.{foreignKey.reference_column}
+                                    </span>
+                                  ) : '-'
+                                )
+                              },
+                              {
+                                title: '描述',
+                                dataIndex: 'description',
+                                key: 'description',
+                                width: '35%',
+                                render: (text, record, i) => (
+                                  text ? (
+                                    <MdPreview
+                                      modelValue={text}
+                                      previewTheme="github"
+                                      style={{ background: 'transparent' }}
+                                      id={getViewerId('field', `${index}_${i}`)}
+                                    />
+                                  ) : '-'
+                                )
+                              }
+                            ]}
+                          />
+                          
+                          {/* 表关系展示 */}
+                          {table.relationships && table.relationships.length > 0 && (
+                            <div className="table-relationships">
+                              <h5>表关系</h5>
+                              <ul className="relationship-list">
+                                {table.relationships.map((rel, relIndex) => (
+                                  <li key={relIndex} className="relationship-item">
+                                    <span className="relationship-type">
+                                      {rel.type === 'one-to-one' && '一对一'}
+                                      {rel.type === 'one-to-many' && '一对多'}
+                                      {rel.type === 'many-to-many' && '多对多'}
+                                    </span>
+                                    <span className="relationship-table">{rel.to_table}</span>
+                                    {rel.description && (
+                                      <span className="relationship-description">({rel.description})</span>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
                           )}
+                        </>
+                      )}
+                      
+                      {isTableCollapsed(index) && (
+                        <div className="table-collapsed-summary">
+                          共{table.columns.length}个字段
+                          {table.columns.filter(col => col.is_primary_key).length > 0 && '，含主键'}
+                          {table.columns.some(col => col.foreign_key) && '，含外键'}
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
-                ))
+                  ))}
+                  
+                  {databaseTables.length > 1 && (
+                    <div className="table-actions">
+                      <Space>
+                        <Button size="small" onClick={expandAllTables}>全部展开</Button>
+                        <Button size="small" onClick={collapseAllTables}>全部折叠</Button>
+                      </Space>
+                    </div>
+                  )}
+                </>
               ) : (
-                <div className="empty-content">暂无内容</div>
+                <div className="empty-content" onClick={handleEmptyContentClick}>点击"编辑"添加数据库表结构</div>
               )}
             </div>
           )}
@@ -397,11 +770,15 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
           ) : (
             <div className="section-content">
               {relatedModuleIds.length > 0 ? (
-                <div className="related-modules-list">
-                  已关联 {relatedModuleIds.length} 个模块
+                <div className="related-modules-tags">
+                  {relatedModules.map(module => (
+                    <Tag key={module.id} color="blue" className="module-tag">
+                      {module.name}
+                    </Tag>
+                  ))}
                 </div>
               ) : (
-                <div className="empty-content">暂无关联模块</div>
+                <div className="empty-content" onClick={handleEmptyContentClick}>暂无关联模块，点击"编辑"添加</div>
               )}
             </div>
           )}
@@ -420,25 +797,20 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
           ) : (
             <div className="section-content">
               {apiInterfaces.length > 0 ? (
-                apiInterfaces.map((api, index) => (
-                  <div key={index} className="api-interface-item">
-                    <h4>{api.name}</h4>
-                    <div><strong>类型:</strong> {api.type}</div>
-                    <div><strong>必需:</strong> {api.required ? '是' : '否'}</div>
-                    <div><strong>描述:</strong> 
-                      <div className="api-description">
-                        <MdPreview
-                          modelValue={api.description}
-                          previewTheme="github"
-                          style={{ background: 'transparent' }}
-                          id={getViewerId('interface', `${index}-${api.id}`)}
+                <Row gutter={[12, 12]} className="interface-card-grid">
+                  {apiInterfaces.map(api => (
+                    <Col xs={24} sm={24} md={24} lg={12} xl={12} key={api.id}>
+                      <ApiInterfaceCardComponent
+                        data={api}
+                        onEdit={() => {}} // 阅读模式无需编辑功能
+                        onDelete={() => {}} // 阅读模式无需删除功能
+                        isEditable={false}
                         />
-                      </div>
-                    </div>
-                  </div>
-                ))
+                    </Col>
+                  ))}
+                </Row>
               ) : (
-                <div className="empty-content">暂无内容</div>
+                <div className="empty-content" onClick={handleEmptyContentClick}>点击"编辑"添加接口信息</div>
               )}
             </div>
           )}

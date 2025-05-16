@@ -1,63 +1,99 @@
 .side-navigation {
-  width: 200px;
-  padding: 20px 10px;
+  width: 100%;
+  padding: 30px 12px;
   position: relative;
+  background-color: transparent;
+  transition: all 0.3s ease;
+  border-radius: 0;
+  box-shadow: none;
 }
 
+/* 创建一个定位容器，用于精确控制线条和节点的位置关系 */
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 0;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* 重新设计线条的定位和尺寸 */
 .nav-line {
   position: absolute;
-  top: 40px;
-  bottom: 40px;
-  left: 30px;
-  width: 2px;
-  background-color: #1890ff;
+  /* 线条从第一个节点开始，到最后一个节点结束 */
+  top: 53px; /* 增加top值，使线条正好从第一个节点开始，调整为53px */
+  bottom: 48px; /* 最后一个节点的中心位置同理，通过约等于视图高度减去最后一个节点位置 */
+  /* 线条的水平位置，使其与节点中心对齐 */
+  left: 8px; /* 从4px增加为8px，找到准确的居中位置 */
+  width: 2px; /* 线条宽度为2px */
+  background: #1890ff; /* 纯色 */
+  opacity: 0.8;
   z-index: 0;
 }
 
 .nav-column .side-navigation {
-  min-width: 200px;
+  min-width: 120px;
 }
 
-.nav-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 0;
-  cursor: pointer;
-  position: relative;
-  z-index: 1;
-}
-
+/* 使用实心圆作为节点，并精确定位 */
 .nav-node {
-  width: 24px;
-  height: 24px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background-color: #f0f0f0;
-  border: 2px solid #d9d9d9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 10px;
-  transition: all 0.3s;
-}
-
-.nav-node.filled {
-  background-color: #e6f7ff;
-  border-color: #1890ff;
-}
-
-.nav-item.active .nav-node {
   background-color: #1890ff;
-  border-color: #1890ff;
-  color: white;
+  border: none;
+  margin-right: 12px; /* 右侧间隔 */
+  position: relative;
+  /* 确保节点位于线条中间 */
+  left: -7px; /* 从-3px调整为-7px，更精确地向左调整 */
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 0 0 3px white; /* 白色外发光效果 */
+  z-index: 2;
 }
 
+/* 移除内部圆点，因为现在是实心圆 */
+.nav-node:before {
+  display: none;
+}
+
+/* 已填充节点的样式 - 现在默认就是填充状态 */
+.nav-node.filled {
+  /* 保持与默认状态一致即可 */
+  background-color: #1890ff;
+}
+
+/* 活跃节点的样式 */
+.nav-item.active .nav-node {
+  transform: scale(1.2); /* 保留放大效果 */
+  box-shadow: 0 0 0 3px white, 0 0 10px rgba(24, 144, 255, 0.3);
+}
+
+/* 移除原来的图标 */
 .nav-icon {
-  font-size: 12px;
+  display: none;
 }
 
+/* 文字样式，确保与线条系统分离 */
 .nav-title {
-  font-size: 14px;
-  transition: all 0.3s;
+  font-size: 13px;
+  font-weight: 400;
+  color: #595959;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px; /* 从110px减少为90px，减少约20% */
+  letter-spacing: 0.3px;
+  position: relative;
+  left: 3px; /* 从5px减少为3px */
+}
+
+/* 文字的悬停效果 - 只让文字移动 */
+.nav-item:hover .nav-title {
+  color: #1890ff;
+  transform: translateX(3px); /* 将移动效果从整体转移到仅文字 */
 }
 
 .nav-item.active .nav-title {
@@ -65,6 +101,51 @@
   font-weight: 500;
 }
 
-.nav-item:hover .nav-title {
-  color: #1890ff;
+/* 悬停时节点效果 - 不再需要 */
+.nav-item:hover .nav-node {
+  /* 保持节点不变 */
+}
+
+/* 在JS中增加初始化和更新逻辑，动态计算线条长度 */
+/* 这部分可以通过添加ResizeObserver来实现，但超出CSS范围 */
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .side-navigation {
+    width: 100%;
+    padding: 15px 10px;
+    box-shadow: none; /* 移除阴影 */
+    border-radius: 0;
+    background-color: transparent; /* 保持背景透明 */
+    border-bottom: 1px solid #f0f0f0; /* 保留底部边框 */
+  }
+  
+  .nav-line {
+    display: none;
+  }
+  
+  .nav-item {
+    padding: 8px 5px;
+    margin-right: 10px;
+    display: inline-flex;
+  }
+  
+  .nav-node {
+    width: 6px;
+    height: 6px;
+    margin-right: 8px;
+    box-shadow: 0 0 0 2px white;
+    left: 0; /* 移动设备上保持默认位置，因为竖线不显示 */
+  }
+  
+  .nav-title {
+    font-size: 12px;
+    max-width: none;
+    left: 0;
+  }
+  
+  /* 移动设备上的文字悬停效果 */
+  .nav-item:hover .nav-title {
+    transform: none;
+  }
 } 

@@ -11,8 +11,8 @@ const { Title } = Typography;
 
 // 导航项定义
 const navItems = [
-  { key: 'overview', title: '模块功能概述', icon: '📝', filled: false },
-  { key: 'diagram', title: '逻辑图/数据流向图', icon: '📊', filled: false },
+  { key: 'overview', title: '功能概述', icon: '📝', filled: false },
+  { key: 'diagram', title: '逻辑图', icon: '📊', filled: false },
   { key: 'keyTech', title: '功能详解', icon: '🔍', filled: false },
   { key: 'database', title: '数据库表', icon: '💾', filled: false },
   { key: 'related', title: '关联模块', icon: '🔗', filled: false },

@@ -1,178 +1,126 @@
-import React, { useState } from 'react';
-import { Button, Input, Form, Select, Table } from 'antd';
-import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import { MdEditor } from 'md-editor-rt';
-import 'md-editor-rt/lib/style.css';
+import React, { useState, useEffect } from 'react';
+import { Button, Empty, Row, Col } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { ApiInterfaceCard } from '../../../../types/modules';
+import ApiInterfaceCardComponent from './ApiInterfaceCard';
+import ApiInterfaceForm from './ApiInterfaceForm';
 import './SectionStyles.css';
 
-const { Option } = Select;
-
-interface InterfaceItem {
-  id: string;
-  name: string;
-  type: string;
-  required: boolean;
-  description: string;
-}
-
 interface InterfaceSectionProps {
-  interfaces: InterfaceItem[];
-  onChange: (interfaces: InterfaceItem[]) => void;
+  interfaces: ApiInterfaceCard[];
+  onChange: (interfaces: ApiInterfaceCard[]) => void;
 }
 
 const InterfaceSection: React.FC<InterfaceSectionProps> = ({ interfaces, onChange }) => {
-  // 为每个编辑器创建唯一ID
-  const [editorIdsMap] = useState<Record<string, string>>({});
-  
-  // 获取或创建编辑器ID
-  const getEditorId = (id: string) => {
-    if (!editorIdsMap[id]) {
-      editorIdsMap[id] = `interface-${id}-${Date.now()}`;
-    }
-    return editorIdsMap[id];
+  // 表单可见性状态
+  const [formVisible, setFormVisible] = useState(false);
+  // 当前编辑的接口
+  const [currentInterface, setCurrentInterface] = useState<ApiInterfaceCard | undefined>(undefined);
+  // 表单标题
+  const [formTitle, setFormTitle] = useState('添加接口');
+
+  // 添加接口
+  const handleAdd = () => {
+    setCurrentInterface(undefined);
+    setFormTitle('添加接口');
+    setFormVisible(true);
   };
 
-  // 添加一个新的接口
-  const addInterface = () => {
-    const newId = `interface_${Date.now()}`;
-    onChange([
-      ...interfaces,
-      {
-        id: newId,
-        name: '',
-        type: 'string',
-        required: true,
-        description: ''
-      }
-    ]);
+  // 编辑接口
+  const handleEdit = (id: string) => {
+    const interfaceToEdit = interfaces.find(item => item.id === id);
+    if (interfaceToEdit) {
+      setCurrentInterface(interfaceToEdit);
+      setFormTitle('编辑接口');
+      setFormVisible(true);
+    }
   };
 
   // 删除接口
-  const removeInterface = (id: string) => {
+  const handleDelete = (id: string) => {
     onChange(interfaces.filter(item => item.id !== id));
   };
 
-  // 更新接口属性
-  const updateInterface = (id: string, field: keyof InterfaceItem, value: any) => {
-    onChange(
-      interfaces.map(item => 
-        item.id === id ? { ...item, [field]: value } : item
-      )
+  // 提交表单
+  const handleFormSubmit = (values: ApiInterfaceCard) => {
+    // 确保所有必要字段都存在，避免数据丢失
+    const completeValues = {
+      ...values,
+      path: values.path || '',
+      method: values.method || 'GET',
+      contentType: values.contentType || 'application/json',
+      description: values.description || '',
+      requestParams: values.requestParams || [],
+      responseParams: values.responseParams || []
+    };
+    
+    // 调试日志
+    console.log('提交的接口数据:', completeValues);
+    
+    if (currentInterface) {
+      // 编辑现有接口
+      const updatedInterfaces = interfaces.map(item => 
+        item.id === currentInterface.id ? { ...completeValues, id: item.id } : item
+      );
+      console.log('更新后的接口列表:', updatedInterfaces);
+      onChange(updatedInterfaces);
+    } else {
+      // 添加新接口
+      const newId = `api_${Date.now()}`;
+      const newInterfaces = [...interfaces, { ...completeValues, id: newId }];
+      console.log('添加后的接口列表:', newInterfaces);
+      onChange(newInterfaces);
+    }
+    setFormVisible(false);
+  };
+
+  // 渲染接口卡片网格
+  const renderInterfaceCards = () => {
+    if (interfaces.length === 0) {
+      return (
+        <Empty 
+          description="暂无接口信息" 
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      );
+    }
+
+    return (
+      <Row gutter={[12, 12]} className="interface-card-grid">
+        {interfaces.map(item => (
+          <Col xs={24} sm={24} md={24} lg={12} xl={12} key={item.id}>
+            <ApiInterfaceCardComponent
+              data={item}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          </Col>
+        ))}
+      </Row>
     );
   };
 
-  // 表格列定义
-  const columns: ColumnsType<InterfaceItem> = [
-    {
-      title: '接口名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: '20%',
-      render: (text, record) => (
-        <Input
-          value={text}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateInterface(record.id, 'name', e.target.value)}
-          placeholder="接口名称"
-        />
-      ),
-    },
-    {
-      title: '数据类型',
-      dataIndex: 'type',
-      key: 'type',
-      width: '15%',
-      render: (text, record) => (
-        <Select
-          value={text}
-          style={{ width: '100%' }}
-          onChange={(value) => updateInterface(record.id, 'type', value)}
-        >
-          <Option value="string">字符串</Option>
-          <Option value="number">数值</Option>
-          <Option value="boolean">布尔值</Option>
-          <Option value="object">对象</Option>
-          <Option value="array">数组</Option>
-          <Option value="function">函数</Option>
-        </Select>
-      ),
-    },
-    {
-      title: '是否必需',
-      dataIndex: 'required',
-      key: 'required',
-      width: '10%',
-      render: (value, record) => (
-        <Select
-          value={value}
-          style={{ width: '100%' }}
-          onChange={(val) => updateInterface(record.id, 'required', val)}
-        >
-          <Option value={true}>是</Option>
-          <Option value={false}>否</Option>
-        </Select>
-      ),
-    },
-    {
-      title: (
-        <div>
-          说明 <span style={{ fontSize: '12px', color: '#888' }}>(支持Markdown)</span>
-        </div>
-      ),
-      dataIndex: 'description',
-      key: 'description',
-      render: (text, record) => (
-        <MdEditor
-          modelValue={text}
-          onChange={(value) => updateInterface(record.id, 'description', value)}
-          id={getEditorId(record.id)}
-          language="zh-CN"
-          previewTheme="github"
-          preview={true}
-          style={{ height: '150px', boxShadow: '0 0 0 1px #f0f0f0' }}
-          placeholder="接口说明（支持Markdown语法）"
-          noMermaid
-          noKatex
-          tabWidth={2}
-          toolbarsExclude={['github', 'save', 'fullscreen']}
-        />
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: '10%',
-      render: (_, record) => (
-        <Button 
-          type="text" 
-          danger 
-          icon={<MinusCircleOutlined />} 
-          onClick={() => removeInterface(record.id)}
-          size="small"
-        >
-          删除
-        </Button>
-      ),
-    },
-  ];
-
   return (
-    <div className="section-content">
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={interfaces}
-        pagination={false}
-        bordered
-      />
+    <div className="interface-section">
+      {renderInterfaceCards()}
+      
       <Button
         type="dashed"
-        onClick={addInterface}
+        onClick={handleAdd}
         style={{ marginTop: 16, width: '100%' }}
         icon={<PlusOutlined />}
       >
         添加接口
       </Button>
+
+      {/* 接口表单对话框 */}
+      <ApiInterfaceForm
+        visible={formVisible}
+        title={formTitle}
+        initialValues={currentInterface}
+        onOk={handleFormSubmit}
+        onCancel={() => setFormVisible(false)}
+      />
     </div>
   );
 };

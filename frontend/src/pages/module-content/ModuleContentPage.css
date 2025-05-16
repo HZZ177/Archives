@@ -1,12 +1,17 @@
 .module-content-page {
   background-color: #fff;
   min-height: calc(100vh - 64px); /* 根据实际顶部导航高度调整 */
+  /* 移除grid布局，使用常规文档流 */
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden; /* 防止整个页面水平溢出 */
 }
 
 .page-header {
   padding: 16px 24px;
   border-bottom: 1px solid #f0f0f0;
   margin-bottom: 24px;
+  /* 移除grid相关样式 */
 }
 
 .module-title {
@@ -15,43 +20,73 @@
 }
 
 .content-container {
+  /* 移除grid布局，使用常规定位 */
   padding: 0 24px 48px;
-  display: flex; /* 启用 flex 布局 */
+  display: flex;
+  position: relative;
+  max-width: 100%;
+  box-sizing: border-box; /* 确保padding计入宽度 */
 }
 
 .nav-column {
-  position: relative;
-  width: 200px; /* 固定宽度 */
-  min-width: 200px; /* 确保不会被压缩 */
+  /* 设置宽度但不固定位置 */
+  width: 120px; /* 从150px减少为120px，减少20% */
   flex-shrink: 0; /* 防止压缩 */
+  position: relative; /* 为固定导航提供参考点 */
+}
+
+/* 固定导航条的关键样式 */
+.nav-column > .side-navigation {
+  position: fixed;
+  /* 修改垂直位置，使用50%定位到页面中间，然后使用transform向上偏移一半高度实现垂直居中 */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 120px; /* 从150px减少为120px，减少20% */
+  /* 移除max-height和overflow，避免双层滚动 */
+  /* 隐藏滚动条样式也可以移除 */
 }
 
 .content-column {
-  padding-left: 24px;
+  padding-left: 16px; /* 从20px减少为16px */
+  margin-left: 16px; /* 从20px减少为16px，为固定导航腾出空间 */
   border-left: 1px solid #f0f0f0;
-  flex: 1; /* 占据剩余空间 */
+  flex: 1;
+  max-width: calc(100% - 152px); /* 从182px减少为152px，确保内容列不会超出容器 */
+  overflow-x: hidden; /* 防止内容水平溢出 */
+  box-sizing: border-box; /* 确保padding计入宽度 */
 }
 
 /* 响应式布局 */
 @media (max-width: 768px) {
+  .module-content-page {
+    display: block; /* 使用块级布局，取代flex */
+  }
+  
   .content-container {
-    flex-direction: column; /* 小屏幕上改为垂直布局 */
+    display: block; /* 使用块级布局，取代flex */
+    padding: 0 16px 32px;
   }
   
   .nav-column {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: white;
     width: 100%;
-    min-width: 100%; /* 占满宽度 */
-    padding: 10px;
+    margin-bottom: 16px;
+  }
+  
+  .nav-column > .side-navigation {
+    position: sticky; /* 小屏幕上使用sticky定位 */
+    top: 0;
+    width: 100%;
+    transform: none; /* 移除transform */
+    background-color: white;
     border-bottom: 1px solid #f0f0f0;
+    padding: 10px 0;
+    z-index: 10;
   }
   
   .content-column {
-    margin-top: 20px;
     border-left: none;
     padding-left: 0;
+    margin-left: 0;
+    max-width: 100%; /* 小屏幕占满宽度 */
   }
 } 

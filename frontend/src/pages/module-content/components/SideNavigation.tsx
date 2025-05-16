@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { Affix } from 'antd';
 import './SideNavigation.css';
 
 interface NavItem {
@@ -40,23 +39,21 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
   }
 
   return (
-    <Affix offsetTop={20}>
-      <div className="side-navigation">
-        <div className="nav-line"></div>
-        {items.map((item) => (
-          <div 
-            key={item.key} 
-            className={`nav-item ${activeKey === item.key ? 'active' : ''}`}
-            onClick={() => onNavClick(item.key)}
-          >
-            <div className={`nav-node ${item.filled ? 'filled' : ''}`}>
-              <span className="nav-icon">{item.icon}</span>
-            </div>
-            <div className="nav-title">{item.title}</div>
+    <div className="side-navigation">
+      <div className="nav-line"></div>
+      {items.map((item) => (
+        <div 
+          key={item.key} 
+          className={`nav-item ${activeKey === item.key ? 'active' : ''}`}
+          onClick={() => onNavClick(item.key)}
+        >
+          <div className={`nav-node ${item.filled ? 'filled' : ''}`}>
+            <span className="nav-icon">{item.icon}</span>
           </div>
-        ))}
-      </div>
-    </Affix>
+          <div className="nav-title">{item.title}</div>
+        </div>
+      ))}
+    </div>
   );
 };
 
