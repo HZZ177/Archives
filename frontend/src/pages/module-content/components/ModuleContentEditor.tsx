@@ -165,6 +165,9 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
     const [graphModalVisible, setGraphModalVisible] = useState(false);
     const graphRef = useRef<{ zoomToFit: () => void; resetAutoFit: () => void }>(null);
 
+    // 添加时间戳状态用于强制更新图谱
+    const [graphUpdateTime, setGraphUpdateTime] = useState<number>(Date.now());
+
     // 弹窗关闭时重置自动定位标记
     const handleGraphModalClose = () => {
       setGraphModalVisible(false);
@@ -577,17 +580,14 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
           diagram_image_path: diagramPath,
           database_tables_json: databaseTables,
           related_module_ids_json: relatedModuleIds,
-          // 将 ApiInterfaceCard[] 转换为后端需要的 ApiInterface[] 格式
           api_interfaces_json: apiInterfaces.map(card => ({
             id: card.id,
-            name: card.path || '',  // 确保path不为空
-            type: card.method || 'GET',  // 确保method不为空，默认使用GET
+            name: card.path || '',
+            type: card.method || 'GET',
             required: true,
             description: card.description || '',
-            // 添加请求参数和响应参数
             path: card.path || '',
             method: card.method || 'GET',
-            // 将ApiParam结构转换为后端期望的ApiInterfaceParameter结构
             request_params: (card.requestParams || []).map(param => ({
               param_name: param.name,
               param_type: param.type,
@@ -610,6 +610,8 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
         const result = await saveModuleContent(moduleNodeId, contentData);
         if (result) {
           message.success('保存成功');
+          // 更新时间戳以触发图谱重新加载
+          setGraphUpdateTime(Date.now());
           setSaving(false);
         } else {
           message.error('保存失败');
@@ -1022,6 +1024,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
               <RelatedModulesSection 
                 selectedModuleIds={relatedModuleIds} 
                 onChange={setRelatedModuleIds} 
+                currentModuleId={moduleNodeId}
               />
             ) : (
               <div className="section-content">
@@ -1148,6 +1151,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
             <ModuleGraph
               ref={graphRef}
               currentModuleId={moduleNodeId}
+              key={graphUpdateTime}
               onNodeClick={(moduleId) => {
                 window.location.href = `/module-content/${moduleId}`;
               }}

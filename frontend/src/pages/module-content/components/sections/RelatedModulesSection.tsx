@@ -16,11 +16,13 @@ interface ExtendedModuleNode extends ModuleStructureNode {
 interface RelatedModulesSectionProps {
   selectedModuleIds: number[];
   onChange: (moduleIds: number[]) => void;
+  currentModuleId: number;
 }
 
 const RelatedModulesSection: React.FC<RelatedModulesSectionProps> = ({ 
   selectedModuleIds, 
-  onChange 
+  onChange,
+  currentModuleId
 }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [moduleOptions, setModuleOptions] = useState<ExtendedModuleNode[]>([]);
@@ -80,31 +82,26 @@ const RelatedModulesSection: React.FC<RelatedModulesSectionProps> = ({
     return nodes.map(node => {
       // 检查该节点下是否有内容页面节点
       const hasContentPage = hasContentPageDescendant(node);
-      
       return {
         title: node.name,
         key: node.id.toString(),
         children: node.children && node.children.length > 0 
           ? convertToTreeData(node.children) 
           : undefined,
-        // 保存原始节点数据用于后续处理
         originNode: node,
-        // 添加节点类型区分
         isContentPage: node.is_content_page,
-        // 添加图标区分，带自定义样式
         icon: node.is_content_page 
           ? <span className="custom-tree-icon file-icon"><FileTextOutlined /></span> 
           : <span className="custom-tree-icon folder-icon"><FolderOpenOutlined /></span>,
-        // 为节点设置样式类
         className: node.is_content_page 
           ? 'content-node' 
           : hasContentPage 
             ? 'structure-node' 
             : 'empty-structure-node',
-        // 如果是非内容页面节点且其下没有内容页面节点，则禁用
-        disabled: !node.is_content_page && !hasContentPage,
-        // 标记是否有内容页面子节点
+        // 禁用当前模块节点，或非内容页面节点且其下没有内容页面节点
+        disabled: node.id === currentModuleId || (!node.is_content_page && !hasContentPage),
         hasContentPage: hasContentPage,
+        id: node.id,
       };
     });
   };
@@ -278,8 +275,14 @@ const RelatedModulesSection: React.FC<RelatedModulesSectionProps> = ({
           : { cursor: 'not-allowed', color: '#aaa' };
       
       // 如果节点被禁用，添加Tooltip提示
+      let tooltipMsg = '';
+      if (item.id === currentModuleId) {
+        tooltipMsg = '不能关联自身';
+      } else if (item.disabled) {
+        tooltipMsg = '该节点下无内容页面节点，不可选择';
+      }
       const nodeTitle = item.disabled ? (
-        <Tooltip title="该节点下无内容页面节点，不可选择">
+        <Tooltip title={tooltipMsg}>
           <span style={titleStyle} className="disabled-node-title">
             {title}
             <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', color: '#aaa' }} />
