@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Tree, Spin } from 'antd';
 import { FileTextOutlined, FolderOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -20,7 +20,7 @@ const getStoredExpandedKeys = (): Key[] => {
   }
 };
 
-// 将展开状态保存到localStorage
+// 保存展开状态到localStorage
 const saveExpandedKeysToStorage = (keys: Key[]) => {
   try {
     localStorage.setItem(STORAGE_EXPANDED_KEYS, JSON.stringify(keys));
@@ -29,14 +29,40 @@ const saveExpandedKeysToStorage = (keys: Key[]) => {
   }
 };
 
-// 将ModuleStructureNode转换为Tree组件所需的DataNode
 interface TreeDataNode {
   key: string;
   title: string;
   isLeaf: boolean;
   icon: React.ReactNode;
   children?: TreeDataNode[];
+  originNode?: ModuleStructureNode;
 }
+
+// 递归查找节点路径
+const findNodePath = (nodes: TreeDataNode[], targetKey: string): string[] => {
+  const path: string[] = [];
+  const findPath = (node: TreeDataNode): boolean => {
+    if (node.key === targetKey) {
+      path.push(node.key);
+      return true;
+    }
+    if (node.children) {
+      for (const child of node.children) {
+        if (findPath(child)) {
+          path.unshift(node.key);
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  for (const node of nodes) {
+    if (findPath(node)) {
+      break;
+    }
+  }
+  return path;
+};
 
 const convertToTreeData = (nodes: ModuleStructureNode[]): TreeDataNode[] => {
   return nodes.map(node => ({
@@ -46,7 +72,8 @@ const convertToTreeData = (nodes: ModuleStructureNode[]): TreeDataNode[] => {
     icon: node.is_content_page ? <FileTextOutlined /> : <FolderOutlined />,
     children: node.children && node.children.length > 0 
       ? convertToTreeData(node.children) 
-      : undefined
+      : undefined,
+    originNode: node
   }));
 };
 
@@ -54,8 +81,11 @@ const ModuleStructureTree: React.FC = () => {
   const [treeData, setTreeData] = useState<TreeDataNode[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [expandedKeys, setExpandedKeys] = useState<Key[]>(getStoredExpandedKeys());
+  const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
+  const [hasAutoLocated, setHasAutoLocated] = useState<boolean>(false); // 标志位，防止重复自动定位
   const navigate = useNavigate();
   const location = useLocation();
+  const lastLocatedKeyRef = useRef<string | null>(null); // 记录上一次定位的key，避免重复
 
   // 获取模块结构树
   const loadModuleTree = async () => {
@@ -65,14 +95,12 @@ const ModuleStructureTree: React.FC = () => {
       const modules = Array.isArray(response) ? response : response.items || [];
       const treeNodes = convertToTreeData(modules);
       setTreeData(treeNodes);
-      
       // 如果localStorage中没有存储的展开状态，默认展开所有节点
       if (expandedKeys.length === 0) {
         const allKeys = getAllKeys(treeNodes);
         setExpandedKeys(allKeys);
         saveExpandedKeysToStorage(allKeys);
       }
-      
       setLoading(false);
     } catch (error) {
       console.error('加载模块结构树失败:', error);
@@ -81,7 +109,7 @@ const ModuleStructureTree: React.FC = () => {
   };
 
   // 获取所有节点的key
-  const getAllKeys = (nodes: any[]): Key[] => {
+  const getAllKeys = (nodes: TreeDataNode[]): Key[] => {
     let keys: Key[] = [];
     nodes.forEach(node => {
       keys.push(node.key);
@@ -96,6 +124,7 @@ const ModuleStructureTree: React.FC = () => {
   const handleExpand = (expandedKeys: Key[]) => {
     setExpandedKeys(expandedKeys);
     saveExpandedKeysToStorage(expandedKeys);
+    setHasAutoLocated(true); // 用户手动操作后，关闭自动定位
   };
 
   // 处理树节点点击
@@ -111,18 +140,35 @@ const ModuleStructureTree: React.FC = () => {
         navigate(`/structure-management?nodeId=${nodeId}`);
       }
     }
+    setHasAutoLocated(true); // 用户手动操作后，关闭自动定位
+  };
+
+  // 自动定位并展开到目标节点
+  const autoLocateAndExpandToNode = () => {
+    const path = location.pathname;
+    const moduleIdMatch = path.match(/\/module-content\/(\d+)/);
+    if (moduleIdMatch && treeData.length > 0) {
+      const moduleId = moduleIdMatch[1];
+      if (lastLocatedKeyRef.current === moduleId && hasAutoLocated) return;
+      const nodePath = findNodePath(treeData, moduleId);
+      if (nodePath.length > 0) {
+        const newExpandedKeys = [...new Set([...expandedKeys, ...nodePath])];
+        setSelectedKeys([moduleId]);
+        setExpandedKeys(newExpandedKeys);
+        saveExpandedKeysToStorage(newExpandedKeys);
+        setHasAutoLocated(true);
+        lastLocatedKeyRef.current = moduleId;
+      }
+    }
   };
 
   // 监听全局刷新事件
   useEffect(() => {
     const handleRefreshEvent = () => {
       loadModuleTree();
+      setHasAutoLocated(false); // 刷新后允许重新自动定位
     };
-    
-    // 添加刷新事件监听器
     window.addEventListener('refreshModuleTree', handleRefreshEvent);
-    
-    // 清理监听器
     return () => {
       window.removeEventListener('refreshModuleTree', handleRefreshEvent);
     };
@@ -131,23 +177,16 @@ const ModuleStructureTree: React.FC = () => {
   // 初始加载
   useEffect(() => {
     loadModuleTree();
+    setHasAutoLocated(false); // 加载新数据时允许自动定位
   }, []);
 
-  // 从当前URL中高亮选中的节点
+  // treeData变化或URL变化时，尝试自动定位
   useEffect(() => {
-    const path = location.pathname;
-    const moduleIdMatch = path.match(/\/module-content\/(\d+)/);
-    
-    if (moduleIdMatch) {
-      const moduleId = moduleIdMatch[1];
-      // 设置选中的节点，但不触发导航
-      // 这里只是视觉上的选中效果
-      const selectedKeys = [moduleId];
-      setSelectedKeys(selectedKeys);
+    if (!hasAutoLocated) {
+      autoLocateAndExpandToNode();
     }
-  }, [location]);
-
-  const [selectedKeys, setSelectedKeys] = useState<Key[]>([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [treeData, location.pathname]);
 
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: '8px' }}>

@@ -4,7 +4,7 @@ import { ModuleStructureNode } from '../../types/modules';
 import { fetchModuleTree, fetchModuleContent } from '../../apis/moduleService';
 import { Tooltip, Button, Spin } from 'antd';
 import './ModuleGraph.css';
-import { AimOutlined, LinkOutlined } from '@ant-design/icons';
+import { AimOutlined, LinkOutlined, InfoCircleOutlined } from '@ant-design/icons';
 
 interface ModuleGraphProps {
   currentModuleId: number;
@@ -16,6 +16,7 @@ interface GraphNode {
   name: string;
   isCurrentModule: boolean;
   isContentPage: boolean;
+  isTopLevel?: boolean;  // 添加顶级节点标识
   overview?: string;
   path?: string;
   val?: number;  // 添加val属性
@@ -41,6 +42,8 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [highlightedNodeId, setHighlightedNodeId] = useState<number | null>(null);
   const [pulseFrame, setPulseFrame] = useState(0);
+  const [highlightedLinkKeys, setHighlightedLinkKeys] = useState<Set<string>>(new Set());
+  const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<number>>(new Set());
   const graphRef = useRef<any>();
   const hasAutoFitted = useRef(false);
   const pulseAnimRef = useRef<number>();
@@ -62,7 +65,8 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
         name: node.name,
         isContentPage: node.is_content_page,
         isCurrentModule: node.id === currentModuleId,
-        val: 1  // 添加基础大小
+        isTopLevel: parentId === undefined,  // 如果没有父节点，则为顶级节点
+        val: 1
       });
 
       // 如果有父节点，添加连接
@@ -222,16 +226,20 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     const textWidth = ctx.measureText(label).width;
     const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
 
+    // 高亮/模糊处理
+    let isHighlighted = highlightedNodeIds.size === 0 || highlightedNodeIds.has(node.id);
+    ctx.globalAlpha = highlightedNodeIds.size === 0 ? 1 : (isHighlighted ? 1 : 0.15);
+
     // 脉冲高亮动画
     if (node.id === highlightedNodeId) {
-      const t = (pulseFrame % 1000) / 1000; // 0~1周期
+      const t = (pulseFrame % 1000) / 1000;
       const pulseRadius = 5 + 5 * Math.abs(Math.sin(t * Math.PI));
       const pulseAlpha = 0.5 + 0.3 * Math.abs(Math.sin(t * Math.PI));
       ctx.save();
       ctx.beginPath();
       ctx.arc(node.x!, node.y!, pulseRadius, 0, 2 * Math.PI, false);
       ctx.strokeStyle = '#faad14';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2;
       ctx.shadowColor = '#ffd666';
       ctx.shadowBlur = 12;
       ctx.globalAlpha = pulseAlpha;
@@ -241,6 +249,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
 
     // 设置节点样式
     ctx.fillStyle = node.isCurrentModule ? '#1890ff' : 
+                   node.isTopLevel ? '#722ed1' :  // 顶级节点使用紫色
                    node.isContentPage ? '#52c41a' : '#d9d9d9';
     ctx.beginPath();
     ctx.arc(node.x!, node.y!, 5, 0, 2 * Math.PI, false);
@@ -264,26 +273,27 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
       node.x!,
       node.y! + 8 + bckgDimensions[1] / 2
     );
-  }, [highlightedNodeId, pulseFrame]);
+    ctx.globalAlpha = 1;
+  }, [highlightedNodeId, pulseFrame, highlightedNodeIds]);
 
   // 自定义连接渲染
   const linkCanvasObject = useCallback((link: GraphLink, ctx: CanvasRenderingContext2D) => {
-    // 已去除坐标轴和原点十字渲染
     const { source, target, isRelated } = link as any;
     const start = { x: source.x, y: source.y };
     const end = { x: target.x, y: target.y };
-
-    // 设置连接样式
+    const key = `${source.id}-${target.id}`;
+    let isHighlighted = highlightedLinkKeys.size === 0 || highlightedLinkKeys.has(key);
+    ctx.save();
+    ctx.globalAlpha = highlightedLinkKeys.size === 0 ? 1 : (isHighlighted ? 1 : 0.08);
     ctx.strokeStyle = isRelated ? '#1890ff' : '#d9d9d9';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1; // 线条宽度始终为1
     ctx.setLineDash([]);
-
-    // 绘制连接线
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
-  }, []);
+    ctx.restore();
+  }, [highlightedLinkKeys]);
 
   // 节点点击事件
   const handleNodeClick = useCallback((node: GraphNode) => {
@@ -296,7 +306,26 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
   // 处理节点悬停
   const handleNodeHover = useCallback((node: any) => {
     setHoveredNode(node);
-  }, []);
+    if (node) {
+      const links = graphData.links;
+      const descendantLinkKeys = new Set<string>();
+      const descendantNodeIds = new Set<number>();
+      const ancestorLinkKeys = new Set<string>();
+      const ancestorNodeIds = new Set<number>();
+      // 下级
+      findAllDescendants(node.id, links, descendantLinkKeys, descendantNodeIds);
+      // 向上
+      findAllAncestors(node.id, links, ancestorLinkKeys, ancestorNodeIds);
+      // 合并高亮
+      const allLinkKeys = new Set<string>([...descendantLinkKeys, ...ancestorLinkKeys]);
+      const allNodeIds = new Set<number>([...descendantNodeIds, ...ancestorNodeIds]);
+      setHighlightedLinkKeys(allLinkKeys);
+      setHighlightedNodeIds(allNodeIds);
+    } else {
+      setHighlightedLinkKeys(new Set());
+      setHighlightedNodeIds(new Set());
+    }
+  }, [graphData.links, findAllDescendants, findAllAncestors]);
 
   // 新增：定位到当前模块节点的方法
   const locateCurrentModule = useCallback(() => {
@@ -308,8 +337,47 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     }
     // 高亮当前节点
     setHighlightedNodeId(currentModuleId);
-    setTimeout(() => setHighlightedNodeId(null), 1500);
+    setTimeout(() => setHighlightedNodeId(null), 2000);
   }, [filteredGraphData.nodes, currentModuleId, zoomToFit]);
+
+  // --- 高亮链路递归查找工具函数 ---
+  // 构建节点和链路的映射
+  const nodeMap = useMemo(() => {
+    const map = new Map<number, GraphNode>();
+    graphData.nodes.forEach(n => map.set(n.id, n));
+    return map;
+  }, [graphData.nodes]);
+  const linkMap = useMemo(() => {
+    return graphData.links;
+  }, [graphData.links]);
+
+  // 查找所有下级链路和节点
+  function findAllDescendants(startId: number, links: GraphLink[], visitedLinkKeys: Set<string>, visitedNodes: Set<number>) {
+    visitedNodes.add(startId);
+    links.forEach((link) => {
+      const srcId = typeof (link as any).source === 'object' && (link as any).source !== null ? (link as any).source.id : (link as any).source;
+      const tgtId = typeof (link as any).target === 'object' && (link as any).target !== null ? (link as any).target.id : (link as any).target;
+      const key = `${srcId}-${tgtId}`;
+      if (srcId === startId && !visitedLinkKeys.has(key)) {
+        visitedLinkKeys.add(key);
+        findAllDescendants(tgtId, links, visitedLinkKeys, visitedNodes);
+      }
+    });
+  }
+
+  // 查找向上到顶级节点的链路和节点
+  function findAllAncestors(startId: number, links: GraphLink[], visitedLinkKeys: Set<string>, visitedNodes: Set<number>) {
+    visitedNodes.add(startId);
+    links.forEach((link) => {
+      const srcId = typeof (link as any).source === 'object' && (link as any).source !== null ? (link as any).source.id : (link as any).source;
+      const tgtId = typeof (link as any).target === 'object' && (link as any).target !== null ? (link as any).target.id : (link as any).target;
+      const key = `${srcId}-${tgtId}`;
+      if (tgtId === startId && !visitedLinkKeys.has(key)) {
+        visitedLinkKeys.add(key);
+        findAllAncestors(srcId, links, visitedLinkKeys, visitedNodes);
+      }
+    });
+  }
 
   return (
     <div className="module-graph-container">
@@ -320,7 +388,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
           className="control-button"
           icon={<LinkOutlined />}
         >
-          {showOnlyRelated ? '查看所有关联' : '仅查看当前模块关联'}
+          {showOnlyRelated ? '查看所有关联' : '查看当前模块关联'}
         </Button>
         {/* 所有模式下都显示定位按钮 */}
         <Button
@@ -372,6 +440,9 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
               <span className="legend-dot legend-dot-blue" /> 当前模块
             </div>
             <div className="legend-row">
+              <span className="legend-dot legend-dot-purple" /> 顶级节点
+            </div>
+            <div className="legend-row">
               <span className="legend-dot legend-dot-green" /> 内容页面
             </div>
             <div className="legend-row">
@@ -383,7 +454,10 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
             <div className="legend-row">
               <span className="legend-line legend-line-gray" /> 结构/父子关系
             </div>
-            <div className="legend-desc">查看全部节点时，只会展示与当前页面有关联的关联关系</div>
+            <div className="legend-desc">
+              <InfoCircleOutlined style={{ marginRight: 4, color: '#ff4d4f' }} />
+              查看全部节点时，只会展示与当前页面有关联的关联关系
+            </div>
           </div>
         </div>
       )}

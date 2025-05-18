@@ -105,6 +105,24 @@ export const refreshModuleTreeEvent = new CustomEvent('refreshModuleTree');
 // 当前路由路径记录，用于跟踪路由变化
 let previousPath = '';
 
+// 递归查找当前路径对应菜单项的所有父级key
+const findMenuPathKeys = (
+  items: any[],
+  targetKey: string,
+  path: string[] = []
+): string[] => {
+  for (const item of items) {
+    if (item.key === targetKey) {
+      return [...path];
+    }
+    if (item.children) {
+      const found = findMenuPathKeys(item.children, targetKey, [...path, item.key]);
+      if (found.length > 0) return found;
+    }
+  }
+  return [];
+};
+
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   // 使用ModuleContext代替本地状态
@@ -121,6 +139,7 @@ const MainLayout: React.FC = () => {
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [filteredMenuItems, setFilteredMenuItems] = useState<ItemType[]>([]);
   const { currentWorkspace } = useWorkspaceContext();
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
   
   const {
     token: { colorBgContainer },
@@ -551,6 +570,19 @@ const MainLayout: React.FC = () => {
     }
   };
 
+  // 路由变化时自动展开到目标节点
+  useEffect(() => {
+    if (filteredMenuItems && filteredMenuItems.length > 0) {
+      const pathKeys = findMenuPathKeys(filteredMenuItems, location.pathname);
+      setOpenKeys(pathKeys);
+    }
+  }, [location.pathname, filteredMenuItems]);
+
+  // 菜单手动展开/折叠
+  const handleOpenChange = (keys: string[]) => {
+    setOpenKeys(keys);
+  };
+
   return (
     <WorkspaceProvider>
       <Layout style={{ minHeight: '100vh' }}>
@@ -582,6 +614,8 @@ const MainLayout: React.FC = () => {
             defaultSelectedKeys={['/']}
             defaultOpenKeys={['system']}
             selectedKeys={[location.pathname]}
+            openKeys={openKeys}
+            onOpenChange={handleOpenChange}
             items={filteredMenuItems}
             onClick={async (info) => {
               // 防止重复导航到当前路径，避免不必要的组件重新加载
