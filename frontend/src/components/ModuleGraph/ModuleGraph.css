@@ -1,0 +1,143 @@
+.module-graph-container {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  position: relative;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.module-graph-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+}
+
+.control-button {
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.control-button:hover {
+  color: #1890ff;
+  border-color: #1890ff;
+}
+
+.control-button.active {
+  color: #fff;
+  background: #1890ff;
+  border-color: #1890ff;
+}
+
+.module-graph-wrapper {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+}
+
+.module-graph-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #999;
+  font-size: 14px;
+}
+
+.node-tooltip {
+  padding: 8px;
+  max-width: 300px;
+}
+
+.node-tooltip-title {
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #fff;
+}
+
+.node-tooltip-overview {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.module-graph-controls .ant-btn-primary {
+  color: #222 !important;
+}
+
+.module-graph-legend {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  background: rgba(255,255,255,0.96);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  padding: 12px 18px 10px 18px;
+  font-size: 13px;
+  color: #222;
+  z-index: 10;
+  min-width: 110px;
+}
+
+.legend-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  margin-right: 8px;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.legend-dot-blue {
+  background: #1890ff;
+}
+.legend-dot-green {
+  background: #52c41a;
+}
+.legend-dot-gray {
+  background: #d9d9d9;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  border-top: 3px solid;
+  margin-right: 8px;
+  border-radius: 2px;
+}
+.legend-line-blue {
+  border-color: #1890ff;
+}
+.legend-line-gray {
+  border-color: #d9d9d9;
+}
+
+.legend-desc {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #888;
+  line-height: 1.6;
+} 

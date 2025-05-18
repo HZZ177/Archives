@@ -11,14 +11,17 @@ import {
   Col,
   Table,
   Space,
-  Tooltip
+  Tooltip,
+  Modal
 } from 'antd';
 import { 
   SaveOutlined,
   EditOutlined,
   LoadingOutlined,
   PlusOutlined,
-  MinusCircleOutlined
+  MinusCircleOutlined,
+  FileTextOutlined,
+  NodeIndexOutlined
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -45,6 +48,7 @@ import InterfaceSection from './sections/InterfaceSection';
 import ApiInterfaceCardComponent from './sections/ApiInterfaceCard';
 import { API_BASE_URL } from '../../../config/constants';
 import './ModuleContentEditor.css';
+import ModuleGraph from '../../../components/ModuleGraph/ModuleGraph';
 
 const { Title } = Typography;
 
@@ -114,7 +118,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
     // 本地状态，用于收集各部分的内容
     const [overviewText, setOverviewText] = useState<string>('');
     const [keyTechItems, setKeyTechItems] = useState<KeyTechItem[]>([]);
-    const [principleText, setPrincipleText] = useState<string>('');
+    const [detailsText, setDetailsText] = useState<string>('');
     const [databaseTables, setDatabaseTables] = useState<DatabaseTable[]>([]);
     const [relatedModuleIds, setRelatedModuleIds] = useState<number[]>([]);
     const [relatedModules, setRelatedModules] = useState<ModuleStructureNode[]>([]);
@@ -151,6 +155,34 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
     const setIsEditMode = propSetIsEditMode || _setIsEditMode;
     const saving = propSaving !== undefined ? propSaving : _saving;
     const setSaving = propSetSaving || _setSaving;
+
+    // 添加状态用于存储关联模块的附加信息
+    const [modulePathMap, setModulePathMap] = useState<{[key: number]: string}>({});
+    const [moduleOverviewMap, setModuleOverviewMap] = useState<{[key: number]: string}>({});
+    const [loadingModuleInfo, setLoadingModuleInfo] = useState<{[key: number]: boolean}>({});
+
+    // 添加图谱关系Modal的状态
+    const [graphModalVisible, setGraphModalVisible] = useState(false);
+    const graphRef = useRef<{ zoomToFit: () => void; resetAutoFit: () => void }>(null);
+
+    // 弹窗关闭时重置自动定位标记
+    const handleGraphModalClose = () => {
+      setGraphModalVisible(false);
+      if (graphRef.current) {
+        graphRef.current.resetAutoFit();
+      }
+    };
+
+    // 每次弹窗打开时自动zoomToFit
+    useEffect(() => {
+      if (graphModalVisible && graphRef.current) {
+        setTimeout(() => {
+          if (graphRef.current) {
+            graphRef.current.zoomToFit();
+          }
+        }, 200);
+      }
+    }, [graphModalVisible]);
 
     // 切换表格折叠状态
     const toggleTableCollapse = (tableIndex: number) => {
@@ -199,6 +231,87 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
       }
     };
 
+    // 添加获取模块导航路径的函数
+    const findModulePath = (modules: ModuleStructureNode[], targetId: number): string => {
+      const findPath = (nodes: ModuleStructureNode[], id: number, path: string[] = []): string[] | null => {
+        for (const node of nodes) {
+          // 尝试当前节点路径
+          const currentPath = [...path, node.name];
+          
+          // 如果找到目标节点，返回路径
+          if (node.id === id) {
+            return currentPath;
+          }
+          
+          // 如果有子节点，递归搜索
+          if (node.children && node.children.length > 0) {
+            const foundPath = findPath(node.children, id, currentPath);
+            if (foundPath) {
+              return foundPath;
+            }
+          }
+        }
+        
+        // 没找到返回null
+        return null;
+      };
+      
+      const result = findPath(modules, targetId);
+      return result ? result.join(' > ') : '';
+    };
+    
+    // 添加获取模块功能概述的函数
+    const fetchModuleOverview = async (moduleId: number) => {
+      if (moduleOverviewMap[moduleId] !== undefined && modulePathMap[moduleId]) return; // 已经获取过
+      
+      try {
+        setLoadingModuleInfo(prev => ({ ...prev, [moduleId]: true }));
+        
+        // 获取模块功能概述
+        const moduleContent = await fetchModuleContent(moduleId);
+        setModuleOverviewMap(prev => ({ 
+          ...prev, 
+          [moduleId]: moduleContent.overview_text || '暂无功能概述'
+        }));
+        
+        // 获取完整模块树以查找模块完整路径
+        if (!modulePathMap[moduleId]) {
+          try {
+            const treeResponse = await fetchModuleTree();
+            const fullPath = findModulePath(treeResponse.items, moduleId);
+            
+            setModulePathMap(prev => ({ 
+              ...prev, 
+              [moduleId]: fullPath || '无法获取导航路径'
+            }));
+          } catch (error) {
+            console.error(`获取模块 ${moduleId} 导航路径失败:`, error);
+            setModulePathMap(prev => ({ 
+              ...prev, 
+              [moduleId]: '获取导航路径失败'
+            }));
+          }
+        }
+      } catch (error) {
+        console.error(`获取模块 ${moduleId} 功能概述失败:`, error);
+        setModuleOverviewMap(prev => ({ 
+          ...prev, 
+          [moduleId]: '获取功能概述失败'
+        }));
+      } finally {
+        setLoadingModuleInfo(prev => ({ ...prev, [moduleId]: false }));
+      }
+    };
+    
+    // 处理模块标签的悬停事件
+    const handleModuleTagHover = (moduleId: number) => {
+      // 不再在这里设置路径，而是在fetchModuleOverview中一并处理
+      if (moduleOverviewMap[moduleId] === undefined || !modulePathMap[moduleId]) {
+        // 异步获取模块功能概述和路径
+        fetchModuleOverview(moduleId);
+      }
+    };
+
     // 定义加载内容的函数
     const loadContent = async () => {
       try {
@@ -208,7 +321,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
         
         // 初始化各部分状态
         setOverviewText(moduleContent.overview_text || '');
-        setPrincipleText(moduleContent.principle_text || '');
+        setDetailsText(moduleContent.details_text || '');
         setDiagramPath(moduleContent.diagram_image_path || '');
         
         // 处理数据库表数据，兼容旧格式
@@ -318,7 +431,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
       loadContent();
     }, [moduleNodeId]);
 
-    // 获取关联模块的详细信息
+    // 在关联模块数据加载完成后
     useEffect(() => {
       const loadRelatedModules = async () => {
         if (relatedModuleIds.length === 0) {
@@ -440,7 +553,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
     // 当内容变更时更新填充状态
     useEffect(() => {
       updateSectionsFilled();
-    }, [overviewText, diagramPath, principleText, databaseTables, relatedModuleIds, apiInterfaces]);
+    }, [overviewText, diagramPath, detailsText, databaseTables, relatedModuleIds, apiInterfaces]);
 
     // 暴露接口给父组件
     useImperativeHandle(ref, () => ({
@@ -460,7 +573,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
         // 构建保存数据对象，并转换 apiInterfaces 为 ApiInterface[] 类型
         const contentData = {
           overview_text: overviewText,
-          principle_text: principleText,
+          details_text: detailsText,
           diagram_image_path: diagramPath,
           database_tables_json: databaseTables,
           related_module_ids_json: relatedModuleIds,
@@ -518,7 +631,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
         case 'diagram':
           return !!diagramPath;
         case 'keyTech':
-          return !!principleText && principleText.trim().length > 0;
+          return !!detailsText && detailsText.trim().length > 0;
         case 'database':
           return databaseTables.length > 0;
         case 'related':
@@ -629,14 +742,14 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
             
             {isEditMode ? (
               <OverviewSection 
-                value={principleText} 
-                onChange={setPrincipleText} 
+                value={detailsText} 
+                onChange={setDetailsText} 
               />
             ) : (
               <div className="section-content">
-                {principleText ? (
+                {detailsText ? (
                   <MdPreview
-                    modelValue={principleText}
+                    modelValue={detailsText}
                     previewTheme="github"
                     style={{ background: 'transparent' }}
                     id={getViewerId('principle', moduleNodeId)}
@@ -890,7 +1003,19 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
           
           {/* 关联模块 */}
           <div id="section-related" className="content-section" ref={relatedRef}>
-            <Title level={4} className="section-title">关联模块</Title>
+            <div className="section-title-container api-section-header">
+              <div className="section-title-with-button">
+                <Title level={4} className="section-title">关联模块</Title>
+                <Button
+                  type="primary"
+                  className="graph-modal-button"
+                  icon={<NodeIndexOutlined />}
+                  onClick={() => setGraphModalVisible(true)}
+                >
+                  关联关系图谱
+                </Button>
+              </div>
+            </div>
             <Divider className="section-divider" />
             
             {isEditMode ? (
@@ -901,12 +1026,57 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
             ) : (
               <div className="section-content">
                 {relatedModuleIds.length > 0 ? (
-                  <div className="related-modules-tags">
-                    {relatedModules.map(module => (
-                      <Tag key={module.id} color="blue" className="module-tag">
-                        {module.name}
-                      </Tag>
-                    ))}
+                  <div className="related-modules-viewer">
+                    {/* 只保留标签视图和图谱关系按钮 */}
+                    <div className="related-modules-group">
+                      <div className="related-modules-tags">
+                        {relatedModules.map(module => (
+                          <Tooltip
+                            key={module.id}
+                            title={
+                              <div className="module-tooltip-content">
+                                <div className="module-tooltip-title">{module.name}</div>
+                                <div className="module-tooltip-path">
+                                  <span className="tooltip-label">导航路径：</span>
+                                  {modulePathMap[module.id] || '加载中...'}
+                                </div>
+                                <div className="module-tooltip-overview">
+                                  <span className="tooltip-label">功能概述：</span>
+                                  {loadingModuleInfo[module.id] ? (
+                                    <span>加载中...</span>
+                                  ) : (
+                                    <div className="overview-content">
+                                      {moduleOverviewMap[module.id] ? 
+                                        moduleOverviewMap[module.id] : 
+                                        '加载中...'}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            }
+                            color="#1f1f1f"
+                            overlayClassName="module-detailed-tooltip"
+                            onVisibleChange={(visible) => {
+                              if (visible) {
+                                handleModuleTagHover(module.id);
+                              }
+                            }}
+                          >
+                            <Tag 
+                              key={module.id} 
+                              color="blue"
+                              className="module-tag module-tag-interactive"
+                              icon={<FileTextOutlined />}
+                              onClick={() => {
+                                window.location.href = `/module-content/${module.id}`;
+                              }}
+                            >
+                              <span className="module-tag-text">{module.name}</span>
+                            </Tag>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="empty-content" onClick={handleEmptyContentClick}>暂无关联模块，点击"编辑"添加</div>
@@ -964,6 +1134,26 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
             )}
           </div>
         </div>
+
+        {/* 图谱关系Modal */}
+        <Modal
+          title="模块关系图谱"
+          open={graphModalVisible}
+          onCancel={handleGraphModalClose}
+          width="80%"
+          footer={null}
+          className="module-graph-modal"
+        >
+          <div className="module-graph-container">
+            <ModuleGraph
+              ref={graphRef}
+              currentModuleId={moduleNodeId}
+              onNodeClick={(moduleId) => {
+                window.location.href = `/module-content/${moduleId}`;
+              }}
+            />
+          </div>
+        </Modal>
       </div>
     );
   }

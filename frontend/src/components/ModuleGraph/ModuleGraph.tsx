@@ -1,0 +1,394 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState, useImperativeHandle, forwardRef } from 'react';
+import ForceGraph2D from 'react-force-graph-2d';
+import { ModuleStructureNode } from '../../types/modules';
+import { fetchModuleTree, fetchModuleContent } from '../../apis/moduleService';
+import { Tooltip, Button, Spin } from 'antd';
+import './ModuleGraph.css';
+import { AimOutlined, LinkOutlined } from '@ant-design/icons';
+
+interface ModuleGraphProps {
+  currentModuleId: number;
+  onNodeClick: (moduleId: number) => void;
+}
+
+interface GraphNode {
+  id: number;
+  name: string;
+  isCurrentModule: boolean;
+  isContentPage: boolean;
+  overview?: string;
+  path?: string;
+  val?: number;  // 添加val属性
+  x?: number;  // 节点x坐标
+  y?: number;  // 节点y坐标
+}
+
+interface GraphLink {
+  source: number;
+  target: number;
+  isRelated?: boolean;
+}
+
+interface ModuleGraphRef {
+  zoomToFit: () => void;
+  resetAutoFit: () => void;
+}
+
+const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModuleId, onNodeClick }, ref) => {
+  const [graphData, setGraphData] = useState<{ nodes: GraphNode[], links: GraphLink[] }>({ nodes: [], links: [] });
+  const [loading, setLoading] = useState(true);
+  const [showOnlyRelated, setShowOnlyRelated] = useState(false);
+  const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+  const [highlightedNodeId, setHighlightedNodeId] = useState<number | null>(null);
+  const [pulseFrame, setPulseFrame] = useState(0);
+  const graphRef = useRef<any>();
+  const hasAutoFitted = useRef(false);
+  const pulseAnimRef = useRef<number>();
+
+  // 将模块树转换为图形数据
+  const convertToGraphData = useCallback(async (modules: ModuleStructureNode[]) => {
+    const nodes: GraphNode[] = [];
+    const links: GraphLink[] = [];
+    const processedIds = new Set<number>();
+
+    // 递归处理节点
+    const processNode = (node: ModuleStructureNode, parentId?: number) => {
+      if (processedIds.has(node.id)) return;
+      processedIds.add(node.id);
+
+      // 添加节点
+      nodes.push({
+        id: node.id,
+        name: node.name,
+        isContentPage: node.is_content_page,
+        isCurrentModule: node.id === currentModuleId,
+        val: 1  // 添加基础大小
+      });
+
+      // 如果有父节点，添加连接
+      if (parentId !== undefined) {
+        links.push({
+          source: parentId,
+          target: node.id
+        });
+      }
+
+      // 处理子节点
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => processNode(child, node.id));
+      }
+    };
+
+    // 处理所有顶级节点
+    modules.forEach(node => processNode(node));
+
+    // 获取关联模块的连接
+    if (currentModuleId) {
+      try {
+        const moduleContent = await fetchModuleContent(currentModuleId);
+        const relatedModuleIds = moduleContent.related_module_ids_json || [];
+        
+        // 为每个关联模块添加连接
+        relatedModuleIds.forEach(relatedId => {
+          if (!processedIds.has(relatedId)) {
+            // 如果关联模块不在当前树中，添加它
+            nodes.push({
+              id: relatedId,
+              name: `模块${relatedId}`,
+              isContentPage: true,
+              isCurrentModule: false,
+              val: 1  // 添加基础大小
+            });
+          }
+          
+          // 添加关联连接
+          links.push({
+            source: currentModuleId,
+            target: relatedId,
+            isRelated: true
+          });
+        });
+      } catch (error) {
+        console.error('获取关联模块失败:', error);
+      }
+    }
+
+    return { nodes, links };
+  }, [currentModuleId]);
+
+  // 加载图形数据
+  useEffect(() => {
+    let isMounted = true;  // 添加组件挂载状态检查
+
+    const loadGraphData = async () => {
+      setLoading(true);
+      try {
+        const response = await fetchModuleTree();
+        if (!isMounted) return;  // 如果组件已卸载，不继续执行
+        
+        const { nodes, links } = await convertToGraphData(response.items);
+        if (!isMounted) return;  // 再次检查组件是否已卸载
+        
+        setGraphData({ nodes, links });
+      } catch (error) {
+        console.error('Failed to load graph data:', error);
+      } finally {
+        if (isMounted) {  // 只在组件仍然挂载时更新状态
+          setLoading(false);
+        }
+      }
+    };
+
+    loadGraphData();
+
+    // 清理函数
+    return () => {
+      isMounted = false;
+    };
+  }, [convertToGraphData]);
+
+  // 过滤只显示关联节点
+  const filteredGraphData = useMemo(() => {
+    if (!showOnlyRelated) return graphData;
+
+    const relatedNodeIds = new Set<number>();
+    // 兼容source/target为对象或数字
+    const getId = (v: any) => (typeof v === 'object' && v !== null ? v.id : v);
+    const relatedLinks = graphData.links.filter(link => 
+      getId(link.source) === currentModuleId || getId(link.target) === currentModuleId
+    );
+
+    relatedLinks.forEach(link => {
+      relatedNodeIds.add(getId(link.source));
+      relatedNodeIds.add(getId(link.target));
+    });
+
+    // 先过滤节点
+    const visibleNodes = graphData.nodes.filter(node => 
+      relatedNodeIds.has(node.id) && (node.isContentPage || node.id === currentModuleId)
+    );
+    const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
+    // 再过滤连线
+    const visibleLinks = relatedLinks.filter(link => 
+      visibleNodeIds.has(getId(link.source)) && visibleNodeIds.has(getId(link.target))
+    );
+    return {
+      nodes: visibleNodes,
+      links: visibleLinks
+    };
+  }, [graphData, showOnlyRelated, currentModuleId]);
+
+  // 暴露给父组件的zoomToFit方法，支持动态padding
+  const zoomToFit = useCallback((duration = 400) => {
+    if (graphRef.current) {
+      // 动态padding：节点少时padding大，节点多时padding小
+      let padding = 40;
+      const nodes = filteredGraphData.nodes;
+      const nodeCount = nodes.length;
+      if (nodeCount <= 3) padding = 400;
+      else if (nodeCount <= 6) padding = 400;
+      else if (nodeCount <= 12) padding = 300;
+      // 只用zoomToFit，不再centerAt
+      graphRef.current.zoomToFit(duration, padding);
+    }
+  }, [filteredGraphData.nodes]);
+
+  // 暴露给父组件的重置方法（可选）
+  useImperativeHandle(ref, () => ({
+    zoomToFit: () => zoomToFit(400),
+    resetAutoFit: () => { hasAutoFitted.current = false; }
+  }));
+
+  // 脉冲动画驱动
+  useEffect(() => {
+    if (highlightedNodeId) {
+      let start = Date.now();
+      const animate = () => {
+        setPulseFrame(Date.now() - start);
+        pulseAnimRef.current = requestAnimationFrame(animate);
+      };
+      pulseAnimRef.current = requestAnimationFrame(animate);
+      return () => {
+        if (pulseAnimRef.current) cancelAnimationFrame(pulseAnimRef.current);
+      };
+    }
+  }, [highlightedNodeId]);
+
+  // 自定义节点渲染
+  const nodeCanvasObject = useCallback((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const label = node.name;
+    const fontSize = 12/globalScale;
+    ctx.font = `${fontSize}px Sans-Serif`;
+    const textWidth = ctx.measureText(label).width;
+    const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
+
+    // 脉冲高亮动画
+    if (node.id === highlightedNodeId) {
+      const t = (pulseFrame % 1000) / 1000; // 0~1周期
+      const pulseRadius = 5 + 5 * Math.abs(Math.sin(t * Math.PI));
+      const pulseAlpha = 0.5 + 0.3 * Math.abs(Math.sin(t * Math.PI));
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(node.x!, node.y!, pulseRadius, 0, 2 * Math.PI, false);
+      ctx.strokeStyle = '#faad14';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#ffd666';
+      ctx.shadowBlur = 12;
+      ctx.globalAlpha = pulseAlpha;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 设置节点样式
+    ctx.fillStyle = node.isCurrentModule ? '#1890ff' : 
+                   node.isContentPage ? '#52c41a' : '#d9d9d9';
+    ctx.beginPath();
+    ctx.arc(node.x!, node.y!, 5, 0, 2 * Math.PI, false);
+    ctx.fill();
+
+    // 绘制标签背景
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.fillRect(
+      node.x! - bckgDimensions[0] / 2,
+      node.y! + 8,
+      bckgDimensions[0],
+      bckgDimensions[1]
+    );
+
+    // 绘制标签文本
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000';
+    ctx.fillText(
+      label,
+      node.x!,
+      node.y! + 8 + bckgDimensions[1] / 2
+    );
+  }, [highlightedNodeId, pulseFrame]);
+
+  // 自定义连接渲染
+  const linkCanvasObject = useCallback((link: GraphLink, ctx: CanvasRenderingContext2D) => {
+    // 已去除坐标轴和原点十字渲染
+    const { source, target, isRelated } = link as any;
+    const start = { x: source.x, y: source.y };
+    const end = { x: target.x, y: target.y };
+
+    // 设置连接样式
+    ctx.strokeStyle = isRelated ? '#1890ff' : '#d9d9d9';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+
+    // 绘制连接线
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+  }, []);
+
+  // 节点点击事件
+  const handleNodeClick = useCallback((node: GraphNode) => {
+    if (node.isContentPage) {
+      onNodeClick(node.id);
+    }
+    // 非内容节点不跳转
+  }, [onNodeClick]);
+
+  // 处理节点悬停
+  const handleNodeHover = useCallback((node: any) => {
+    setHoveredNode(node);
+  }, []);
+
+  // 新增：定位到当前模块节点的方法
+  const locateCurrentModule = useCallback(() => {
+    // 直接合并缩放与居中动画为一个过程
+    const nodes = filteredGraphData.nodes;
+    const currentNode = nodes.find(n => n.id === currentModuleId);
+    if (currentNode && typeof currentNode.x === 'number' && typeof currentNode.y === 'number') {
+      graphRef.current?.centerAt(currentNode.x, currentNode.y, 600, 1.2); // 600ms动画，缩放到1.2倍
+    }
+    // 高亮当前节点
+    setHighlightedNodeId(currentModuleId);
+    setTimeout(() => setHighlightedNodeId(null), 1500);
+  }, [filteredGraphData.nodes, currentModuleId, zoomToFit]);
+
+  return (
+    <div className="module-graph-container">
+      <div className="module-graph-controls">
+        <Button
+          type={showOnlyRelated ? 'primary' : 'default'}
+          onClick={() => setShowOnlyRelated(!showOnlyRelated)}
+          className="control-button"
+          icon={<LinkOutlined />}
+        >
+          {showOnlyRelated ? '查看所有关联' : '仅查看当前模块关联'}
+        </Button>
+        {/* 所有模式下都显示定位按钮 */}
+        <Button
+          className="control-button"
+          icon={<AimOutlined />}
+          onClick={locateCurrentModule}
+        >
+          定位当前模块
+        </Button>
+      </div>
+      {loading ? (
+        <div className="module-graph-loading">
+          <Spin />
+        </div>
+      ) : (
+        <div className="module-graph-wrapper">
+          <ForceGraph2D
+            ref={graphRef}
+            graphData={filteredGraphData}
+            nodeCanvasObject={nodeCanvasObject}
+            linkCanvasObject={linkCanvasObject}
+            nodeRelSize={6}
+            linkWidth={1}
+            onNodeClick={handleNodeClick}
+            onNodeHover={handleNodeHover}
+            cooldownTicks={100}
+            onEngineStop={() => {
+              if (!hasAutoFitted.current) {
+                const nodes: GraphNode[] = filteredGraphData.nodes || [];
+                console.log('onEngineStop 节点坐标:', nodes.map((n: GraphNode) => ({ id: n.id, x: n.x, y: n.y })));
+                const allValid = nodes.length > 0 && nodes.every((n: GraphNode) => typeof n.x === 'number' && typeof n.y === 'number');
+                if (allValid) {
+                  zoomToFit(400);
+                  hasAutoFitted.current = true;
+                } else {
+                  console.warn('节点坐标无效，未自动缩放');
+                }
+              }
+            }}
+            linkDirectionalParticles={2}
+            linkDirectionalParticleSpeed={0.003}
+            linkDirectionalParticleWidth={4}
+            linkDirectionalParticleColor={link => link.isRelated ? '#1890ff' : '#d9d9d9'}
+          />
+          {/* 图例 */}
+          <div className="module-graph-legend">
+            <div className="legend-title">说明</div>
+            <div className="legend-row">
+              <span className="legend-dot legend-dot-blue" /> 当前模块
+            </div>
+            <div className="legend-row">
+              <span className="legend-dot legend-dot-green" /> 内容页面
+            </div>
+            <div className="legend-row">
+              <span className="legend-dot legend-dot-gray" /> 结构/目录节点
+            </div>
+            <div className="legend-row">
+              <span className="legend-line legend-line-blue" /> 关联关系
+            </div>
+            <div className="legend-row">
+              <span className="legend-line legend-line-gray" /> 结构/父子关系
+            </div>
+            <div className="legend-desc">查看全部节点时，只会展示与当前页面有关联的关联关系</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+export default ModuleGraph; 

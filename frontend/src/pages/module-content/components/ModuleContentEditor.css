@@ -637,7 +637,7 @@ div.markdown-content p:last-child {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 15px 0;
+  padding: 10px 0;
 }
 
 .module-tag {
@@ -645,6 +645,108 @@ div.markdown-content p:last-child {
   margin: 0;
   font-size: 14px;
   border-radius: 4px;
+}
+
+/* 关联模块阅读视图增强样式 */
+.related-modules-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.related-modules-group {
+  margin-bottom: 15px;
+}
+
+.related-modules-group-title {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+/* 增强型可交互标签 */
+.module-tag-interactive {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(24, 144, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.module-tag-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-color: rgba(24, 144, 255, 0.4);
+}
+
+.module-tag-text {
+  margin-left: 2px;
+}
+
+/* 提示框样式 */
+.module-detailed-tooltip .ant-tooltip-inner {
+  min-width: 250px;
+  padding: 12px;
+}
+
+.module-tooltip-content {
+  font-size: 13px;
+}
+
+.module-tooltip-title {
+  font-weight: 500;
+  font-size: 15px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 5px;
+}
+
+.module-tooltip-path, 
+.module-tooltip-meta,
+.module-tooltip-overview {
+  margin-top: 5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.module-tooltip-overview {
+  margin-top: 8px;
+}
+
+.overview-content {
+  margin-top: 3px;
+  line-height: 1.6;
+  white-space: pre-line;
+  max-height: 120px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.tooltip-label {
+  opacity: 0.8;
+  margin-right: 5px;
+  font-weight: 500;
+}
+
+/* 滚动条样式 */
+.overview-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.overview-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.overview-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.overview-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 /* 编辑模式下的标签容器 */
@@ -909,4 +1011,143 @@ div.markdown-content p:last-child {
   border-color: #1890ff;
   color: #1890ff;
   cursor: pointer;
-} 
+}
+
+/* 关系图谱部分样式 */
+.module-graph-section {
+  width: 100%;
+  height: 500px;
+  margin-bottom: 24px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* 调整关联模块查看器样式 */
+.related-modules-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 确保标签容器样式正确 */
+.related-modules-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+/* 图谱关系按钮样式 */
+.section-title-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f0f5ff;
+  padding: 12px 16px;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border: 1px solid #d6e4ff;
+  border-bottom: none;
+}
+
+.graph-button {
+  margin-left: 16px;
+}
+
+/* 图谱关系Modal样式 */
+.module-graph-modal .ant-modal-content {
+  padding: 0;
+  overflow: hidden;
+}
+
+.module-graph-modal .ant-modal-header {
+  margin-bottom: 0;
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.module-graph-modal .ant-modal-body {
+  padding: 0;
+  height: calc(80vh - 55px);
+}
+
+.module-graph-container {
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  position: relative;
+  background: #fff;
+}
+
+/* 视图模式切换按钮样式 */
+.view-mode-switch {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 0 10px;
+}
+
+.mode-switch-button {
+  min-width: 100px;
+}
+
+/* 关联模块部分样式 */
+#section-related .section-title {
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: #f0f5ff;
+  color: #222 !important;
+  font-weight: 600;
+}
+
+/* 图谱视图样式 */
+.module-graph-section {
+  width: 100%;
+  height: 500px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* 移除旧的样式 */
+/* .section-title-container, */
+.graph-button {
+  display: none;
+}
+
+.section-title-with-button {
+  display: flex;
+  align-items: center;
+}
+
+.section-title-with-button .section-title {
+  display: inline-block;
+  width: auto !important;
+  max-width: none !important;
+  margin-bottom: 0 !important;
+  background-color: #f0f5ff;
+  border: none !important;
+  border-radius: 0 !important;
+  color: #222 !important;
+  font-weight: 600;
+  padding: 0;
+}
+
+.section-title-with-button .graph-modal-button {
+  margin-left: 20px;
+  background: #fa8c16;
+  border-color: #fa8c16;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(250,140,22,0.08);
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.section-title-with-button .graph-modal-button:hover,
+.section-title-with-button .graph-modal-button:focus {
+  background: #d46b08 !important;
+  border-color: #d46b08 !important;
+  color: #fff !important;
+}

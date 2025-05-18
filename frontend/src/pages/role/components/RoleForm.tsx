@@ -521,7 +521,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
               title="权限分配" 
               className="permissions-card"
               bodyStyle={{ 
-                height: '650px', 
+                height: '560px', 
                 overflowY: 'auto', 
                 padding: '0',
               }}
@@ -568,7 +568,7 @@ const RoleForm: React.FC<RoleFormProps> = ({
         </Row>
         
         {/* 在表单底部添加按钮 */}
-        <Row justify="end" style={{ marginTop: '20px' }}>
+        <Row justify="end" style={{ marginTop: '12px' }}>
           <Col>
             <Form.Item style={{ marginBottom: 0 }}>
               <Space>

@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",
+    "@antv/g6": "^5.0.47",
+    "@antv/graphin": "^3.0.5",
+    "@antv/graphin-components": "^2.4.1",
     "@types/react-transition-group": "^4.4.12",
     "antd": "^5.12.2",
     "axios": "^1.6.2",

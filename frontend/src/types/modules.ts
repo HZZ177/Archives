@@ -113,7 +113,7 @@ export interface ModuleContent {
   overview_text?: string;
   diagram_image_path?: string;
   key_tech_items_json?: KeyTechItem[];
-  principle_text?: string;
+  details_text?: string;
   database_tables_json?: DatabaseTable[];
   related_module_ids_json?: number[];
   api_interfaces_json?: ApiInterface[];
@@ -135,7 +135,7 @@ export interface ModuleStructureNodeRequest {
 export interface ModuleContentRequest {
   overview_text?: string;
   key_tech_items_json?: KeyTechItem[];
-  principle_text?: string;
+  details_text?: string;
   database_tables_json?: DatabaseTable[];
   related_module_ids_json?: number[];
   api_interfaces_json?: ApiInterface[];
