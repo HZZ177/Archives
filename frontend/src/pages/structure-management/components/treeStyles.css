@@ -5,6 +5,8 @@
   height: 100%;
   overflow: auto;
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .tree-header {
@@ -119,50 +121,63 @@
 /* 树节点自定义样式 */
 .tree-node-wrapper {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  width: calc(100% - 10px); /* 填满可用空间但保留一些间距 */
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 4px 8px;
   border-radius: 4px;
   transition: all 0.3s ease;
   position: relative;
   height: 32px;
-  overflow: visible; /* 改为可见，确保操作按钮不被截断 */
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding-right: 100px; /* 增加右侧内边距，为按钮预留足够空间 */
   cursor: pointer;
-  z-index: 1; /* 确保在正确的层级 */
+  z-index: 1;
+}
+
+.ant-tree-title {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.ant-tree-node-content-wrapper {
+  width: 100%;
+  display: flex;
+  align-items: center;
 }
 
 /* 节点操作按钮区 - 始终可见，放置在树区域右侧固定位置 */
 .node-actions {
   display: flex;
   gap: 4px;
-  opacity: 1; /* 始终可见 */
+  opacity: 1;
   position: absolute;
-  right: 8px; /* 调整为在容器内侧边缘 */
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
-  background-color: rgba(255, 255, 255, 0.85); /* 提高不透明度 */
+  background-color: rgba(255, 255, 255, 0.85);
   border-radius: 4px;
-  padding: 2px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* 弱化阴影 */
-  z-index: 10; /* 提高层级，确保按钮始终在最上层 */
-  height: 28px; /* 设置固定高度，与节点高度接近 */
+  padding: 2px 8px 2px 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+  height: 28px;
   align-items: center;
-  justify-content: flex-end; /* 添加此属性，确保按钮靠右对齐 */
-  will-change: transform; /* 优化动画性能 */
-  transition: none; /* 禁用过渡效果，避免按钮跟随树节点动画 */
-  pointer-events: auto; /* 确保可点击 */
-  max-width: 70px; /* 限制最大宽度 */
-  width: auto; /* 使用自动宽度替代固定最小宽度 */
+  justify-content: flex-end;
+  will-change: transform;
+  transition: none;
+  pointer-events: auto;
+  max-width: 120px;
+  width: auto;
 }
 
 /* 内容页面节点的操作按钮区样式 */
 .content-node-actions {
-  max-width: 35px; /* 只有一个按钮时的合适宽度 */
-  width: 35px; /* 固定宽度 */
+  max-width: 85px;
+  width: 85px;
 }
 
 /* 确保按钮区域在树节点变化过程中保持稳定 */
@@ -432,4 +447,170 @@
 .content-placeholder li {
   margin-bottom: 6px;
   color: #555;
+} 
+
+/* 拖拽指示线样式增强 */
+.ant-tree .ant-tree-node-content-wrapper.ant-tree-node-content-wrapper-open.drop-target::before,
+.ant-tree .ant-tree-node-content-wrapper.ant-tree-node-content-wrapper-close.drop-target::before {
+  background-color: #1890ff;
+  height: 2px;
+  opacity: 1;
+}
+
+/* 被拖动的节点样式 */
+.ant-tree-node-content-wrapper.ant-tree-draggable-icon.dragging {
+  background-color: rgba(24, 144, 255, 0.1);
+  border: 1px dashed #1890ff;
+  opacity: 0.8;
+}
+
+/* 拖动时的放置指示器增强 */
+.ant-tree-drop-indicator {
+  background-color: #1890ff !important;
+  height: 2px !important;
+  width: 100%;
+  opacity: 1 !important;
+  animation: pulse 1.5s infinite;
+}
+
+/* 拖动指示器的闪烁动画 */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(24, 144, 255, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(24, 144, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(24, 144, 255, 0);
+  }
+}
+
+/* 目标位置突出显示 */
+.ant-tree-treenode.drop-target {
+  background-color: rgba(24, 144, 255, 0.1);
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+/* 拖动时，其他节点的挤开效果 */
+.ant-tree-treenode.ant-drop-hover {
+  transform: translateX(8px); /* 节点移动效果 */
+  transition: transform 0.2s ease-in-out;
+}
+
+/* 被拖动节点在悬停状态下的样式 */
+.ant-tree-treenode.dragging {
+  background-color: rgba(24, 144, 255, 0.1);
+  opacity: 0.7;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0 0 10px rgba(24, 144, 255, 0.3);
+}
+
+/* 拖动中，可放置区域显示更明显的分隔线 */
+.ant-tree-indent-unit::before {
+  height: 100%;
+  transition: background-color 0.3s;
+}
+
+/* 改进节点之间间距，使拖动排序更直观 */
+.ant-tree-node-content-wrapper {
+  padding: 8px 8px;
+  transition: all 0.3s;
+}
+
+/* 特殊处理第一个节点的拖放指示器 */
+.ant-tree-list .first-node-indicator {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-color: #1890ff;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* 当拖动到第一个节点上方时显示指示器 */
+.ant-tree-list.drag-over-first-node .first-node-indicator {
+  opacity: 1;
+}
+
+/* 确保第一个节点上方有足够的空间用于放置 */
+.ant-tree-list > div:first-child {
+  padding-top: 6px !important;
+  margin-top: 2px;
+}
+
+/* 自定义拖拽时全局指示器，确保放置到第一个位置也有视觉反馈 */
+.tree-container.dragging:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background-color: transparent;
+  transition: background-color 0.2s ease;
+  z-index: 100;
+}
+
+.tree-container.dragging.first-position:before {
+  background-color: #1890ff;
+  box-shadow: 0 0 10px rgba(24, 144, 255, 0.5);
+}
+
+/* 拖拽手柄样式 */
+.ant-tree .ant-tree-draggable-icon {
+  cursor: move;
+  color: rgba(0, 0, 0, 0.45);
+  transition: color 0.3s;
+}
+
+.ant-tree .ant-tree-draggable-icon:hover {
+  color: #1890ff;
+}
+
+/* 拖拽进行时的视觉指示 */
+.tree-container.dragging-active * {
+  pointer-events: none;
+}
+
+/* 拖动手柄样式 */
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  cursor: move;
+  color: rgba(0, 0, 0, 0.45);
+  transition: all 0.2s;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+
+.drag-handle:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #1890ff;
+}
+
+/* 拖动时的节点样式 */
+.tree-node-wrapper.dragging {
+  background-color: rgba(24, 144, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+  border: 1px dashed #1890ff;
+}
+
+/* 节点内容区域 */
+.node-content {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 100px;
+  display: flex;
+  align-items: center;
 } 

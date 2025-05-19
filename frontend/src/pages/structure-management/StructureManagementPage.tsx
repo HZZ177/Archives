@@ -40,7 +40,7 @@ const StructureManagementPage: React.FC = React.memo(() => {
       setLoading(true);
       // 明确使用ModuleContext，避免不必要的请求
       console.log('StructureManagementPage: 加载模块树 (通过ModuleContext)');
-      await fetchModules(false); // 使用缓存数据
+      await fetchModules(true); // 强制刷新数据，不使用缓存
       setLoading(false);
       
       // 如果URL中有nodeId参数，加载该节点信息

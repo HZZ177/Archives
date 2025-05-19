@@ -10,7 +10,8 @@ from backend.app.schemas.module_structure import (
     ModuleStructureNodeCreate,
     ModuleStructureNodeResponse,
     ModuleStructureNodeUpdate,
-    ModuleTreeResponse
+    ModuleTreeResponse,
+    ModuleStructureNodeOrderUpdate
 )
 from backend.app.schemas.response import APIResponse
 from backend.app.services.module_structure_service import module_structure_service
@@ -132,4 +133,24 @@ async def delete_module_node(
         return error_response(message=e.detail)
     except Exception as e:
         logger.error(f"删除模块节点失败: {str(e)}")
-        return error_response(message=f"删除模块节点失败: {str(e)}") 
+        return error_response(message=f"删除模块节点失败: {str(e)}")
+
+
+@router.post("/update-order/{node_id}", response_model=APIResponse[ModuleStructureNodeResponse])
+async def update_node_order(
+        node_id: int,
+        order_data: ModuleStructureNodeOrderUpdate,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    更新模块结构节点的排序顺序
+    """
+    try:
+        node = await module_structure_service.update_node_order(db, node_id, order_data.order_index, current_user)
+        return success_response(data=node, message="节点顺序更新成功")
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"更新节点顺序失败: {str(e)}")
+        return error_response(message=f"更新节点顺序失败: {str(e)}") 

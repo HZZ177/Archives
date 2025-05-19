@@ -592,6 +592,70 @@ class ModuleStructureService:
             logger.error(f"为用户角色分配权限失败: {str(e)}")
             raise
 
+    async def update_node_order(
+        self,
+        db: AsyncSession,
+        node_id: int,
+        order_index: int,
+        user: User
+    ) -> Dict[str, Any]:
+        """
+        更新模块节点的排序顺序
+        
+        :param db: 数据库会话
+        :param node_id: 节点ID
+        :param order_index: 新的排序顺序值
+        :param user: 当前用户
+        :return: 更新后的节点信息
+        """
+        try:
+            # 获取节点
+            node = await module_structure_repository.get_by_id(db, node_id)
+            if not node:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="模块节点不存在"
+                )
+                
+            # 更新节点的order_index
+            update_data = {"order_index": order_index}
+            updated_node = await module_structure_repository.update_node(db, node, update_data)
+            
+            # 确保更改被提交到数据库
+            await db.commit()
+            logger.info(f"节点 {node_id} 顺序已更新为 {order_index}")
+            
+            # 查询是否有内容
+            content = await module_structure_repository.get_content_by_node_id(db, node_id)
+            has_content = content is not None
+            
+            # 构建响应
+            response = {
+                "id": updated_node.id,
+                "name": updated_node.name,
+                "parent_id": updated_node.parent_id,
+                "order_index": updated_node.order_index,
+                "user_id": updated_node.user_id,
+                "is_content_page": updated_node.is_content_page,
+                "created_at": updated_node.created_at,
+                "updated_at": updated_node.updated_at,
+                "children": [],  # 单个节点不包含子节点
+                "has_content": has_content,
+                "permission_id": updated_node.permission_id,
+                "workspace_id": updated_node.workspace_id
+            }
+            
+            return response
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"更新节点顺序失败: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"更新节点顺序失败: {str(e)}"
+            )
+
 
 # 创建模块结构服务实例
 module_structure_service = ModuleStructureService() 

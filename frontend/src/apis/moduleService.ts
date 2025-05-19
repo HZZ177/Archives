@@ -221,3 +221,19 @@ export const deleteDiagramImage = async (moduleNodeId: number): Promise<ModuleCo
   
   return unwrapResponse<ModuleContent>(response.data);
 }; 
+
+/**
+ * 更新节点排序顺序
+ * @param nodeId 节点ID
+ * @param orderIndex 新的顺序值
+ * @returns 更新后的节点
+ */
+export const updateNodeOrder = async (nodeId: number, orderIndex: number): Promise<ModuleStructureNode> => {
+  const response = await request.post<APIResponse<ModuleStructureNode>>(
+    `${API_MODULE_STRUCTURES}/update-order/${nodeId}`, 
+    { order_index: orderIndex }
+  );
+  // 更新顺序后清除缓存
+  invalidateModuleTreeCache();
+  return unwrapResponse<ModuleStructureNode>(response.data);
+}; 

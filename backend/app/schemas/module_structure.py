@@ -25,6 +25,11 @@ class ModuleStructureNodeUpdate(BaseModel):
     workspace_id: Optional[int] = None
 
 
+class ModuleStructureNodeOrderUpdate(BaseModel):
+    """更新模块结构节点顺序的请求模型"""
+    order_index: int
+
+
 class ModuleStructureNodeResponse(ModuleStructureNodeBase):
     """模块结构节点的响应模型"""
     id: int
