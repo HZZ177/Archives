@@ -5,6 +5,8 @@ import { ModuleStructureNode } from '../../types/modules';
 import { fetchModuleNode } from '../../apis/moduleService';
 import ModuleContentEditor, { ModuleContentEditorHandle } from './components/ModuleContentEditor';
 import SideNavigation from './components/SideNavigation';
+import { useWorkspaceContext } from '../../contexts/WorkspaceContext';
+import { Workspace } from '../../types/workspace';
 import './ModuleContentPage.css';
 
 const { Title } = Typography;
@@ -30,6 +32,8 @@ const ModuleContentPage: React.FC = () => {
   // 添加编辑状态相关状态
   const [isEditMode, setIsEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  // 获取工作区上下文
+  const { currentWorkspace, workspaces, setCurrentWorkspace } = useWorkspaceContext();
 
   useEffect(() => {
     const loadModuleNode = async () => {
@@ -39,6 +43,23 @@ const ModuleContentPage: React.FC = () => {
         setLoading(true);
         const node = await fetchModuleNode(parseInt(moduleId));
         setModuleNode(node);
+        
+        // 检查模块所属的工作区ID，如果与当前工作区不同，则切换工作区
+        if (node.workspace_id && currentWorkspace?.id !== node.workspace_id) {
+          console.log(`模块(ID:${node.id})所属工作区(ID:${node.workspace_id})与当前工作区(ID:${currentWorkspace?.id})不同，正在切换工作区...`);
+          
+          // 查找模块所属的工作区
+          const targetWorkspace = workspaces.find(w => w.id === node.workspace_id);
+          
+          if (targetWorkspace) {
+            // 切换到模块所属的工作区
+            setCurrentWorkspace(targetWorkspace);
+            console.log(`已切换到模块所属工作区: ${targetWorkspace.name}(ID:${targetWorkspace.id})`);
+          } else {
+            console.warn(`未找到模块所属的工作区(ID:${node.workspace_id})，无法切换工作区`);
+          }
+        }
+        
         setLoading(false);
       } catch (error) {
         console.error('加载模块节点信息失败:', error);
@@ -48,7 +69,7 @@ const ModuleContentPage: React.FC = () => {
     };
     
     loadModuleNode();
-  }, [moduleId, navigate]);
+  }, [moduleId, navigate, currentWorkspace, workspaces, setCurrentWorkspace]);
 
   // 处理导航点击
   const handleNavClick = (key: string) => {

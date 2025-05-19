@@ -80,7 +80,20 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
     // 选择工作区
     const workspace = workspaces.find(w => w.id.toString() === key);
     if (workspace) {
+      // 检查是否是不同的工作区
+      const isWorkspaceChanged = currentWorkspace.id !== workspace.id;
+      
+      // 切换工作区
       setCurrentWorkspace(workspace);
+      
+      // 如果工作区已更改，导航到首页
+      if (isWorkspaceChanged) {
+        console.log(`工作区已切换，导航到首页`);
+        // 使用timeout确保工作区状态更新后再导航
+        setTimeout(() => {
+          navigate(ROUTES.HOME);
+        }, 100);
+      }
     }
     setOpen(false);
   };

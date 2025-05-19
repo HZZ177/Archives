@@ -10,6 +10,8 @@ export interface ModuleStructureNode {
   children: ModuleStructureNode[];
   has_content: boolean;
   is_content_page: boolean;
+  workspace_id?: number | null; // 工作区ID
+  permission_id?: number | null; // 权限ID
 }
 
 // 数据库表字段类型

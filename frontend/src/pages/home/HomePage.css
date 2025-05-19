@@ -1,0 +1,30 @@
+.home-page-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.workspace-info-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.workspace-info-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.workspace-color-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.home-page-loading, .home-page-error {
+  text-align: center;
+  padding: 48px;
+  font-size: 16px;
+  color: rgba(0, 0, 0, 0.65);
+} 

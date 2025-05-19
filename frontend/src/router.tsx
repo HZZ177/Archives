@@ -17,6 +17,7 @@ const PermissionList = lazy(() => import('./pages/permission/PermissionList'));
 const StructureManagementPage = lazy(() => import('./pages/structure-management/StructureManagementPage'));
 const ModuleContentPage = lazy(() => import('./pages/module-content/ModuleContentPage'));
 const WorkspaceManagePage = lazy(() => import('./pages/workspace/WorkspaceManagePage'));
+const HomePage = lazy(() => import('./pages/home/HomePage'));
 
 // 加载指示器组件
 const LoadingComponent = () => (
@@ -38,9 +39,6 @@ const PrivateComponent = ({ component: Component }: { component: React.Component
     <SuspenseWrapper component={Component} />
   </PrivateRoute>
 );
-
-// 简单首页组件
-const HomePage = () => <div>首页内容</div>;
 
 // 无权限页面
 const NoPermissionPage = () => {
@@ -103,7 +101,7 @@ const router = createBrowserRouter([
         element: (
           <>
             <ScrollRestoration />
-            <HomePage />
+            <SuspenseWrapper component={HomePage} />
           </>
         )
       },
