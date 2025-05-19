@@ -11,7 +11,8 @@ from backend.app.schemas.module_structure import (
     ModuleStructureNodeResponse,
     ModuleStructureNodeUpdate,
     ModuleTreeResponse,
-    ModuleStructureNodeOrderUpdate
+    ModuleStructureNodeOrderUpdate,
+    ModuleStructureNodeOrderBatchUpdate
 )
 from backend.app.schemas.response import APIResponse
 from backend.app.services.module_structure_service import module_structure_service
@@ -153,4 +154,23 @@ async def update_node_order(
         return error_response(message=e.detail)
     except Exception as e:
         logger.error(f"更新节点顺序失败: {str(e)}")
-        return error_response(message=f"更新节点顺序失败: {str(e)}") 
+        return error_response(message=f"更新节点顺序失败: {str(e)}")
+
+
+@router.post("/batch-update-order", response_model=APIResponse[List[ModuleStructureNodeResponse]])
+async def batch_update_node_order(
+        order_data: ModuleStructureNodeOrderBatchUpdate,
+        db: Annotated[AsyncSession, Depends(get_db)],
+        current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    批量更新模块结构节点的排序顺序
+    """
+    try:
+        nodes = await module_structure_service.batch_update_node_order(db, order_data.updates, current_user)
+        return success_response(data=nodes, message="节点顺序批量更新成功")
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"批量更新节点顺序失败: {str(e)}")
+        return error_response(message=f"批量更新节点顺序失败: {str(e)}") 

@@ -30,6 +30,11 @@ class ModuleStructureNodeOrderUpdate(BaseModel):
     order_index: int
 
 
+class ModuleStructureNodeOrderBatchUpdate(BaseModel):
+    """批量更新模块结构节点顺序的请求模型"""
+    updates: List[dict]  # 每个更新项包含 node_id 和 order_index
+
+
 class ModuleStructureNodeResponse(ModuleStructureNodeBase):
     """模块结构节点的响应模型"""
     id: int

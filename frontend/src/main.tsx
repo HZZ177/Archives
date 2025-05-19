@@ -10,7 +10,10 @@ const root = ReactDOM.createRoot(
 
 // 渲染应用
 root.render(
-  <React.StrictMode>
+  /*
+  不能开启严格模式，否则会导致react-beautiful-dnd无法正常工作
+  */
+  //<React.StrictMode>
     <App />
-  </React.StrictMode>
+  //</React.StrictMode>
 ); 

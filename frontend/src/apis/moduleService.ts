@@ -236,4 +236,19 @@ export const updateNodeOrder = async (nodeId: number, orderIndex: number): Promi
   // 更新顺序后清除缓存
   invalidateModuleTreeCache();
   return unwrapResponse<ModuleStructureNode>(response.data);
+};
+
+/**
+ * 批量更新节点排序顺序
+ * @param updates 更新列表，每个项包含 node_id 和 order_index
+ * @returns 更新后的节点列表
+ */
+export const batchUpdateNodeOrder = async (updates: Array<{ node_id: number; order_index: number }>): Promise<ModuleStructureNode[]> => {
+  const response = await request.post<APIResponse<ModuleStructureNode[]>>(
+    `${API_MODULE_STRUCTURES}/batch-update-order`,
+    { updates }
+  );
+  // 更新顺序后清除缓存
+  invalidateModuleTreeCache();
+  return unwrapResponse<ModuleStructureNode[]>(response.data);
 }; 

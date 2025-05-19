@@ -1,18 +1,16 @@
 /* 结构树整体容器样式 */
 .structure-tree-container {
-  padding: 0;
-  position: relative;
-  height: 100%;
-  overflow: auto;
   width: 100%;
-  max-width: 100%;
+  height: 100%;
   overflow-x: hidden;
+  overflow-y: auto;
+  position: relative;
 }
 
 .tree-header {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: flex-end;
 }
 
 .add-root-button {
@@ -120,117 +118,146 @@
 
 /* 树节点自定义样式 */
 .tree-node-wrapper {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.3s ease;
   position: relative;
-  height: 32px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 8px 12px;
+  margin: 4px 0;
+  border-radius: 4px;
   cursor: pointer;
-  z-index: 1;
+  transition: all 0.3s;
+  user-select: none;
 }
 
-.ant-tree-title {
-  width: 100%;
-  display: flex;
-  align-items: center;
+.tree-node-wrapper:hover {
+  background-color: #f5f5f5;
 }
 
-.ant-tree-node-content-wrapper {
-  width: 100%;
-  display: flex;
-  align-items: center;
+.tree-node-wrapper.ant-tree-node-selected {
+  background-color: #e6f7ff;
 }
 
-/* 节点操作按钮区 - 始终可见，放置在树区域右侧固定位置 */
-.node-actions {
-  display: flex;
-  gap: 4px;
-  opacity: 1;
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  background-color: rgba(255, 255, 255, 0.85);
-  border-radius: 4px;
-  padding: 2px 8px 2px 2px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  z-index: 10;
-  height: 28px;
-  align-items: center;
-  justify-content: flex-end;
-  will-change: transform;
-  transition: none;
-  pointer-events: auto;
-  max-width: 120px;
-  width: auto;
+.tree-node-wrapper.dragging {
+  background-color: #f0f0f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* 内容页面节点的操作按钮区样式 */
-.content-node-actions {
-  max-width: 85px;
-  width: 85px;
-}
-
-/* 确保按钮区域在树节点变化过程中保持稳定 */
-.modern-tree .ant-tree-treenode-motion,
-.modern-tree .ant-tree-treenode-motion-expand {
-  overflow: visible !important;
-}
-
-/* 修复树动画过程中的按钮位置 */
-.modern-tree .ant-tree-list-holder-inner,
-.modern-tree .ant-tree-treenode,
-.modern-tree .ant-tree-node-content-wrapper {
-  overflow: visible !important;
-}
-
-/* 悬停时高亮按钮区域 */
-.node-actions:hover {
-  background-color: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* 操作按钮样式 */
-.node-action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  width: 24px; /* 调小按钮尺寸 */
-  height: 24px; /* 调小按钮尺寸 */
-  border-radius: 4px;
-  transition: all 0.2s;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.node-action-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+.tree-node-wrapper.dragging .drag-handle {
   color: #1890ff;
 }
 
-/* 空树状态样式 */
+.tree-node-wrapper.dragging.invalid-drop .drag-handle {
+  color: #ff4d4f;
+}
+
+.tree-node-wrapper.dragging.invalid-drop::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px dashed #ff4d4f;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.tree-node-wrapper.dragging.valid-drop::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px dashed #52c41a;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.node-content {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.node-actions {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.tree-node-wrapper:hover .node-actions {
+  opacity: 1;
+}
+
+.node-action-btn {
+  padding: 4px;
+  font-size: 14px;
+}
+
+.drag-handle {
+  cursor: grab;
+  padding: 4px;
+  color: #999;
+  transition: color 0.3s;
+}
+
+.drag-handle:hover {
+  color: #666;
+}
+
+.tree-indent {
+  flex-shrink: 0;
+}
+
 .empty-tree-placeholder {
-  text-align: center;
-  padding: 48px 0;
-  color: rgba(0, 0, 0, 0.45);
-  background-color: rgba(0, 0, 0, 0.02);
-  border-radius: 8px;
-  border: 1px dashed rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  color: #999;
 }
 
 .empty-tree-placeholder p {
   margin-top: 8px;
   font-size: 14px;
+}
+
+/* 拖拽时的占位符样式 */
+.dragging-placeholder {
+  background-color: #fafafa;
+  border: 2px dashed #d9d9d9;
+  border-radius: 4px;
+  margin: 4px 0;
+  height: 40px;
+}
+
+/* 拖拽时的目标区域样式 */
+.droppable-area {
+  min-height: 40px;
+  transition: background-color 0.3s;
+}
+
+.droppable-area.drag-over {
+  background-color: #f0f0f0;
+}
+
+/* 拖拽时的无效目标区域样式 */
+.droppable-area.invalid-drop {
+  background-color: #fff1f0;
+  border: 2px dashed #ff4d4f;
+}
+
+/* 拖拽时的有效目标区域样式 */
+.droppable-area.valid-drop {
+  background-color: #f6ffed;
+  border: 2px dashed #52c41a;
 }
 
 /* === 分栏布局样式 === */
