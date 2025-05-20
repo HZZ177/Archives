@@ -56,6 +56,13 @@
   z-index: 1; /* 确保正确的层叠顺序 */
 }
 
+/* 自定义箭头样式 */
+.ant-tree-switcher.has-children {
+  background-color: #fff;
+  z-index: 2;
+  border-radius: 3px;
+}
+
 /* 用伪元素创建一个覆盖整个switcher区域的背景 */
 .modern-tree .ant-tree-switcher::before {
   content: '';
@@ -125,6 +132,7 @@
   cursor: pointer;
   transition: all 0.3s;
   user-select: none;
+  z-index: 2;
 }
 
 .tree-node-wrapper:hover {
@@ -213,7 +221,59 @@
 
 .tree-indent {
   flex-shrink: 0;
+  position: relative;
+  /* 确保缩进div本身不遮挡伪元素 */
+  z-index: 0; 
+  align-self: stretch; /* 新增：确保tree-indent元素在flex容器中垂直拉伸以获得高度 */
 }
+
+/* 基础垂直线 */
+.tree-indent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  /* 将左边定位到缩进块的中间偏右一点，视觉上更靠近文字内容 */
+  left: calc(100% - 12px); /* 新的定位：对齐父级switcher中心 */
+  height: 100%;
+  width: 1px;
+  background-color: #d9d9d9; /* 更柔和的颜色 */
+  z-index: 1;
+}
+
+/* L形线的横线部分，用于连接最后一个子节点 */
+.tree-indent[data-is-last="true"]::after {
+  content: '';
+  position: absolute;
+  top: 50%; /* 定位在垂直中间 */
+  left: calc(100% - 12px); /* 新的定位：与垂直线对齐 */
+  width: 12px; /* 横线长度，延伸到节点文字方向 */
+  height: 1px;
+  background-color: #d9d9d9;
+  z-index: 1;
+}
+
+/* 对于最后一个子节点，垂直线只延伸到中间横线处 */
+.tree-indent[data-is-last="true"]::before {
+  height: 50%;
+}
+
+/* 移除之前测试性的缩进线，如果存在 */
+/* 
+.tree-indent[data-is-last="true"].last-indent::before {
+  height: 50%;
+}
+
+.tree-indent[data-is-last="true"].last-indent::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 50%;
+  height: 1px;
+  background-color: #e8e8e8;
+  z-index: 1;
+}
+*/
 
 .empty-tree-placeholder {
   display: flex;

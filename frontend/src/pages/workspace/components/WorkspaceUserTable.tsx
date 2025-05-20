@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { Table, Button, Space, Tag, Modal, message, Tooltip } from 'antd';
-import { EditOutlined, DeleteOutlined, QuestionCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Tag, Modal, message, Tooltip, Typography } from 'antd';
+import { EditOutlined, DeleteOutlined, QuestionCircleOutlined, ExclamationCircleFilled } from '@ant-design/icons';
 import { WorkspaceUser } from '../../../types/workspace';
-import { updateWorkspaceUserRole, removeUserFromWorkspace } from '../../../apis/workspaceService';
+import { updateWorkspaceUserRole, removeUserFromWorkspace, removeUsersFromWorkspaceBatch } from '../../../apis/workspaceService';
 import { roleConfig, getEffectiveRole, getRoleColor, getRoleLabel, getRoleDescription } from '../../../utils/roleMapping';
 import { useWorkspaceContext } from '../../../contexts/WorkspaceContext';
+
+const { Text } = Typography;
 
 interface WorkspaceUserTableProps {
   workspaceId: number;
   workspaceUsers: WorkspaceUser[];
   loading: boolean;
   onRefresh: () => void;
-  onAddUser: () => void;
+  selectedRowKeys: React.Key[];
+  onSelectionChange: (selectedKeys: React.Key[]) => void;
 }
 
 const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
@@ -19,7 +22,8 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
   workspaceUsers,
   loading,
   onRefresh,
-  onAddUser,
+  selectedRowKeys,
+  onSelectionChange,
 }) => {
   const [editModalVisible, setEditModalVisible] = useState<boolean>(false);
   const [selectedUser, setSelectedUser] = useState<WorkspaceUser | null>(null);
@@ -27,11 +31,11 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const { refreshWorkspaces } = useWorkspaceContext();
 
-  // 从工作区中移除用户
   const handleRemoveUser = (user: WorkspaceUser) => {
     Modal.confirm({
       title: '确认移除用户',
-      content: `确定要将用户 "${user.user?.username || '未知用户'}" 从该工作区移除吗？此操作不可撤销。`,
+      icon: <ExclamationCircleFilled />,
+      content: `确定要将用户 "${user.username || '未知用户'}" 从该工作区移除吗？此操作不可撤销。`,
       okText: '确认移除',
       okType: 'danger',
       cancelText: '取消',
@@ -41,7 +45,6 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
           await removeUserFromWorkspace(workspaceId, user.user_id);
           message.success('已成功移除用户');
           onRefresh();
-          // 刷新WorkspaceContext中的数据
           await refreshWorkspaces();
         } catch (error) {
           console.error('移除用户失败:', error);
@@ -53,25 +56,20 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
     });
   };
 
-  // 打开编辑角色模态框
   const handleEditRole = (user: WorkspaceUser) => {
     setSelectedUser(user);
-    // 获取有效角色，确保前端显示一致
     setSelectedRole(getEffectiveRole(user));
     setEditModalVisible(true);
   };
 
-  // 更新用户角色
   const handleUpdateRole = async () => {
     if (!selectedUser) return;
-    
     try {
       setActionLoading(true);
       await updateWorkspaceUserRole(workspaceId, selectedUser.user_id, selectedRole);
       message.success('已成功更新用户角色');
       setEditModalVisible(false);
       onRefresh();
-      // 刷新WorkspaceContext中的数据
       await refreshWorkspaces();
     } catch (error) {
       console.error('更新用户角色失败:', error);
@@ -81,17 +79,21 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
     }
   };
 
-  // 表格列配置
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: onSelectionChange,
+  };
+
   const columns = [
     {
       title: '用户名',
-      dataIndex: ['user', 'username'],
+      dataIndex: 'username',
       key: 'username',
       render: (text: string, record: WorkspaceUser) => text || `用户 ${record.user_id}`,
     },
     {
       title: '邮箱',
-      dataIndex: ['user', 'email'],
+      dataIndex: 'email',
       key: 'email',
     },
     {
@@ -99,7 +101,6 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
       dataIndex: 'role',
       key: 'role',
       render: (_: string, record: WorkspaceUser) => {
-        // 获取有效角色，确保前端显示一致
         const effectiveRole = getEffectiveRole(record);
         return (
           <Tooltip title={getRoleDescription(effectiveRole)}>
@@ -119,6 +120,7 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
             icon={<EditOutlined />}
             type="link"
             onClick={() => handleEditRole(record)}
+            disabled={actionLoading}
           >
             修改角色
           </Button>
@@ -127,6 +129,8 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
             type="link"
             danger
             onClick={() => handleRemoveUser(record)}
+            disabled={actionLoading || record.is_superuser}
+            title={record.is_superuser ? "超级管理员不能被移除" : ""}
           >
             移除
           </Button>
@@ -137,24 +141,17 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h3>工作区用户</h3>
-        <Button type="primary" icon={<PlusOutlined />} onClick={onAddUser}>
-          添加用户
-        </Button>
-      </div>
-      
       <Table
+        rowSelection={rowSelection}
         dataSource={workspaceUsers}
         columns={columns}
-        rowKey={(record) => `${record.workspace_id}_${record.user_id}`}
-        loading={loading}
+        rowKey={(record) => record.user_id}
+        loading={loading || actionLoading}
         pagination={false}
         size="middle"
         locale={{ emptyText: '该工作区暂无用户' }}
       />
 
-      {/* 编辑角色模态框 */}
       <Modal
         title="编辑用户角色"
         open={editModalVisible}
@@ -165,7 +162,7 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
         cancelText="取消"
       >
         <div>
-          <h4>用户: {selectedUser?.user?.username || `用户 ${selectedUser?.user_id}`}</h4>
+          <h4>用户: {selectedUser?.username || `用户 ${selectedUser?.user_id}`}</h4>
           <p>选择角色:</p>
           <Space direction="vertical" style={{ width: '100%' }}>
             {roleConfig.map(role => (

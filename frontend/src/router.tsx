@@ -18,6 +18,7 @@ const StructureManagementPage = lazy(() => import('./pages/structure-management/
 const ModuleContentPage = lazy(() => import('./pages/module-content/ModuleContentPage'));
 const WorkspaceManagePage = lazy(() => import('./pages/workspace/WorkspaceManagePage'));
 const HomePage = lazy(() => import('./pages/home/HomePage'));
+const ProfilePage = lazy(() => import('./pages/user/ProfilePage'));
 
 // 加载指示器组件
 const LoadingComponent = () => (
@@ -156,6 +157,10 @@ const router = createBrowserRouter([
       {
         path: ROUTES.WORKSPACES_MANAGE,
         element: <SuspenseWrapper component={WorkspaceManagePage} />
+      },
+      {
+        path: 'user/profile',
+        element: <SuspenseWrapper component={ProfilePage} />
       }
     ]
   },

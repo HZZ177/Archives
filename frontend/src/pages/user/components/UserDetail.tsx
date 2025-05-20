@@ -13,6 +13,7 @@ import { API_BASE_URL } from '../../../config/constants';
 import { fetchRoles, fetchUserRoles, updateUserRoles } from '../../../apis/roleService';
 import { Role } from '../../../types/role';
 import UserWorkspacePermissions from './UserWorkspacePermissions';
+import { useUser } from '../../../contexts/UserContext';
 
 const UserDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +22,8 @@ const UserDetail: React.FC = () => {
   const [sections, setSections] = useState<Section[]>([]);
   const [activeTab, setActiveTab] = useState('document');
   const [form] = Form.useForm();
+  const { userState } = useUser();
+  const isAdmin = userState.currentUser?.username === 'admin';
   
   // 添加角色状态
   const [roles, setRoles] = useState<Role[]>([]);
@@ -405,13 +408,15 @@ const UserDetail: React.FC = () => {
               <Input placeholder="请输入手机号" />
             </Form.Item>
             
-            <Form.Item
-              name="is_superuser"
-              label="是否超级管理员"
-              valuePropName="checked"
-            >
-              <Switch onChange={handleSuperUserChange} />
-            </Form.Item>
+            {isAdmin && (
+              <Form.Item
+                name="is_superuser"
+                label="是否超级管理员"
+                valuePropName="checked"
+              >
+                <Switch onChange={handleSuperUserChange} />
+              </Form.Item>
+            )}
             
             <Form.Item
               name="role_ids"

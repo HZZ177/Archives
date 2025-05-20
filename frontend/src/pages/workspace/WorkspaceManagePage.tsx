@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Button, message, Tabs, Modal, Spin, Select, Tag } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Button, message, Tabs, Modal, Spin, Select, Tag, Empty, Space } from 'antd';
+import { PlusOutlined, ExclamationCircleFilled } from '@ant-design/icons';
 import WorkspaceTable from './components/WorkspaceTable';
 import WorkspaceForm from './components/WorkspaceForm';
 import { 
@@ -9,14 +9,17 @@ import {
   updateWorkspace, 
   deleteWorkspace, 
   fetchWorkspaceUsers,
-  addUserToWorkspace
+  addUserToWorkspace,
+  addUsersToWorkspaceBatch,
+  removeUsersFromWorkspaceBatch
 } from '../../apis/workspaceService';
 import { 
   Workspace, 
   CreateWorkspaceParams, 
   UpdateWorkspaceParams,
   WorkspaceUser,
-  WorkspaceUserParams
+  WorkspaceUserParams,
+  BatchAddUsersToWorkspaceRequest
 } from '../../types/workspace';
 import WorkspaceUserTable from './components/WorkspaceUserTable';
 import AddUserToWorkspaceModal from './components/AddUserToWorkspaceModal';
@@ -26,14 +29,15 @@ import './WorkspaceManagePage.css';
 
 // 用于处理API返回的原始工作区用户数据
 interface ApiWorkspaceUser {
-  id?: number;
+  id?: number; // This is user_id from backend's user_data, or workspace_user table id.
   user_id: number;
   workspace_id: number;
   username?: string;
   email?: string;
+  is_superuser?: boolean; // Added based on backend service layer
   access_level?: string;
   role?: string;
-  user?: {
+  user?: { // Nested user object from some backend responses
     id: number;
     username: string;
     email?: string;
@@ -55,6 +59,8 @@ const WorkspaceManagePage: React.FC = () => {
   // 工作区用户相关状态
   const [workspaceUsers, setWorkspaceUsers] = useState<WorkspaceUser[]>([]);
   const [workspaceUsersLoading, setWorkspaceUsersLoading] = useState<boolean>(false);
+  const [selectedUserKeysForBatchRemove, setSelectedUserKeysForBatchRemove] = useState<React.Key[]>([]);
+  const [batchActionLoading, setBatchActionLoading] = useState<boolean>(false);
 
   // 获取工作区列表
   const fetchWorkspacesList = async () => {
@@ -76,41 +82,35 @@ const WorkspaceManagePage: React.FC = () => {
     
     try {
       setWorkspaceUsersLoading(true);
+      setSelectedUserKeysForBatchRemove([]);
       const data = await fetchWorkspaceUsers(workspaceId);
       
       // 处理API返回的数据格式，转换为组件期望的格式
       const formattedData = data.map((item: ApiWorkspaceUser) => {
-        // 检查返回数据的格式，根据实际情况调整
-        const user = {
-          id: item.user_id,
-          username: item.username || `用户 ${item.user_id}`,
-          email: item.email
-        };
+        // item from API (contains top-level username, email, is_superuser from get_workspace_users)
         
         // 角色映射：access_level到role的转换
         let role = item.role;
         if (!role && item.access_level) {
-          // 如果没有role字段但有access_level字段，进行映射
           const accessToRoleMapping: Record<string, string> = {
-            'owner': 'owner',  // 添加owner角色映射
+            'owner': 'owner',
+            'admin': 'admin',
             'read': 'guest',
             'write': 'member',
-            'admin': 'admin'
           };
           role = accessToRoleMapping[item.access_level] || 'member';
         }
         
-        // 记录日志用于调试
-        console.log(`用户${item.user_id} 原始角色:`, {
-          role: item.role,
-          access_level: item.access_level,
-          mapped_role: role
-        });
-        
         return {
-          ...item,
+          id: item.user_id, // Use user_id for the main id in WorkspaceUserTable
+          user_id: item.user_id,
+          workspace_id: item.workspace_id,
+          username: item.username || item.user?.username || `用户 ${item.user_id}`,
+          email: item.email || item.user?.email,
+          is_superuser: item.is_superuser || false, // Ensure it's always boolean
           role: role || 'member',
-          user: item.user || user
+          // The nested 'user' object is no longer strictly necessary for WorkspaceUserTable if info is top-level
+          // user: item.user || { id: item.user_id, username: item.username || `用户 ${item.user_id}`, email: item.email }
         } as WorkspaceUser;
       });
       
@@ -132,6 +132,8 @@ const WorkspaceManagePage: React.FC = () => {
   useEffect(() => {
     if (selectedWorkspace && activeTab === 'users') {
       fetchWorkspaceUsersList(selectedWorkspace.id);
+    } else if (!selectedWorkspace && activeTab === 'users') {
+      setSelectedUserKeysForBatchRemove([]);
     }
   }, [selectedWorkspace, activeTab]);
 
@@ -140,7 +142,11 @@ const WorkspaceManagePage: React.FC = () => {
     if (activeTab === 'users' && workspaces.length > 0 && !selectedWorkspace) {
       // 优先选择默认工作区，如果没有默认工作区，则选择第一个
       const defaultWorkspace = workspaces.find(w => w.is_default);
-      setSelectedWorkspace(defaultWorkspace || workspaces[0]);
+      const workspaceToSelect = defaultWorkspace || workspaces[0];
+      setSelectedWorkspace(workspaceToSelect);
+      fetchWorkspaceUsersList(workspaceToSelect.id);
+    } else if (activeTab !== 'users') {
+      setSelectedUserKeysForBatchRemove([]);
     }
   }, [activeTab, workspaces, selectedWorkspace]);
 
@@ -151,7 +157,6 @@ const WorkspaceManagePage: React.FC = () => {
     // 如果切换到用户管理标签页，且已选择了工作区，则加载用户列表
     if (key === 'users') {
       if (selectedWorkspace) {
-      fetchWorkspaceUsersList(selectedWorkspace.id);
       } else if (workspaces.length > 0) {
         // 优先选择默认工作区，如果没有默认工作区，则选择第一个
         const defaultWorkspace = workspaces.find(w => w.is_default);
@@ -159,6 +164,8 @@ const WorkspaceManagePage: React.FC = () => {
         setSelectedWorkspace(workspaceToSelect);
         fetchWorkspaceUsersList(workspaceToSelect.id);
       }
+    } else {
+      setSelectedUserKeysForBatchRemove([]);
     }
   };
 
@@ -256,31 +263,72 @@ const WorkspaceManagePage: React.FC = () => {
     });
   };
 
-  // 添加用户到工作区
-  const handleAddUserToWorkspace = async (params: WorkspaceUserParams) => {
-    if (!selectedWorkspace) return;
+  // 添加用户到工作区 - 现在改为批量处理
+  const handleAddUsersToWorkspace = async (params: BatchAddUsersToWorkspaceRequest) => {
+    if (!selectedWorkspace) {
+      message.error('请先选择一个工作区');
+      return;
+    }
     
     try {
-      await addUserToWorkspace(selectedWorkspace.id, params);
-      message.success('已成功添加用户到工作区');
-      setAddUserModalVisible(false);
-      
-      // 刷新工作区用户列表
-      fetchWorkspaceUsersList(selectedWorkspace.id);
-      // 刷新WorkspaceContext中的数据
-      await refreshWorkspacesContext();
-    } catch (error: any) {
-      console.error('添加用户到工作区失败:', error);
-      
-      // 提取详细错误信息，确保显示适当的错误消息
-      let errorMessage = '添加用户到工作区失败';
-      if (error.message) {
-        errorMessage = error.message;
+      setFormSubmitting(true);
+      const response = await addUsersToWorkspaceBatch(selectedWorkspace.id, params);
+      if (response.success) {
+        message.success(response.message || '用户已成功批量添加到工作区');
+      } else {
+        message.error(response.message || '批量添加用户失败');
       }
       
-      message.error(errorMessage);
-      // 不要抛出错误，因为已经处理了
+      // 刷新用户列表
+      await fetchWorkspaceUsersList(selectedWorkspace.id);
+      
+      // 关闭添加用户模态框
+      setAddUserModalVisible(false);
+    } catch (error: any) {
+      console.error('批量添加用户到工作区失败:', error);
+      message.error(error.message || '批量添加用户到工作区时发生错误');
+    } finally {
+      setFormSubmitting(false);
     }
+  };
+
+  const handleBatchRemoveUsers = async () => {
+    if (!selectedWorkspace) {
+      message.error('未选择工作区');
+      return;
+    }
+    if (selectedUserKeysForBatchRemove.length === 0) {
+      message.warning('请至少选择一个用户进行移除');
+      return;
+    }
+
+    Modal.confirm({
+      title: `确认批量移除 ${selectedUserKeysForBatchRemove.length} 名用户吗？`,
+      icon: <ExclamationCircleFilled />,
+      content: '此操作将从当前工作区移除所有选定的用户，且操作不可撤销。',
+      okText: '确认移除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          setBatchActionLoading(true);
+          const response = await removeUsersFromWorkspaceBatch(
+            selectedWorkspace.id, 
+            selectedUserKeysForBatchRemove as number[]
+          );
+          message.success(response.message || '成功移除指定用户。');
+          setSelectedUserKeysForBatchRemove([]);
+          await fetchWorkspaceUsersList(selectedWorkspace.id); 
+          await refreshWorkspacesContext();
+        } catch (error: any) {
+          console.error('批量移除用户失败:', error);
+          const errorMessage = error.response?.data?.detail || error.message || '批量移除用户失败';
+          message.error(errorMessage);
+        } finally {
+          setBatchActionLoading(false);
+        }
+      },
+    });
   };
 
   // 渲染工作区管理标签页内容
@@ -307,77 +355,76 @@ const WorkspaceManagePage: React.FC = () => {
 
   // 渲染用户管理标签页内容
   const renderUsersTab = () => {
-    // 获取已在当前选择工作区中的用户ID列表
-    const existingUserIds = workspaceUsers.map(user => user.user_id);
-    
-    return (
-      <div>
+    if (!selectedWorkspace) {
+      return (
         <div className="workspace-user-header">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2>用户权限管理</h2>
-            <div style={{ width: 300 }}>
-              <Select
-                placeholder="请选择工作区"
-                value={selectedWorkspace?.id}
-                onChange={(value) => {
-                  const workspace = workspaces.find(w => w.id === value);
-                  if (workspace) {
-                    setSelectedWorkspace(workspace);
-                    fetchWorkspaceUsersList(workspace.id);
-                  }
-                }}
-                style={{ width: '100%' }}
-                options={workspaces.map(workspace => ({
-                  value: workspace.id,
-                  label: (
-                    <span>
-                      {workspace.color && (
-                        <span 
-                          style={{
-                            display: 'inline-block',
-                            width: 12,
-                            height: 12,
-                            borderRadius: 6,
-                            backgroundColor: workspace.color,
-                            marginRight: 8,
-                          }}
-                        />
-                      )}
-                      {workspace.name}
-                      {workspace.is_default && <Tag color="blue" style={{ marginLeft: 8 }}>默认</Tag>}
-                    </span>
-                  ),
-                }))}
-              />
-            </div>
+          <Empty description="请先选择一个工作区" />
+        </div>
+      );
+    }
+
+    return (
+      <div className="workspace-user-container">
+        <div className="workspace-user-header">
+          <div className="workspace-user-title">
+            <h3>{selectedWorkspace.name} - 用户管理</h3>
+            <Space>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setAddUserModalVisible(true)}
+              >
+                批量添加用户
+              </Button>
+              <Button
+                type="primary"
+                danger
+                onClick={handleBatchRemoveUsers}
+                disabled={selectedUserKeysForBatchRemove.length === 0 || workspaceUsersLoading || batchActionLoading}
+                loading={batchActionLoading}
+              >
+                批量移除选中用户 ({selectedUserKeysForBatchRemove.length})
+              </Button>
+            </Space>
+          </div>
+          <div className="workspace-user-filter">
+            <Select
+              value={selectedWorkspace.id}
+              onChange={(value) => {
+                const workspace = workspaces.find(w => w.id === value);
+                if (workspace) {
+                  setSelectedWorkspace(workspace);
+                  fetchWorkspaceUsersList(workspace.id);
+                }
+              }}
+              style={{ width: 200 }}
+            >
+              {workspaces.map(workspace => (
+                <Select.Option key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </Select.Option>
+              ))}
+            </Select>
           </div>
         </div>
-        
-        {!selectedWorkspace ? (
-          <div className="select-workspace-message">
-            <h3>请选择一个工作区</h3>
-            <p>请从上方下拉菜单中选择要管理的工作区</p>
-          </div>
-        ) : (
-          <div>
-            <WorkspaceUserTable 
-              workspaceId={selectedWorkspace.id}
-              workspaceUsers={workspaceUsers}
-              loading={workspaceUsersLoading}
-              onRefresh={() => fetchWorkspaceUsersList(selectedWorkspace.id)}
-              onAddUser={() => setAddUserModalVisible(true)}
-            />
-            
-            <AddUserToWorkspaceModal 
-              visible={addUserModalVisible}
-              workspaceId={selectedWorkspace.id}
-              workspaceName={selectedWorkspace.name}
-              existingUserIds={existingUserIds}
-              onAdd={handleAddUserToWorkspace}
-              onCancel={handleCloseAddUserModal}
-            />
-          </div>
-        )}
+
+        <WorkspaceUserTable
+          workspaceId={selectedWorkspace.id}
+          workspaceUsers={workspaceUsers}
+          loading={workspaceUsersLoading || batchActionLoading}
+          onRefresh={() => fetchWorkspaceUsersList(selectedWorkspace.id)}
+          selectedRowKeys={selectedUserKeysForBatchRemove}
+          onSelectionChange={(keys) => setSelectedUserKeysForBatchRemove(keys)}
+        />
+
+        <AddUserToWorkspaceModal
+          visible={addUserModalVisible}
+          workspaceId={selectedWorkspace.id}
+          workspaceName={selectedWorkspace.name}
+          existingUserIds={workspaceUsers.map(user => user.user_id)}
+          onAdd={handleAddUsersToWorkspace}
+          onCancel={() => setAddUserModalVisible(false)}
+        />
       </div>
     );
   };

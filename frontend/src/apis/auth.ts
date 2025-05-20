@@ -94,13 +94,12 @@ const authAPI = {
    * 获取当前用户信息
    * @returns 用户信息
    */
-  getCurrentUser: async (): Promise<User> => {
+  getCurrentUser: async (): Promise<User | null> => {
     try {
       const response = await request.get<APIResponse<User>>('/auth/profile');
       return unwrapResponse<User>(response.data);
     } catch (error) {
       console.error('Get current user error:', error);
-      message.error('获取用户信息失败');
       throw error;
     }
   },
@@ -128,22 +127,10 @@ const authAPI = {
   changePassword: async (params: ChangePasswordParams): Promise<boolean> => {
     try {
       const response = await request.post<APIResponse<any>>('/auth/change-password', params);
-      unwrapResponse(response.data); // 使用unwrapResponse检查响应状态
+      unwrapResponse(response.data);
       return true;
     } catch (error: any) {
       console.error('修改密码失败:', error);
-      
-      // 错误处理保持不变，确保友好的错误消息
-      let errorMessage = '修改密码失败';
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      message.error(errorMessage);
       throw error;
     }
   }

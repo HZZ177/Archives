@@ -92,6 +92,7 @@ const UserList: React.FC = () => {
   const navigate = useNavigate();
   // 获取当前用户信息
   const { userState } = useUser();
+  const isAdmin = userState.currentUser?.username === 'admin';
   // 添加重置密码的loading状态
   const [resetPasswordLoading, setResetPasswordLoading] = useState<number | null>(null);
 
@@ -771,13 +772,15 @@ const UserList: React.FC = () => {
             <Input placeholder="请输入邮箱" />
           </Form.Item>
           
-          <Form.Item
-            name="is_superuser"
-            label="是否超级管理员"
-            valuePropName="checked"
-          >
-            <Switch onChange={handleSuperUserChange} />
-          </Form.Item>
+          {isAdmin && (
+            <Form.Item
+              name="is_superuser"
+              label="是否超级管理员"
+              valuePropName="checked"
+            >
+              <Switch onChange={handleSuperUserChange} />
+            </Form.Item>
+          )}
           
           <Form.Item
             name="role_ids"
@@ -867,13 +870,15 @@ const UserList: React.FC = () => {
             <Input placeholder="请输入邮箱" />
           </Form.Item>
           
-          <Form.Item
-            name="is_superuser"
-            label="是否超级管理员"
-            valuePropName="checked"
-          >
-            <Switch onChange={handleEditSuperUserChange} />
-          </Form.Item>
+          {isAdmin && (
+            <Form.Item
+              name="is_superuser"
+              label="是否超级管理员"
+              valuePropName="checked"
+            >
+              <Switch onChange={handleEditSuperUserChange} />
+            </Form.Item>
+          )}
           
           <Form.Item
             name="role_ids"

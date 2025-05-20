@@ -28,6 +28,7 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
   const [modalType, setModalType] = useState<'add' | 'edit'>('add');
   const [parentNode, setParentNode] = useState<ModuleStructureNode | null>(null);
   const { confirm } = Modal;
+  const [autoExpandParentId, setAutoExpandParentId] = useState<number | null>(null);
 
   // 触发刷新事件，更新左侧导航
   const triggerRefreshEvent = () => {
@@ -89,10 +90,14 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
   };
 
   // 处理模态框完成事件
-  const handleModalComplete = () => {
+  const handleModalComplete = (newNode?: ModuleStructureNode) => {
     setModalVisible(false);
     onTreeDataChange();
     triggerRefreshEvent();
+    // 新建节点后自动展开父节点
+    if (parentNode && modalType === 'add') {
+      setAutoExpandParentId(parentNode.id);
+    }
   };
 
   return (
@@ -107,6 +112,7 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
           onAddRoot={handleAddRoot}
           onAddChild={handleAddChild}
           onDelete={handleDelete}
+          autoExpandParentId={autoExpandParentId}
         />
       </Spin>
       <StructureNodeModal

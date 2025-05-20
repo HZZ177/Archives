@@ -231,6 +231,77 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
             logger.error(f"获取用户({user_id})在工作区({workspace_id})的访问级别失败: {str(e)}")
             raise
     
+    async def batch_add_users_to_workspace_db(
+        self, db: AsyncSession, workspace_id: int, users_to_add: List[Dict[str, Any]]
+    ) -> Dict[str, int]:
+        """
+        批量添加用户到工作区。如果用户已存在则跳过。
+        users_to_add: 包含 {"user_id": int, "access_level": str} 的字典列表
+        返回: {"added": count, "skipped": count}
+        """
+        added_count = 0
+        skipped_count = 0
+        try:
+            for user_data in users_to_add:
+                user_id = user_data["user_id"]
+                access_level = user_data["access_level"]
+
+                # 检查用户是否已在工作区中
+                result = await db.execute(
+                    select(workspace_user.c.user_id).where(
+                        and_(
+                            workspace_user.c.workspace_id == workspace_id,
+                            workspace_user.c.user_id == user_id
+                        )
+                    )
+                )
+                existing_relation = result.fetchone()
+
+                if existing_relation:
+                    skipped_count += 1
+                else:
+                    # 用户不存在，则添加
+                    await db.execute(
+                        workspace_user.insert().values(
+                            workspace_id=workspace_id,
+                            user_id=user_id,
+                            access_level=access_level
+                        )
+                    )
+                    added_count += 1
+            
+            await db.commit()
+            return {"added": added_count, "skipped": skipped_count}
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"批量添加用户到工作区({workspace_id})失败(仅添加新用户): {str(e)}")
+            raise
+    
+    async def batch_remove_users_from_workspace_db(
+        self, db: AsyncSession, workspace_id: int, user_ids: List[int]
+    ) -> int:
+        """
+        从工作区批量移除用户。
+        返回成功删除的记录数。
+        """
+        if not user_ids:
+            return 0
+        try:
+            # 构建删除语句
+            stmt = workspace_user.delete().where(
+                and_(
+                    workspace_user.c.workspace_id == workspace_id,
+                    workspace_user.c.user_id.in_(user_ids)
+                )
+            )
+            result = await db.execute(stmt)
+            await db.commit()
+            return result.rowcount # 返回受影响的行数，即成功删除的用户数
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"从工作区({workspace_id})批量移除用户失败: IDs {user_ids}, Error: {str(e)}")
+            raise
+    
     async def get_default_system_workspace(self, db: AsyncSession) -> Optional[Workspace]:
         """
         获取系统默认工作区

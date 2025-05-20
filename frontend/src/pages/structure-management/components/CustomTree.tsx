@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useLayoutEffect } from 'react';
+import React, { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react';
 import { Button, Tooltip, message } from 'antd';
 import { PlusOutlined, DeleteOutlined, FolderOutlined, FileOutlined, DownOutlined, DragOutlined } from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable, DropResult, DragUpdate } from 'react-beautiful-dnd';
@@ -15,6 +15,7 @@ interface CustomTreeProps {
   onAddRoot: () => void;
   onAddChild: (node: ModuleStructureNode) => void;
   onDelete: (node: ModuleStructureNode) => void;
+  autoExpandParentId?: number | null;
 }
 
 export const CustomTree: React.FC<CustomTreeProps> = ({
@@ -26,6 +27,7 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
   onAddRoot,
   onAddChild,
   onDelete,
+  autoExpandParentId,
 }) => {
   const [expandedKeys, setExpandedKeys] = useState<number[]>(() => treeData.length > 0 ? [treeData[0].id] : []);
   const [selectedKey, setSelectedKey] = useState<number | null>(focusNodeId || null);
@@ -44,6 +46,12 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
       setTreeWidth(treeContainerRef.current.offsetWidth);
     }
   }, [localTreeData]);
+
+  useEffect(() => {
+    if (autoExpandParentId && !expandedKeys.includes(autoExpandParentId)) {
+      setExpandedKeys(keys => [...keys, autoExpandParentId]);
+    }
+  }, [autoExpandParentId]);
 
   const handleExpand = (id: number) => {
     setExpandedKeys(keys => keys.includes(id) ? keys.filter(k => k !== id) : [...keys, id]);
@@ -98,14 +106,34 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
     if (sourceId === destId && dragIndex === dropIndex) return;
 
     try {
+      console.log('拖拽完成:', {
+        draggedId: result.draggableId,
+        sourceId,
+        destId,
+        dragIndex,
+        dropIndex
+      });
+      
       // 找到被拖动的节点及其父节点
       const { node: draggedNode, parent: sourceParent, siblings: sourceSiblings } = findNodeAndParent(localTreeData, parseInt(result.draggableId));
       if (!draggedNode) {
         throw new Error('找不到被拖动的节点');
       }
 
+      // 解析droppableId，提取父节点ID
+      // 格式：parentId_level_X 或 root
+      const getParentIdFromDroppableId = (droppableId: string): number | null => {
+        if (droppableId === 'root') return null;
+        const parts = droppableId.split('_level_');
+        return parts.length > 0 ? parseInt(parts[0]) : null;
+      };
+      
+      // 提取源和目标的父节点ID
+      const sourceParentId = getParentIdFromDroppableId(sourceId);
+      const destParentId = getParentIdFromDroppableId(destId);
+
       // 检查是否在同一层级
-      if (sourceId !== destId) {
+      if (sourceParentId !== destParentId) {
         message.error('只能在同级节点之间进行排序');
         return;
       }
@@ -130,11 +158,23 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
       if (parentNode.id === null) {
         newTreeData = updatedNodes;
       } else {
-        newTreeData = updateNodeOrderInTree(newTreeData, parentNode.id, 0);
-        const parent = findNodeAndParent(newTreeData, parentNode.id);
-        if (parent.node) {
-          parent.node.children = updatedNodes;
-        }
+        // 对于非根节点，更新父节点的子节点列表
+        const updateChildrenInTree = (nodes: ModuleStructureNode[], parentId: number, newChildren: ModuleStructureNode[]): ModuleStructureNode[] => {
+          return nodes.map(node => {
+            if (node.id === parentId) {
+              return { ...node, children: newChildren };
+            }
+            if (node.children && node.children.length > 0) {
+              return {
+                ...node,
+                children: updateChildrenInTree(node.children, parentId, newChildren)
+              };
+            }
+            return node;
+          });
+        };
+        
+        newTreeData = updateChildrenInTree(newTreeData, parentNode.id, updatedNodes);
       }
 
       // 立即更新本地状态
@@ -167,13 +207,36 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
 
     const sourceId = update.source.droppableId;
     const destId = update.destination.droppableId;
-    setIsValidDrop(sourceId === destId);
+    
+    // 提取拖拽节点ID
+    const draggedNodeId = parseInt(update.draggableId);
+    
+    // 寻找被拖拽节点及其父节点，确定节点层级
+    const { node: draggedNode, parent: sourceParent } = findNodeAndParent(localTreeData, draggedNodeId);
+    
+    // 进行更精确的判断，确保同级拖拽有效
+    // 1. 同一父节点下的拖拽总是有效的（同级排序）
+    // 2. 对于sourceId和destId，进行特殊处理以支持所有层级的节点
+    const isValidDrop = sourceId === destId;
+    
+    console.log('拖拽状态更新:', {
+      sourceId,
+      destId,
+      draggedNodeId,
+      isValidDrop,
+      draggedNodeParentId: sourceParent?.id || 'root'
+    });
+    
+    setIsValidDrop(isValidDrop);
   };
 
   // 递归渲染节点，缩进用tree-indent占位div
-  const renderNodes = useCallback((nodes: ModuleStructureNode[], parentId: number | null = null, level: number = 0) => {
+  const renderNodes = useCallback((nodes: ModuleStructureNode[], parentId: number | null = null, level: number = 0, indentInfo: boolean[] = []) => {
     return (
-      <Droppable droppableId={parentId === null ? 'root' : parentId.toString()} type="NODE">
+      <Droppable 
+        droppableId={parentId === null ? 'root' : `${parentId.toString()}_level_${level}`}
+        type={`NODE_LEVEL_${level}`}
+      >
         {(provided, snapshot) => (
           <div 
             ref={provided.innerRef} 
@@ -183,10 +246,16 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
               width: '100%',
               overflow: 'visible'
             }}
+            data-level={level}
           >
-            {nodes.map((node, index) => (
+            {nodes.map((node, index) => {
+              const currentIndentInfo = [...indentInfo, index === nodes.length - 1];
+              return (
               <React.Fragment key={node.id}>
-                <Draggable draggableId={node.id.toString()} index={index}>
+                  <Draggable
+                    draggableId={node.id.toString()}
+                    index={index}
+                  >
                   {(provided, snapshot) => (
                     <div
                       className={`tree-node-wrapper${selectedKey === node.id ? ' ant-tree-node-selected' : ''}${snapshot.isDragging ? ' dragging' : ''}${snapshot.isDragging && !isValidDrop ? ' invalid-drop' : ''}${snapshot.isDragging && isValidDrop ? ' valid-drop' : ''}`}
@@ -204,9 +273,34 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
                       onClick={() => handleSelect(node)}
                       onMouseEnter={e => e.currentTarget.classList.add('ant-tree-treenode-hover')}
                       onMouseLeave={e => e.currentTarget.classList.remove('ant-tree-treenode-hover')}
+                        data-node-id={node.id}
+                        data-level={level}
+                        data-is-leaf={!node.children || node.children.length === 0 ? 'true' : 'false'}
+                        data-is-content-page={node.is_content_page ? 'true' : 'false'}
                     >
-                      {/* 缩进占位 */}
-                      {level > 0 && <div className="tree-indent" style={{ width: level * 24, flex: '0 0 auto' }} />}
+                        {/* 调整缩进线渲染逻辑 */}
+                        {Array.from({ length: level }).map((_, i) => {
+                          // i 是当前渲染的缩进段的索引 (0 to level-1)
+                          // currentIndentInfo 数组的长度是 level + 1
+                          // currentIndentInfo[j] 表示在深度j的节点是否是其父节点的最后一个孩子
+                          let isLastForThisSegment: boolean;
+                          if (i < level - 1) {
+                            // 对于祖先层级的缩进段，强制为I型（非L型）
+                            isLastForThisSegment = false;
+                          } else { // i === level - 1，这是最靠近当前节点的缩进段
+                            // 这个缩进段的 L 型转角取决于当前节点是否是其父节点的最后一个孩子
+                            isLastForThisSegment = currentIndentInfo[level]; // currentIndentInfo[level] 即 isLastChild
+                          }
+                          
+                          return (
+                            <div
+                              key={`indent-${node.id}-${i}`}
+                              className="tree-indent"
+                              style={{ width: 24, flex: '0 0 auto' }}
+                              data-is-last={isLastForThisSegment.toString()}
+                            />
+                          );
+                        })}
                       {/* 展开/收起箭头或占位 */}
                       <span
                         className="ant-tree-switcher"
@@ -243,17 +337,18 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
                 {/* 只在本节点下方递归渲染children */}
                 {expandedKeys.includes(node.id) && node.children && node.children.length > 0 && (
                   <div>
-                    {renderNodes(node.children, node.id, level + 1)}
+                      {renderNodes(node.children, node.id, level + 1, currentIndentInfo)}
                   </div>
                 )}
               </React.Fragment>
-            ))}
+              );
+            })}
             {provided.placeholder}
           </div>
         )}
       </Droppable>
     );
-  }, [expandedKeys, selectedKey, onAddChild, onDelete, treeWidth, isValidDrop]);
+  }, [expandedKeys, selectedKey, onAddChild, onDelete, treeWidth, isValidDrop, localTreeData, handleSelect, handleExpand]);
 
   return (
     <div 

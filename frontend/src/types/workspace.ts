@@ -38,6 +38,9 @@ export interface WorkspaceUser {
   user_id: number;
   workspace_id: number;
   role: 'owner' | 'admin' | 'member' | 'guest';
+  username: string;
+  email?: string;
+  is_superuser?: boolean;
   created_at?: string;
   updated_at?: string;
   user?: {
@@ -90,4 +93,13 @@ export interface WorkspaceUserParams {
    * - guest/read：仅可查看权限，无法编辑内容
    */
   access_level: 'owner' | 'admin' | 'write' | 'read';
+}
+
+export interface BatchAddUsersToWorkspaceRequest {
+  user_ids: number[];
+  access_level: string;
+}
+
+export interface BatchRemoveUsersFromWorkspaceRequest {
+  user_ids: number[];
 } 

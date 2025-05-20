@@ -7,6 +7,8 @@ import {
   WorkspaceUser,
   WorkspaceUserListResponse,
   AddUserToWorkspaceRequest,
+  BatchAddUsersToWorkspaceRequest,
+  BatchRemoveUsersFromWorkspaceRequest,
   SetDefaultWorkspaceRequest,
   CreateWorkspaceParams,
   UpdateWorkspaceParams,
@@ -166,6 +168,57 @@ export const addUserToWorkspace = async (workspaceId: number, params: WorkspaceU
     // 成功添加用户，不需要返回数据
   } catch (error) {
     console.error(`添加用户到工作区(ID:${workspaceId})失败:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 批量添加用户到工作区
+ * @param workspaceId 工作区ID
+ * @param params 包含用户ID列表和访问级别
+ * @returns API响应，可能包含成功/失败信息和操作详情
+ */
+export const addUsersToWorkspaceBatch = async (
+  workspaceId: number, 
+  params: BatchAddUsersToWorkspaceRequest
+): Promise<APIResponse<any>> => {
+  try {
+    const response = await request.post<APIResponse<any>>(
+      `/workspaces/${workspaceId}/users/batch`, 
+      params
+    );
+    // 后端直接返回 APIResponse 结构，如果需要解包则调整
+    if (!response.data.success) {
+      throw new Error(response.data.message || '批量添加用户到工作区失败');
+    }
+    return response.data; // 返回整个 APIResponse 以便前端获取 details
+  } catch (error) {
+    console.error(`批量添加用户到工作区(ID:${workspaceId})失败:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 批量从工作区移除用户
+ * @param workspaceId 工作区ID
+ * @param userIds 要移除的用户ID列表
+ * @returns API响应
+ */
+export const removeUsersFromWorkspaceBatch = async (
+  workspaceId: number, 
+  userIds: number[]
+): Promise<APIResponse<any>> => {
+  try {
+    const response = await request.post<APIResponse<any>>(
+      `/workspaces/${workspaceId}/users/batch-remove`, 
+      { user_ids: userIds } // Ensure payload matches backend schema
+    );
+    if (!response.data.success) {
+      throw new Error(response.data.message || '批量移除用户失败');
+    }
+    return response.data;
+  } catch (error) {
+    console.error(`批量从工作区(ID:${workspaceId})移除用户失败:`, error);
     throw error;
   }
 };

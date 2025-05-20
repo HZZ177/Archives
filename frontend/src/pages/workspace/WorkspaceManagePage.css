@@ -55,3 +55,72 @@
 .user-role-select {
   min-width: 120px;
 }
+
+.workspace-user-container {
+  padding: 20px;
+}
+
+.workspace-user-header {
+  margin-bottom: 20px;
+}
+
+.workspace-user-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.workspace-user-title h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #1f1f1f;
+}
+
+.workspace-user-filter {
+  margin-bottom: 16px;
+}
+
+/* 表格样式优化 */
+.workspace-user-table .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  font-weight: 500;
+}
+
+.workspace-user-table .ant-table-tbody > tr:hover > td {
+  background-color: #f5f5f5;
+}
+
+/* 角色标签样式 */
+.role-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.role-tag .anticon {
+  margin-left: 4px;
+  font-size: 12px;
+}
+
+/* 操作按钮样式 */
+.action-button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.action-button:hover {
+  background-color: #f5f5f5;
+}
+
+/* 空状态样式 */
+.empty-state {
+  text-align: center;
+  padding: 40px 0;
+}
+
+.empty-state .ant-empty-description {
+  color: #999;
+}

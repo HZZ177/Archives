@@ -7,7 +7,8 @@ from backend.app.core.logger import logger
 from backend.app.models.user import User
 from backend.app.models.workspace import Workspace
 from backend.app.repositories.workspace_repository import workspace_repository
-from backend.app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate, WorkspaceAddUser
+from backend.app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate, WorkspaceAddUser, WorkspaceBatchAddUsers, WorkspaceBatchRemoveUsers
+from backend.app.repositories.auth_repository import auth_repository
 
 
 class WorkspaceService:
@@ -34,7 +35,6 @@ class WorkspaceService:
         # 确保admin账号(第一个超级管理员)被添加为工作区所有者
         try:
             # 获取第一个超级管理员用户
-            from backend.app.repositories.auth_repository import auth_repository
             admin_user = await auth_repository.get_first_superuser(db)
             
             # 如果找到admin用户，且不是当前用户，则将其添加为工作区所有者
@@ -190,7 +190,6 @@ class WorkspaceService:
                 )
         
         # 检查要更新的用户是否存在
-        from backend.app.repositories.auth_repository import auth_repository
         target_user = await auth_repository.get_user_by_id(db, user_id)
         if not target_user:
             raise HTTPException(
@@ -229,14 +228,13 @@ class WorkspaceService:
         # 检查权限: 只有超级管理员或工作区管理员可以移除用户
         if not current_user.is_superuser:
             user_access = await workspace_repository.get_user_access_level(db, workspace_id, current_user.id)
-            if user_access != "admin":
+            if user_access not in ["admin", "owner"]:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="只有工作区管理员可以移除用户"
+                    detail="只有工作区管理员或所有者可以移除用户"
                 )
         
         # 检查要移除的用户是否是超级管理员
-        from backend.app.repositories.auth_repository import auth_repository
         target_user = await auth_repository.get_user_by_id(db, user_id)
         
         if target_user and target_user.is_superuser:
@@ -248,7 +246,6 @@ class WorkspaceService:
         
         # 移除用户
         await workspace_repository.remove_user_from_workspace(db, workspace_id, user_id)
-        
         return {"success": True, "message": "用户已从工作区移除"}
 
     async def get_workspace_users(self, db: AsyncSession, workspace_id: int, current_user: User) -> List[Dict[str, Any]]:
@@ -269,8 +266,6 @@ class WorkspaceService:
         users = await workspace_repository.get_workspace_users(db, workspace_id)
         
         # 获取用户的完整信息
-        from backend.app.repositories.auth_repository import auth_repository
-        
         # 扩展用户信息
         result = []
         for user_dict in users:
@@ -318,7 +313,6 @@ class WorkspaceService:
         await workspace_repository.set_user_default_workspace(db, user_id, workspace_id)
         
         # 获取更新后的用户
-        from backend.app.repositories.auth_repository import auth_repository
         return await auth_repository.get_user_by_id(db, user_id)
 
     async def get_default_workspace(self, db: AsyncSession, current_user: User) -> Workspace:
@@ -372,7 +366,6 @@ class WorkspaceService:
         # 如果仍然没有工作区，则由超级管理员创建一个
         if not default_workspace:
             # 检查超级管理员是否存在
-            from backend.app.repositories.auth_repository import auth_repository
             admin_user = await auth_repository.get_first_superuser(db)
             
             if not admin_user:
@@ -398,7 +391,6 @@ class WorkspaceService:
             )
         
         # 获取用户
-        from backend.app.repositories.auth_repository import auth_repository
         user = await auth_repository.get_user_by_id(db, user_id)
         if not user:
             return {
@@ -429,6 +421,157 @@ class WorkspaceService:
             "workspace_id": default_workspace.id
         }
 
+    async def batch_add_users_to_workspace(
+        self, db: AsyncSession, workspace_id: int, batch_data: WorkspaceBatchAddUsers, current_user: User
+    ) -> Dict[str, Any]:
+        """批量添加用户到工作区，跳过已存在的用户和无效用户。"""
+        # 验证工作区是否存在
+        workspace = await self.get_workspace(db, workspace_id)
+
+        # 检查权限: 只有超级管理员或工作区管理员/所有者可以添加用户
+        if not current_user.is_superuser:
+            user_access_level = await workspace_repository.get_user_access_level(db, workspace_id, current_user.id)
+            if user_access_level not in ["admin", "owner"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="只有工作区管理员或所有者可以批量添加用户"
+                )
+        
+        valid_users_to_process = []
+        invalid_or_permission_skipped_user_ids = [] # 因用户不存在或权限问题跳过的ID
+        processed_user_ids_in_request = set() # To avoid processing duplicates in input list
+
+        for user_id in batch_data.user_ids:
+            if user_id in processed_user_ids_in_request:
+                logger.info(f"用户ID {user_id} 在请求中重复，已跳过后续处理。")
+                # 不将重复ID计入invalid_or_permission_skipped_user_ids，因为它们不是因为无效或权限问题
+                continue
+            processed_user_ids_in_request.add(user_id)
+
+            target_user = await auth_repository.get_user_by_id(db, user_id)
+            if not target_user:
+                invalid_or_permission_skipped_user_ids.append(user_id)
+                logger.warning(f"批量添加用户到工作区({workspace_id})时，用户ID {user_id} 不存在，已跳过")
+                continue
+            
+            if target_user.is_superuser and batch_data.access_level != "owner":
+                 logger.warning(f"尝试将超级管理员(ID:{user_id})角色设置为 {batch_data.access_level} (非owner)，操作被阻止。")
+                 invalid_or_permission_skipped_user_ids.append(user_id)
+                 continue
+
+            valid_users_to_process.append({"user_id": user_id, "access_level": batch_data.access_level})
+        
+        if not valid_users_to_process:
+            error_detail = "没有有效的用户可供处理。"
+            if invalid_or_permission_skipped_user_ids:
+                error_detail += f" 无效或因权限问题被跳过的用户ID: {list(set(invalid_or_permission_skipped_user_ids))}"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_detail
+            )
+
+        # 批量添加用户到工作区 (仓库层现在只添加新用户，跳过已存在的)
+        db_operation_result = await workspace_repository.batch_add_users_to_workspace_db(
+            db, workspace_id, valid_users_to_process
+        )
+        
+        # db_operation_result is now {"added": count, "skipped": count}
+        # "skipped" here means skipped by DB layer because user was already in workspace_user table
+        
+        message_parts = []
+        if db_operation_result['added'] > 0:
+            message_parts.append(f"成功添加 {db_operation_result['added']} 个新用户。")
+        else:
+            message_parts.append("没有新用户被添加。")
+
+        if db_operation_result['skipped'] > 0:
+            message_parts.append(f"{db_operation_result['skipped']} 个用户因已存在于工作区中而被跳过。")
+
+        skipped_due_to_invalid_or_permission = list(set(invalid_or_permission_skipped_user_ids))
+        if skipped_due_to_invalid_or_permission:
+            message_parts.append(f"{len(skipped_due_to_invalid_or_permission)} 个用户因ID无效或权限问题未处理: {skipped_due_to_invalid_or_permission}。")
+        
+        final_message = " ".join(message_parts)
+        if not message_parts: # Should not happen if valid_users_to_process was not empty
+            final_message = "批量操作已执行，但没有用户状态发生改变。"
+            
+        return {
+            "success": True, 
+            "message": final_message, 
+            "details": {
+                "users_added_to_workspace": db_operation_result['added'],
+                "users_skipped_already_in_workspace": db_operation_result['skipped'],
+                "users_skipped_invalid_or_permission": skipped_due_to_invalid_or_permission
+            }
+        }
+
+    async def batch_remove_users_from_workspace(
+        self, db: AsyncSession, workspace_id: int, data: WorkspaceBatchRemoveUsers, current_user: User
+    ) -> Dict[str, Any]:
+        """批量从工作区移除用户，会跳过超级管理员。"""
+        # 验证工作区是否存在
+        workspace = await self.get_workspace(db, workspace_id)
+
+        # 检查权限: 只有超级管理员或工作区管理员/所有者可以移除用户
+        if not current_user.is_superuser:
+            user_access_level = await workspace_repository.get_user_access_level(db, workspace_id, current_user.id)
+            if user_access_level not in ["admin", "owner"]:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="只有工作区管理员或所有者可以批量移除用户"
+                )
+
+        user_ids_to_remove = data.user_ids
+        if not user_ids_to_remove:
+            return {"success": True, "message": "没有提供需要移除的用户ID。", "details": {"removed_count": 0, "skipped_superuser_ids": []}}
+
+        valid_user_ids_for_removal = []
+        skipped_superuser_ids = []
+        
+        # 不能移除当前操作者自己 (如果他是通过批量操作移除自己)
+        if current_user.id in user_ids_to_remove:
+            logger.warning(f"用户 (ID:{current_user.id}) 尝试在批量操作中移除自己出工作区 (ID:{workspace_id})，此操作被阻止。")
+            # 从列表中移除当前用户ID，但不计入 skipped_superuser_ids，除非他也是超管
+            user_ids_to_remove = [uid for uid in user_ids_to_remove if uid != current_user.id]
+            # 如果移除后列表为空，则提前返回
+            if not user_ids_to_remove and not current_user.is_superuser: # 如果是超管把自己移除了，下面还会处理
+                 return {"success": True, "message": "不能移除自己。没有其他用户被指定移除。", "details": {"removed_count": 0, "skipped_superuser_ids": []}}
+
+        for user_id in user_ids_to_remove:
+            target_user = await auth_repository.get_user_by_id(db, user_id)
+            if target_user and target_user.is_superuser:
+                skipped_superuser_ids.append(user_id)
+                logger.warning(f"尝试批量移除超级管理员(ID:{user_id})出工作区({workspace_id})，操作被阻止。")
+            elif target_user: # 用户存在且不是超级管理员
+                valid_user_ids_for_removal.append(user_id)
+            else:
+                logger.warning(f"尝试批量移除不存在的用户(ID:{user_id})出工作区({workspace_id})，已跳过。")
+                # 可以选择是否将不存在的用户ID也记录到某个skipped列表
+
+        if not valid_user_ids_for_removal:
+            message = "没有有效用户可供移除。"
+            if skipped_superuser_ids:
+                message += f" 超级管理员无法被移除: {skipped_superuser_ids}。"
+            if current_user.id in data.user_ids and not skipped_superuser_ids: # 如果current_user是唯一要移除的且不是超管
+                message = "不能移除自己。没有其他有效用户被指定移除。"
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+
+        removed_count = await workspace_repository.batch_remove_users_from_workspace_db(
+            db, workspace_id, valid_user_ids_for_removal
+        )
+
+        message_parts = [f"成功从工作区移除了 {removed_count} 个用户。"]
+        if skipped_superuser_ids:
+            message_parts.append(f"超级管理员 (IDs: {skipped_superuser_ids}) 无法被移除，已跳过。")
+        if current_user.id in data.user_ids and current_user.id not in valid_user_ids_for_removal and current_user.id not in skipped_superuser_ids:
+             message_parts.append("您不能移除自己，该操作已被跳过。")
+
+        final_message = " ".join(message_parts)
+        return {
+            "success": True, 
+            "message": final_message, 
+            "details": {"removed_count": removed_count, "skipped_superuser_ids": skipped_superuser_ids}
+        }
 
 # 工作区服务实例
 workspace_service = WorkspaceService() 

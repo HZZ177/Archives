@@ -48,6 +48,17 @@ class WorkspaceAddUser(WorkspaceUserBase):
     pass
 
 
+class WorkspaceBatchAddUsers(BaseModel):
+    """批量添加用户到工作区的请求模型"""
+    user_ids: List[int] = Field(..., description="要批量添加的用户ID列表")
+    access_level: str = Field(default="read", description="统一设置的访问级别: read, write, admin")
+
+
+class WorkspaceBatchRemoveUsers(BaseModel):
+    """批量从工作区移除用户的请求模型"""
+    user_ids: List[int] = Field(..., description="要批量移除的用户ID列表")
+
+
 class WorkspaceUserResponse(WorkspaceUserBase):
     """工作区用户响应模型"""
     workspace_id: int

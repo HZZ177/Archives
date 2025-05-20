@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Select, Button, Spin, Empty } from 'antd';
+import { Modal, Form, Select, Button, Spin, Empty, message } from 'antd';
 import { fetchUsers } from '../../../apis/userService';
 import { User } from '../../../types/user';
-import { WorkspaceUserParams } from '../../../types/workspace';
+import { WorkspaceUserParams, BatchAddUsersToWorkspaceRequest } from '../../../types/workspace';
 import { roleOptions, roleToAccessLevel } from '../../../utils/roleMapping';
 
 interface AddUserToWorkspaceModalProps {
@@ -10,7 +10,7 @@ interface AddUserToWorkspaceModalProps {
   workspaceId: number;
   workspaceName: string;
   existingUserIds: number[]; // 已在工作区中的用户ID列表
-  onAdd: (params: WorkspaceUserParams) => Promise<void>;
+  onAdd: (params: BatchAddUsersToWorkspaceRequest) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -39,6 +39,7 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
       setLoading(false);
     } catch (error) {
       console.error('获取用户列表失败:', error);
+      message.error('获取用户列表失败');
       setLoading(false);
     }
   };
@@ -58,17 +59,28 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
       const values = await form.validateFields();
       setSubmitting(true);
       
-      // 使用统一的角色映射
+      const selectedUserIds = values.user_ids;
+      const role = values.role;
+      const accessLevel = roleToAccessLevel[role] || 'read';
+
+      // 调用父组件的 onAdd 进行批量添加
       await onAdd({
-        user_id: values.user_id,
-        access_level: roleToAccessLevel[values.role] || 'read'
+        user_ids: selectedUserIds,
+        access_level: accessLevel
       });
       
-      // 表单提交后重置
+      // 成功后由父组件处理消息提示和关闭模态框
+      // 这里只需要重置表单和提交状态
       form.resetFields();
-      setSubmitting(false);
-    } catch (error) {
-      console.error('表单验证或提交失败:', error);
+      // onCancel(); // 父组件的 onAdd 成功后会调用 setAddUserModalVisible(false)
+      // message.success(`成功添加 ${selectedUserIds.length} 个用户到工作区`); // 移至父组件
+
+    } catch (errorInfo) { // Antd validateFields 失败会进入这里，或者 onAdd Promise reject
+      // 如果是表单验证错误，Antd会自动显示
+      // 如果是 onAdd 抛出的错误, 父组件应该已经处理了 message.error
+      console.error('模态框提交或onAdd失败:', errorInfo);
+      // message.error('添加用户失败'); // 移至父组件或onAdd的实现中
+    } finally {
       setSubmitting(false);
     }
   };
@@ -85,6 +97,7 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
       title={`添加用户到 ${workspaceName}`}
       open={visible}
       onCancel={handleCancel}
+      width={600}
       footer={[
         <Button key="cancel" onClick={handleCancel}>
           取消
@@ -96,11 +109,11 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
           onClick={handleSubmit}
           disabled={users.length === 0}
         >
-          添加
+          批量添加
         </Button>
       ]}
       maskClosable={false}
-      destroyOnClose={true} // 确保弹窗关闭时销毁其中的组件
+      destroyOnClose={true}
     >
       <Spin spinning={loading}>
         {users.length === 0 ? (
@@ -109,13 +122,14 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
             image={Empty.PRESENTED_IMAGE_SIMPLE} 
           />
         ) : (
-          <Form form={form} layout="vertical" preserve={false}> {/* 确保表单不保留值 */}
+          <Form form={form} layout="vertical" preserve={false}>
             <Form.Item
-              name="user_id"
+              name="user_ids"
               label="选择用户"
               rules={[{ required: true, message: '请选择用户' }]}
             >
               <Select
+                mode="multiple"
                 placeholder="请选择用户"
                 showSearch
                 filterOption={(input, option) =>
@@ -125,12 +139,15 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
                   value: user.id,
                   label: `${user.username}${user.email ? ` (${user.email})` : ''}`
                 }))}
+                maxTagCount={3}
+                maxTagTextLength={10}
+                style={{ width: '100%' }}
               />
             </Form.Item>
 
             <Form.Item
               name="role"
-              label="选择角色"
+              label="批量设置角色"
               initialValue="member"
               rules={[{ required: true, message: '请选择角色' }]}
             >

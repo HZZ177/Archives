@@ -11,6 +11,8 @@ from backend.app.schemas.workspace import (
     WorkspaceResponse,
     WorkspaceUpdate,
     WorkspaceAddUser,
+    WorkspaceBatchAddUsers,
+    WorkspaceBatchRemoveUsers,
     WorkspaceUserResponse,
     UserDefaultWorkspace,
     WorkspaceUserRoleUpdate
@@ -68,9 +70,9 @@ async def create_workspace(
     """
     try:
         if not current_user.is_superuser:
-            return error_response(
+            raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                message="只有超级管理员可以创建工作区"
+                detail="只有超级管理员可以创建工作区"
             )
         workspace = await workspace_service.create_workspace(db, workspace_in, current_user)
         return success_response(data=workspace, message="工作区创建成功")
@@ -178,6 +180,50 @@ async def add_user_to_workspace(
         return error_response(message=f"添加用户到工作区失败: {str(e)}")
 
 
+@router.post("/{workspace_id}/users/batch", response_model=APIResponse)
+async def batch_add_users_to_workspace_endpoint(
+    workspace_id: int,
+    batch_data: WorkspaceBatchAddUsers,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    批量添加用户到工作区
+    """
+    try:
+        result = await workspace_service.batch_add_users_to_workspace(
+            db, workspace_id, batch_data, current_user
+        )
+        return success_response(message=result.get("message", "批量操作成功"), data=result)
+    except HTTPException as e:
+        return error_response(message=e.detail, status_code=e.status_code)
+    except Exception as e:
+        logger.error(f"批量添加用户到工作区失败: {str(e)}")
+        return error_response(message=f"批量添加用户到工作区失败: {str(e)}")
+
+
+@router.post("/{workspace_id}/users/batch-remove", response_model=APIResponse)
+async def batch_remove_users_from_workspace_endpoint(
+    workspace_id: int,
+    data: WorkspaceBatchRemoveUsers,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    批量从工作区移除用户
+    """
+    try:
+        result = await workspace_service.batch_remove_users_from_workspace(
+            db, workspace_id, data, current_user
+        )
+        return success_response(message=result.get("message", "批量移除操作成功"), data=result)
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"批量从工作区移除用户失败: {str(e)}")
+        return error_response(message=f"批量从工作区移除用户失败: {str(e)}")
+
+
 @router.post("/{workspace_id}/users/{user_id}/remove", response_model=APIResponse)
 async def remove_user_from_workspace(
     workspace_id: int,
@@ -259,9 +305,9 @@ async def add_user_to_default_workspace(
     try:
         # 检查权限：只有超级管理员或自己才能执行此操作
         if not current_user.is_superuser and current_user.id != user_id:
-            return error_response(
+            raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                message="您没有权限执行此操作"
+                detail="您没有权限执行此操作"
             )
             
         result = await workspace_service.add_user_to_default_workspace(db, user_id)

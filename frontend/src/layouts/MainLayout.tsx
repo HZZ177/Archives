@@ -199,17 +199,13 @@ const MainLayout: React.FC = () => {
   useEffect(() => {
     const fetchUserPermissions = async () => {
       try {
-        // 获取当前工作区ID
         const workspaceId = currentWorkspace?.id;
-        
-        // 获取用户可访问的页面路径，传入工作区ID
         const pagePaths = await fetchUserPagePermissions(workspaceId);
         console.log('获取到用户页面权限:', pagePaths);
-        
-        // 直接使用接口返回的字符串数组
-        setUserPermissions(pagePaths);
+        setUserPermissions(Array.isArray(pagePaths) ? pagePaths : []);
       } catch (error) {
         console.error('获取用户权限失败:', error);
+        setUserPermissions([]);
       }
     };
 
@@ -402,8 +398,10 @@ const MainLayout: React.FC = () => {
   const handleMenuClick = useCallback((key: string) => {
     if (key === 'logout') {
       handleLogout();
+    } else if (key === 'profile') {
+      navigate('/user/profile');
     }
-  }, []);
+  }, [navigate, logout]);
 
   // 处理登出
   const handleLogout = async () => {

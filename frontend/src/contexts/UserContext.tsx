@@ -73,6 +73,14 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isLoggedIn: true,
       });
       
+      // 清理工作区本地缓存，防止串号
+      try {
+        localStorage.removeItem('currentWorkspace');
+        sessionStorage.removeItem('currentWorkspace');
+      } catch (e) {
+        console.warn('清理本地 currentWorkspace 缓存失败', e);
+      }
+      
       // token 和用户信息已经在 authAPI.login 中存储到 localStorage
       
       console.log('UserContext: 状态更新完成');
@@ -107,12 +115,16 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // 更新用户信息
-  const updateUserInfo = (user: User): void => {
+  const updateUserInfo = (user: User | null): void => {
     setUserState(prev => ({
       ...prev,
       currentUser: user,
     }));
-    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
+    if (user) {
+      localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(STORAGE_USER_KEY);
+    }
   };
 
   // 刷新用户信息

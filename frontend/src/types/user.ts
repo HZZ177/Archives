@@ -20,7 +20,7 @@ export interface UserContextType {
   userState: UserState;
   login: (params: LoginParams) => Promise<void>;
   logout: () => Promise<void>;
-  updateUserInfo: (user: User) => void;
+  updateUserInfo: (user: User | null) => void;
   refreshUserInfo: () => Promise<void>;
   changePassword?: (params: ChangePasswordParams) => Promise<void>;
 }
@@ -33,7 +33,7 @@ export interface LoginParams {
 
 export interface LoginResult {
   token: string;
-  userinfo: User;
+  userinfo: User | null;
   need_change_password?: boolean;
 }
 
