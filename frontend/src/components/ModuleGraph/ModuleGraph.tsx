@@ -1037,7 +1037,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
                 }
               }
             }}
-            linkDirectionalParticles={link => isLinkHighlighted(link) ? 2 : 1} // 高亮2个粒子，非高亮1个
+            linkDirectionalParticles={2} // 固定粒子数量为2
             linkDirectionalParticleSpeed={0.003}
             linkDirectionalParticleWidth={link => isLinkHighlighted(link) ? 4 : 2} // 高亮粒子更大
             linkDirectionalParticleColor={link => {
@@ -1050,7 +1050,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
               }
               
               // 否则，返回半透明的颜色
-              // 将颜色转换为rgba格式，设置透明度为0.3
+              // 将颜色转换为rgba格式，设置透明度为0.5
               return baseColor === '#1890ff' ? 'rgba(24, 144, 255, 0.5)' : 'rgba(217, 217, 217, 0.5)';
             }}
           />
