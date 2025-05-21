@@ -5,6 +5,7 @@ import { fetchModuleTree, fetchModuleContent } from '../../apis/moduleService';
 import { Tooltip, Button, Spin } from 'antd';
 import './ModuleGraph.css';
 import { AimOutlined, LinkOutlined, InfoCircleOutlined, ZoomInOutlined, ZoomOutOutlined, FullscreenOutlined } from '@ant-design/icons';
+import { message } from 'antd';
 
 interface ModuleGraphProps {
   currentModuleId: number;
@@ -35,6 +36,11 @@ interface ModuleGraphRef {
   resetAutoFit: () => void;
 }
 
+// 添加平滑缩放配置常量
+const ZOOM_TRANSITION_DURATION = 250; // 缩放动画持续时间(ms)，减少以提高响应性
+const ZOOM_FACTOR = 1.4; // 每次缩放倍数
+const DAMPING_FACTOR = 0.4; // 阻尼系数 - 值越小阻尼感越强
+
 const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModuleId, onNodeClick }, ref) => {
   const [graphData, setGraphData] = useState<{ nodes: GraphNode[], links: GraphLink[] }>({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
@@ -48,6 +54,14 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
   const hasAutoFitted = useRef(false);
   const pulseAnimRef = useRef<number>();
   const [currentScale, setCurrentScale] = useState<number>(1);
+
+  // 添加滚轮缩放相关状态
+  const lastWheelEventTime = useRef<number>(0);
+  const targetZoomScale = useRef<number | null>(null);
+  const zoomTransitionActive = useRef<boolean>(false);
+  const wheelDeltaAccumulator = useRef<number>(0);
+
+  // 移除鼠标位置跟踪代码，使用内置tooltip
 
   // 将模块树转换为图形数据
   const convertToGraphData = useCallback(async (modules: ModuleStructureNode[]) => {
@@ -274,27 +288,39 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     ctx.arc(node.x!, node.y!, 5, 0, 2 * Math.PI, false);
     ctx.fill();
 
-    // 只在缩放比例大于阈值时显示节点名称
-    const labelVisibilityThreshold = 0.9;
-    if (globalScale > labelVisibilityThreshold) {
-    // 绘制标签背景
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.fillRect(
-      node.x! - bckgDimensions[0] / 2,
-      node.y! + 8,
-      bckgDimensions[0],
-      bckgDimensions[1]
-    );
+    // 文字透明度渐变区间
+    const minScale = 1.2;  // 开始渐变的最小缩放值
+    const maxScale = 2;  // 完全显示的最大缩放值
+    
+    // 计算文字透明度
+    let textAlpha = 0;
+    if (globalScale >= maxScale) {
+        textAlpha = 1;
+    } else if (globalScale > minScale) {
+        // 在minScale和maxScale之间线性插值
+        textAlpha = (globalScale - minScale) / (maxScale - minScale);
+    }
+    
+    // 只在有透明度时绘制文字
+    if (textAlpha > 0) {
+        // 绘制标签背景
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * textAlpha})`;
+        ctx.fillRect(
+            node.x! - bckgDimensions[0] / 2,
+            node.y! + 8,
+            bckgDimensions[0],
+            bckgDimensions[1]
+        );
 
-    // 绘制标签文本
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#000';
-    ctx.fillText(
-      label,
-      node.x!,
-      node.y! + 8 + bckgDimensions[1] / 2
-    );
+        // 绘制标签文本
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = `rgba(0, 0, 0, ${textAlpha})`;
+        ctx.fillText(
+            label,
+            node.x!,
+            node.y! + 8 + bckgDimensions[1] / 2
+        );
     }
     
     ctx.globalAlpha = 1;
@@ -328,8 +354,9 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
   }, [onNodeClick]);
 
   // 处理节点悬停
-  const handleNodeHover = useCallback((node: any) => {
+  const handleNodeHover = useCallback((node: any, previousNode: any) => {
     setHoveredNode(node);
+    
     if (node) {
       const links = graphData.links;
       const descendantLinkKeys = new Set<string>();
@@ -408,24 +435,96 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     setCurrentScale(k);
   }, []);
 
+  // 平滑缩放到目标比例
+  const smoothZoomTo = useCallback((targetScale: number, duration: number = ZOOM_TRANSITION_DURATION) => {
+    if (!graphRef.current) return;
+    
+    // 将目标缩放值限制在minZoom和maxZoom之间
+    const boundedScale = Math.max(1, Math.min(targetScale, 8));
+    targetZoomScale.current = boundedScale;
+    
+    // 如果已经接近目标值，直接设置
+    if (Math.abs(currentScale - boundedScale) < 0.01) {
+      return;
+    }
+    
+    // 不再阻止动画过渡期间的新缩放操作，允许中断前一个动画
+    // 标记动画状态为活跃
+    zoomTransitionActive.current = true;
+    
+    // 使用D3的transition实现平滑缩放
+    graphRef.current.zoom(boundedScale, duration);
+    
+    // 动画结束后重置状态
+    setTimeout(() => {
+      zoomTransitionActive.current = false;
+    }, duration);
+  }, [currentScale]);
+  
+  // 处理滚轮事件，实现平滑缩放
+  const handleWheel = useCallback((event: Event) => {
+    // 将事件转换为WheelEvent类型
+    const wheelEvent = event as WheelEvent;
+    wheelEvent.preventDefault();
+    wheelEvent.stopPropagation();
+    
+    // 简化处理逻辑，直接使用当前deltaY判断方向
+    const deltaY = wheelEvent.deltaY;
+    
+    // 应用阻尼系数但不进行累积，每次滚轮事件直接响应
+    const dampedDelta = deltaY * DAMPING_FACTOR;
+    
+    // 无需记录时间戳或检查去抖动，始终处理每个滚轮事件
+    
+    // 计算缩放方向（向上滚动放大，向下滚动缩小）
+    const direction = dampedDelta > 0 ? -1 : 1;
+    
+    // 总是使用最新的目标缩放值作为基础，确保动画连续性
+    // 如果有正在进行的动画，使用其目标值；否则使用当前缩放比例
+    let baseScale = zoomTransitionActive.current && targetZoomScale.current !== null ? 
+                    targetZoomScale.current : currentScale;
+    
+    // 计算新的目标缩放值
+    const targetScale = baseScale * Math.pow(ZOOM_FACTOR, direction);
+    
+    // 无需重置累积器，因为不再使用累积机制
+    
+    // 执行平滑缩放
+    smoothZoomTo(targetScale);
+  }, [currentScale, smoothZoomTo]);
+  
+  // 添加和移除滚轮事件监听器
+  useEffect(() => {
+    const canvas = document.querySelector('.module-graph-wrapper canvas');
+    if (canvas) {
+      canvas.addEventListener('wheel', handleWheel, { passive: false });
+    }
+    
+    return () => {
+      if (canvas) {
+        canvas.removeEventListener('wheel', handleWheel);
+      }
+    };
+  }, [handleWheel]);
+
   // 缩放控制函数
   const zoomIn = useCallback(() => {
     if (graphRef.current) {
-      const newScale = currentScale * 1.2;
-      graphRef.current.zoom(newScale, 300);
+      const newScale = currentScale * ZOOM_FACTOR;
+      smoothZoomTo(newScale);
     }
-  }, [currentScale]);
+  }, [currentScale, smoothZoomTo]);
 
   const zoomOut = useCallback(() => {
     if (graphRef.current) {
-      const newScale = currentScale / 1.2;
-      graphRef.current.zoom(newScale, 300);
+      const newScale = currentScale / ZOOM_FACTOR;
+      smoothZoomTo(newScale);
     }
-  }, [currentScale]);
+  }, [currentScale, smoothZoomTo]);
 
   const resetZoom = useCallback(() => {
     if (graphRef.current) {
-      zoomToFit(300);
+      zoomToFit(ZOOM_TRANSITION_DURATION);
     }
   }, [zoomToFit]);
 
@@ -433,14 +532,12 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     <div className="module-graph-container">
       <div className="module-graph-controls">
         <Button
-          type={showOnlyRelated ? 'primary' : 'default'}
+          className={`control-button ${showOnlyRelated ? 'active' : ''}`}
           onClick={() => setShowOnlyRelated(!showOnlyRelated)}
-          className="control-button"
           icon={<LinkOutlined />}
         >
-          {showOnlyRelated ? '查看所有关联' : '查看当前模块关联'}
+          {showOnlyRelated ? "查看所有关联图谱" : "仅查看当前模块关联图谱"}
         </Button>
-        {/* 所有模式下都显示定位按钮 */}
         <Button
           className="control-button"
           icon={<AimOutlined />}
@@ -465,6 +562,16 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
             linkWidth={1}
             onNodeClick={handleNodeClick}
             onNodeHover={handleNodeHover}
+            // 禁用原生滚轮事件处理，使用我们自定义的平滑缩放
+            enableZoomInteraction={false}
+            // 使用内置tooltip
+            nodeLabel={(node: GraphNode) => {
+              let tooltipContent = node.name;
+              if (node.overview) {
+                tooltipContent += `\n\n${node.overview}`;
+              }
+              return tooltipContent;
+            }}
             // 增加预热迭代次数，加快初始布局计算速度
             warmupTicks={50}
             // 减少降温迭代次数，加快渲染完成速度
@@ -501,46 +608,48 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
           />
           {/* 图例 */}
           <div className="module-graph-legend">
-            <div className="legend-title">说明</div>
+            <div className="legend-title">图例</div>
             <div className="legend-row">
-              <span className="legend-dot legend-dot-blue" /> 当前模块
+              <span className="legend-dot legend-dot-blue"></span>
+              当前模块
             </div>
             <div className="legend-row">
-              <span className="legend-dot legend-dot-purple" /> 顶级节点
+              <span className="legend-dot legend-dot-green"></span>
+              内容页
             </div>
             <div className="legend-row">
-              <span className="legend-dot legend-dot-green" /> 内容页面
+              <span className="legend-dot legend-dot-purple"></span>
+              顶级模块
             </div>
             <div className="legend-row">
-              <span className="legend-dot legend-dot-gray" /> 结构/目录节点
+              <span className="legend-dot legend-dot-gray"></span>
+              普通模块
             </div>
             <div className="legend-row">
-              <span className="legend-line legend-line-blue" /> 关联关系
+              <span className="legend-line legend-line-blue"></span>
+              关联关系
             </div>
             <div className="legend-row">
-              <span className="legend-line legend-line-gray" /> 结构/父子关系
-            </div>
-            <div className="legend-desc">
-              <InfoCircleOutlined style={{ marginRight: 4, color: '#ff4d4f' }} />
-              查看全部节点时，只会展示与当前页面有关联的关联关系
+              <span className="legend-line legend-line-gray"></span>
+              层级关系
             </div>
           </div>
-          
-          {/* 缩放控制面板 */}
+          {/* 缩放控制 */}
           <div className="zoom-controls">
             <button className="control-button" onClick={zoomIn} title="放大">
               <ZoomInOutlined />
             </button>
             <div className="zoom-scale-display">
-              {Math.round(currentScale * 100)}%
+              {(currentScale * 100).toFixed(0)}%
             </div>
             <button className="control-button" onClick={zoomOut} title="缩小">
               <ZoomOutOutlined />
             </button>
-            <button className="control-button" onClick={resetZoom} title="适应画布">
+            <button className="control-button" onClick={resetZoom} title="重置缩放">
               <FullscreenOutlined />
             </button>
           </div>
+          {/* 使用ForceGraph2D内置tooltip，不需要自定义tooltip */}
         </div>
       )}
     </div>
