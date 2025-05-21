@@ -184,4 +184,26 @@
   font-size: 12px;
   color: #666;
   line-height: 1.2;
+}
+
+/* 布局计算指示器 */
+.layout-calculating-overlay {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  z-index: 10;
+}
+
+.layout-calculating-indicator {
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: white;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+}
+
+.layout-calculating-indicator .ant-spin {
+  margin-right: 8px;
 } 

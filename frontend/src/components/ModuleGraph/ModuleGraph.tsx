@@ -4,7 +4,7 @@ import { ModuleStructureNode } from '../../types/modules';
 import { fetchModuleTree, fetchModuleContent } from '../../apis/moduleService';
 import { Tooltip, Button, Spin } from 'antd';
 import './ModuleGraph.css';
-import { AimOutlined, LinkOutlined, InfoCircleOutlined, ZoomInOutlined, ZoomOutOutlined, FullscreenOutlined } from '@ant-design/icons';
+import { AimOutlined, LinkOutlined, InfoCircleOutlined, ZoomInOutlined, ZoomOutOutlined, FullscreenOutlined, SettingOutlined } from '@ant-design/icons';
 import { message } from 'antd';
 
 interface ModuleGraphProps {
@@ -54,6 +54,10 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
   const hasAutoFitted = useRef(false);
   const pulseAnimRef = useRef<number>();
   const [currentScale, setCurrentScale] = useState<number>(1);
+  
+  // 坐标系显示状态
+  const [showCoordinateSystem, setShowCoordinateSystem] = useState(false);
+  const [mousePosition, setMousePosition] = useState<{x: number, y: number} | null>(null);
 
   // 添加滚轮缩放相关状态
   const lastWheelEventTime = useRef<number>(0);
@@ -70,10 +74,14 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     const processedIds = new Set<number>();
 
     // 递归处理节点
-    const processNode = (node: ModuleStructureNode, parentId?: number) => {
+    const processNode = (node: ModuleStructureNode, parentId?: number, depth: number = 0, index: number = 0, totalSiblings: number = 1) => {
       if (processedIds.has(node.id)) return;
       processedIds.add(node.id);
 
+      // 计算初始位置 - 基于层级和兄弟节点索引
+      const initialRadius = 100 + (depth * 50); // 每层半径递增
+      const angle = (index / Math.max(1, totalSiblings)) * 2 * Math.PI; // 均匀分布在圆周上
+      
       // 添加节点
       nodes.push({
         id: node.id,
@@ -81,7 +89,10 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
         isContentPage: node.is_content_page,
         isCurrentModule: node.id === currentModuleId,
         isTopLevel: parentId === undefined,  // 如果没有父节点，则为顶级节点
-        val: 1
+        val: 1,
+        // 初始位置 - 按层级环形布局
+        x: Math.cos(angle) * initialRadius,
+        y: Math.sin(angle) * initialRadius
       });
 
       // 如果有父节点，添加连接
@@ -92,14 +103,15 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
         });
       }
 
-      // 处理子节点
+      // 处理子节点 - 传递深度信息
       if (node.children && node.children.length > 0) {
-        node.children.forEach(child => processNode(child, node.id));
+        node.children.forEach((child, childIndex) => 
+          processNode(child, node.id, depth + 1, childIndex, node.children.length));
       }
     };
 
     // 处理所有顶级节点
-    modules.forEach(node => processNode(node));
+    modules.forEach((node, index) => processNode(node, undefined, 0, index, modules.length));
 
     // 获取关联模块的连接
     if (currentModuleId) {
@@ -166,14 +178,37 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     };
   }, [convertToGraphData]);
 
-  // 新增useEffect，用于配置斥力参数
+  // 配置力布局参数
   useEffect(() => {
     // 确保graphRef和d3Force可用
     if (graphRef.current && graphRef.current.d3Force) {
-      // 设置charge力（斥力）强度为-10
+      // 获取容器尺寸以设置中心点
+      const containerElem = document.querySelector('.module-graph-wrapper');
+      let centerX = 0, centerY = 0;
+      
+      if (containerElem) {
+        const width = containerElem.clientWidth;
+        const height = containerElem.clientHeight;
+        centerX = width / 2;
+        centerY = height / 2;
+      }
+
+      // 设置charge力（斥力）
       const charge = graphRef.current.d3Force('charge');
       if (charge) {
-        charge.strength(-10);
+        charge.strength(-30); // 增强斥力，使节点分布更广
+      }
+      
+      // 设置中心引力 - 关键部分
+      const center = graphRef.current.d3Force('center');
+      if (center) {
+        center.x(centerX).y(centerY).strength(0.1); // 添加适当的中心引力
+      }
+      
+      // 调整link力（连接弹性）
+      const link = graphRef.current.d3Force('link');
+      if (link) {
+        link.distance(70); // 设置连接的目标长度
       }
     }
   }, [graphData]); // 当图数据变化时重新设置
@@ -209,18 +244,107 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     };
   }, [graphData, showOnlyRelated, currentModuleId]);
 
-  // 暴露给父组件的zoomToFit方法，支持动态padding
+  // 暴露给父组件的zoomToFit方法，支持自适应缩放
   const zoomToFit = useCallback((duration = 400) => {
-    if (graphRef.current) {
-      // 动态padding：节点少时padding大，节点多时padding小
-      let padding = 40;
+    if (graphRef.current && filteredGraphData.nodes.length > 0) {
       const nodes = filteredGraphData.nodes;
-      const nodeCount = nodes.length;
-      if (nodeCount <= 3) padding = 400;
-      else if (nodeCount <= 6) padding = 400;
-      else if (nodeCount <= 12) padding = 300;
-      // 只用zoomToFit，不再centerAt
+      const containerElem = document.querySelector('.module-graph-wrapper');
+      
+      if (!containerElem) {
+        // 如果找不到容器，使用默认padding
+        graphRef.current.zoomToFit(duration, 40);
+        return;
+      }
+      
+      // 容器尺寸
+      const containerWidth = containerElem.clientWidth;
+      const containerHeight = containerElem.clientHeight;
+      
+      // 计算图谱的边界框
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let validNodes = 0;
+      
+      nodes.forEach(node => {
+        if (typeof node.x === 'number' && typeof node.y === 'number') {
+          minX = Math.min(minX, node.x);
+          minY = Math.min(minY, node.y);
+          maxX = Math.max(maxX, node.x);
+          maxY = Math.max(maxY, node.y);
+          validNodes++;
+        }
+      });
+      
+      // 确保有有效节点坐标
+      if (validNodes === 0 || !isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
+        // 如果没有有效坐标，使用默认padding
+        graphRef.current.zoomToFit(duration, 40);
+        return;
+      }
+      
+      // 计算图谱的宽高
+      const graphWidth = maxX - minX || 1; // 防止除以零
+      const graphHeight = maxY - minY || 1;
+      
+      // 计算图谱与容器的比例
+      const widthRatio = graphWidth / containerWidth;
+      const heightRatio = graphHeight / containerHeight;
+      
+      // 计算合适的padding
+      // 比例因子：图谱越大相对于容器，padding应该越小
+      const baseRatio = Math.max(widthRatio, heightRatio);
+      const graphArea = graphWidth * graphHeight;
+      const nodeDensity = validNodes / (graphArea > 0 ? graphArea : 1);
+      
+      // 基础padding比例，容器尺寸的百分比
+      let paddingRatio = 0.1; // 10%的容器尺寸
+      
+      // 根据节点数量和密度调整padding比例
+      if (nodes.length <= 3) {
+        paddingRatio = 0.15; // 较少节点，稍大padding
+      } else if (nodes.length <= 10) {
+        paddingRatio = 0.12;
+      } else if (nodeDensity > 0.0001) {
+        // 节点密度高，减小padding
+        paddingRatio = 0.08;
+      }
+      
+      // 最终padding值
+      const minDimension = Math.min(containerWidth, containerHeight);
+      let padding = minDimension * paddingRatio;
+      
+      // 为小图谱设置最小padding，避免过大
+      if (baseRatio < 0.3) {
+        padding = Math.min(padding, minDimension * 0.05);
+      }
+      
+      // 为大图谱设置最大padding，避免过小
+      if (baseRatio > 2) {
+        padding = Math.max(padding, 30);
+      }
+      
+      // 自适应缩放计算完成
+      
+      // 使用计算出的padding进行缩放
       graphRef.current.zoomToFit(duration, padding);
+      
+      // 延迟检查并限制缩放范围
+      setTimeout(() => {
+        if (graphRef.current) {
+          const currentZoom = graphRef.current.zoom();
+          
+          // 限制最小和最大缩放
+          if (currentZoom < 0.5) {
+            // 如果缩放太小，设置为最小值
+            graphRef.current.zoom(0.5, duration/2);
+          } else if (currentZoom > 2.5) {
+            // 如果缩放太大，设置为最大值
+            graphRef.current.zoom(2.5, duration/2);
+          }
+        }
+      }, duration + 50);
+    } else if (graphRef.current) {
+      // 没有节点时使用默认缩放
+      graphRef.current.zoomToFit(duration, 40);
     }
   }, [filteredGraphData.nodes]);
 
@@ -235,6 +359,28 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     // 当图数据发生变化时，重置自动适应状态
     hasAutoFitted.current = false;
   }, [graphData]);
+  
+  // 在数据加载完成后立即定位到中心，不等待力布局计算完成
+  useEffect(() => {
+    if (!loading && graphData.nodes.length > 0 && graphRef.current) {
+      // 短暂延迟确保DOM已完全渲染
+      setTimeout(() => {
+        const containerElem = document.querySelector('.module-graph-wrapper');
+        if (containerElem) {
+          const width = containerElem.clientWidth;
+          const height = containerElem.clientHeight;
+          const centerX = width / 2;
+          const centerY = height / 2;
+          
+          // 立即居中到容器中心，无动画
+          graphRef.current.centerAt(centerX, centerY, 0);
+          
+          // 设置一个适中的初始缩放级别
+          graphRef.current.zoom(1.2, 0);
+        }
+      }, 50);
+    }
+  }, [loading, graphData.nodes.length]);
 
   // 脉冲动画驱动
   useEffect(() => {
@@ -251,6 +397,123 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     }
   }, [highlightedNodeId]);
 
+  // 绘制坐标系统的函数
+  const drawCoordinateSystem = useCallback((ctx: CanvasRenderingContext2D, globalScale: number) => {
+    if (!graphRef.current || !showCoordinateSystem) return;
+    
+    // 获取画布尺寸
+    const canvasWidth = ctx.canvas.width;
+    const canvasHeight = ctx.canvas.height;
+    
+    // 直接使用canvas transform作为缩放比例
+    const scale = globalScale;
+    
+    // 获取中心点坐标 - 假设中心点在画布中央
+    const centerX = canvasWidth / 2;
+    const centerY = canvasHeight / 2;
+    
+    // 绘制参数
+    const axisColor = 'rgba(255, 0, 0, 0.7)';
+    const gridColor = 'rgba(128, 128, 128, 0.15)';
+    const textColor = 'rgba(255, 0, 0, 0.8)';
+    const gridSpacing = 50; // 网格线间距
+    
+    // 计算画布范围对应的逻辑坐标范围
+    const minX = -centerX / scale;
+    const minY = -centerY / scale;
+    const maxX = (canvasWidth - centerX) / scale;
+    const maxY = (canvasHeight - centerY) / scale;
+    
+    // 绘制网格线
+    ctx.lineWidth = 0.5 / scale;
+    ctx.strokeStyle = gridColor;
+    ctx.beginPath();
+    
+    // 水平网格线
+    const startGridY = Math.floor(minY / gridSpacing) * gridSpacing;
+    for (let y = startGridY; y <= maxY; y += gridSpacing) {
+      const canvasY = y * scale + centerY;
+      ctx.moveTo(0, canvasY);
+      ctx.lineTo(canvasWidth, canvasY);
+    }
+    
+    // 垂直网格线
+    const startGridX = Math.floor(minX / gridSpacing) * gridSpacing;
+    for (let x = startGridX; x <= maxX; x += gridSpacing) {
+      const canvasX = x * scale + centerX;
+      ctx.moveTo(canvasX, 0);
+      ctx.lineTo(canvasX, canvasHeight);
+    }
+    ctx.stroke();
+    
+    // 绘制坐标轴
+    ctx.lineWidth = 1.5 / scale;
+    ctx.strokeStyle = axisColor;
+    ctx.beginPath();
+    
+    // X轴
+    const xAxisY = centerY;
+    ctx.moveTo(0, xAxisY);
+    ctx.lineTo(canvasWidth, xAxisY);
+    
+    // Y轴
+    const yAxisX = centerX;
+    ctx.moveTo(yAxisX, 0);
+    ctx.lineTo(yAxisX, canvasHeight);
+    ctx.stroke();
+    
+    // 绘制坐标标签
+    ctx.fillStyle = textColor;
+    ctx.font = `${12 / scale}px Arial`;
+    
+    // X轴标签
+    const labelPadding = 5 / scale;
+    for (let x = startGridX; x <= maxX; x += gridSpacing) {
+      if (x === 0) continue; // 跳过原点
+      const canvasX = x * scale + centerX;
+      ctx.fillText(`${x}`, canvasX + labelPadding, xAxisY - labelPadding);
+    }
+    
+    // Y轴标签
+    for (let y = startGridY; y <= maxY; y += gridSpacing) {
+      if (y === 0) continue; // 跳过原点
+      const canvasY = y * scale + centerY;
+      ctx.fillText(`${y}`, yAxisX + labelPadding, canvasY - labelPadding);
+    }
+    
+    // 标记原点
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.9)';
+    const originPointSize = 4 / scale;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, originPointSize, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillText('(0,0)', centerX + labelPadding, centerY - labelPadding);
+    
+    // 绘制鼠标位置指示器
+    if (mousePosition) {
+      const x = mousePosition.x;
+      const y = mousePosition.y;
+      
+      // 计算鼠标在逻辑坐标系中的位置
+      const logicalX = (x - centerX) / scale;
+      const logicalY = (y - centerY) / scale;
+      
+      // 绘制十字指示器
+      ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)';
+      ctx.lineWidth = 1 / scale;
+      ctx.beginPath();
+      ctx.moveTo(x - 10 / scale, y);
+      ctx.lineTo(x + 10 / scale, y);
+      ctx.moveTo(x, y - 10 / scale);
+      ctx.lineTo(x, y + 10 / scale);
+      ctx.stroke();
+      
+      // 显示鼠标坐标
+      ctx.fillStyle = 'rgba(255, 165, 0, 0.9)';
+      ctx.fillText(`(${logicalX.toFixed(0)}, ${logicalY.toFixed(0)})`, x + 15 / scale, y - 15 / scale);
+    }
+  }, [showCoordinateSystem, mousePosition]);
+  
   // 自定义节点渲染
   const nodeCanvasObject = useCallback((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const label = node.name;
@@ -527,6 +790,26 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
       zoomToFit(ZOOM_TRANSITION_DURATION);
     }
   }, [zoomToFit]);
+  
+  // 切换坐标系显示
+  const toggleCoordinateSystem = useCallback(() => {
+    setShowCoordinateSystem(prev => !prev);
+  }, []);
+  
+  // 鼠标移动处理函数
+  const handleMouseMove = useCallback((event: React.MouseEvent) => {
+    if (!showCoordinateSystem) return;
+    
+    // 获取鼠标相对于画布的位置
+    const containerElem = event.currentTarget as HTMLElement;
+    const rect = containerElem.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    
+    setMousePosition({ x: mouseX, y: mouseY });
+  }, [showCoordinateSystem]);
+  
+
 
   return (
     <div className="module-graph-container">
@@ -545,13 +828,22 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
         >
           定位当前模块
         </Button>
+
+        <Button
+          className={`control-button ${showCoordinateSystem ? 'active' : ''}`}
+          icon={<SettingOutlined />}
+          onClick={toggleCoordinateSystem}
+          title="显示/隐藏坐标系"
+        >
+          坐标系
+        </Button>
       </div>
       {loading ? (
         <div className="module-graph-loading">
           <Spin />
         </div>
       ) : (
-        <div className="module-graph-wrapper">
+        <div className="module-graph-wrapper" onMouseMove={handleMouseMove}>
           {/* @ts-ignore */}
           <ForceGraph2D
             ref={graphRef}
@@ -572,32 +864,47 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
               }
               return tooltipContent;
             }}
-            // 增加预热迭代次数，加快初始布局计算速度
+            // 降低预热迭代次数，更快完成初始布局
             warmupTicks={50}
-            // 减少降温迭代次数，加快渲染完成速度
+            // 降低降温迭代次数，加快布局完成
             cooldownTicks={50}
+            // 减少最长运行时间
+            cooldownTime={2000}
             // 设置更低的alpha最小值，使模拟更快停止
             d3AlphaMin={0.001}
-            // 增加alpha衰减速度，使模拟更快收敛
-            d3AlphaDecay={0.02}
-            // 减小速度衰减，使节点更快到达目标位置
-            d3VelocityDecay={0.3}
+            // 微调alpha衰减速度，使模拟更快收敛
+            d3AlphaDecay={0.015}
+            // 增加速度衰减，使节点稳定性更好
+            d3VelocityDecay={0.4}
             // 设置最小/最大缩放比例，防止过度缩小/放大
             minZoom={0.5}
             maxZoom={8}
             // 监听缩放事件，更新当前缩放比例
             onZoom={handleZoom}
+            // 渲染后执行，用于绘制坐标系
+            onRenderFramePost={(ctx, globalScale) => showCoordinateSystem && drawCoordinateSystem(ctx, globalScale)}
             onEngineStop={() => {
               if (!hasAutoFitted.current) {
-                const nodes: GraphNode[] = filteredGraphData.nodes || [];
-                console.log('onEngineStop 节点坐标:', nodes.map((n: GraphNode) => ({ id: n.id, x: n.x, y: n.y })));
-                const allValid = nodes.length > 0 && nodes.every((n: GraphNode) => typeof n.x === 'number' && typeof n.y === 'number');
-                if (allValid) {
-                  // 减少缩放动画时间，使缩放更快完成
+                // 获取画布容器中心
+                const containerElem = document.querySelector('.module-graph-wrapper');
+                if (containerElem && graphRef.current) {
+                  const width = containerElem.clientWidth;
+                  const height = containerElem.clientHeight;
+                  const centerX = width / 2;
+                  const centerY = height / 2;
+                  
+                  // 直接居中到容器中心（引力中心）
+                  graphRef.current.centerAt(centerX, centerY, 200);
+                  
+                  // 短暂延迟后再适应视图大小以确保所有节点可见
+                  setTimeout(() => {
+                    zoomToFit(200);
+                    hasAutoFitted.current = true;
+                  }, 250);
+                } else {
+                  // 如果无法获取容器，直接适应视图
                   zoomToFit(200);
                   hasAutoFitted.current = true;
-                } else {
-                  console.warn('节点坐标无效，未自动缩放');
                 }
               }
             }}
@@ -649,6 +956,15 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
               <FullscreenOutlined />
             </button>
           </div>
+          {/* 布局计算指示器 */}
+          {!hasAutoFitted.current && !loading && (
+            <div className="layout-calculating-overlay">
+              <div className="layout-calculating-indicator">
+                <Spin size="small" />
+                <span>优化布局中...</span>
+              </div>
+            </div>
+          )}
           {/* 使用ForceGraph2D内置tooltip，不需要自定义tooltip */}
         </div>
       )}
