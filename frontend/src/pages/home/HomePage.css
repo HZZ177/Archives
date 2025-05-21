@@ -1,7 +1,54 @@
 .home-page-container {
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%; /* 撑满父容器的内边距区域 */
+  display: flex;
+  flex-direction: column; /* 子元素纵向排列 */
+  /* align-items: center; */ /* 移除，使用默认的stretch */
+  /* justify-content: center; */ /* 移除，使用默认的flex-start */
+  height: calc(100vh - 184px);
+  /* overflow: hidden; */ /* 移除，以允许子元素的阴影显示 */
+  padding: 0; /* 移除内边距，由外部Layout.Content控制 */
+}
+
+.home-page-title {
+  margin-bottom: 16px !important;
+}
+
+.module-graph-container-home {
+  flex: 1;
+  position: relative;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  margin-bottom: 0;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.module-graph-container-home .module-graph-container .module-graph-controls {
+  display: none;
+}
+
+.no-modules-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-size: 16px;
+}
+
+.workspace-info-card-home {
+  width: 100%;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.workspace-color-indicator-home {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 .workspace-info-card {

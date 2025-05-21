@@ -742,7 +742,7 @@ const MainLayout: React.FC = () => {
               </div>
             </div>
           </Header>
-          <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280, borderRadius: 8, background: colorBgContainer }}>
+          <Content style={{ margin: '24px 16px', padding: 24, overflow: 'auto', borderRadius: 8, background: colorBgContainer }}>
             <Breadcrumb 
               style={{ marginBottom: 16 }}
               items={generateBreadcrumb()}

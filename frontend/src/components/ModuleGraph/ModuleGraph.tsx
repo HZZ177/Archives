@@ -2,10 +2,17 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, useImperative
 import ForceGraph2D from 'react-force-graph-2d';
 import { ModuleStructureNode } from '../../types/modules';
 import { fetchModuleTree, fetchModuleContent } from '../../apis/moduleService';
-import { Tooltip, Button, Spin } from 'antd';
+import { Tooltip, Button, Spin, Slider } from 'antd';
 import './ModuleGraph.css';
 import { AimOutlined, LinkOutlined, InfoCircleOutlined, ZoomInOutlined, ZoomOutOutlined, FullscreenOutlined, SettingOutlined } from '@ant-design/icons';
 import { message } from 'antd';
+
+// 为window.d3添加类型声明
+declare global {
+  interface Window {
+    d3: any; // d3库会被react-force-graph-2d自动注入到window对象中
+  }
+}
 
 interface ModuleGraphProps {
   currentModuleId: number;
@@ -40,6 +47,13 @@ interface ModuleGraphRef {
 const ZOOM_TRANSITION_DURATION = 250; // 缩放动画持续时间(ms)，减少以提高响应性
 const ZOOM_FACTOR = 1.4; // 每次缩放倍数
 const DAMPING_FACTOR = 0.4; // 阻尼系数 - 值越小阻尼感越强
+const ALPHA_TRANSITION_DURATION = 100; // 透明度过渡时间 (ms)
+const NODE_DIM_ALPHA = 0.15;
+const LINK_DIM_ALPHA = 0.08;
+
+const DEFAULT_CHARGE = 40; // 斥力默认值（正数，UI展示）
+const DEFAULT_CENTER_STRENGTH = 0.6; // 引力默认值
+const DEFAULT_LINK_DISTANCE = 30; // 链接长度默认值
 
 const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModuleId, onNodeClick }, ref) => {
   const [graphData, setGraphData] = useState<{ nodes: GraphNode[], links: GraphLink[] }>({ nodes: [], links: [] });
@@ -65,7 +79,15 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
   const zoomTransitionActive = useRef<boolean>(false);
   const wheelDeltaAccumulator = useRef<number>(0);
 
-  // 移除鼠标位置跟踪代码，使用内置tooltip
+  // 新增：状态用于存储节点的动画透明度
+  const [animatedNodeAlphas, setAnimatedNodeAlphas] = useState<{ [id: number]: number }>({});
+  const [animatedLinkAlphas, setAnimatedLinkAlphas] = useState<{ [key: string]: number }>({});
+  const alphaAnimationRef = useRef<number>();
+
+  // 新增：可调节参数状态
+  const [chargeStrength, setChargeStrength] = useState(DEFAULT_CHARGE);
+  const [centerStrength, setCenterStrength] = useState(DEFAULT_CENTER_STRENGTH);
+  const [linkDistance, setLinkDistance] = useState(DEFAULT_LINK_DISTANCE);
 
   // 将模块树转换为图形数据
   const convertToGraphData = useCallback(async (modules: ModuleStructureNode[]) => {
@@ -161,6 +183,17 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
         if (!isMounted) return;  // 再次检查组件是否已卸载
         
         setGraphData({ nodes, links });
+        // 新增：数据加载后立即定位
+        setTimeout(() => {
+          const containerElem = document.querySelector('.module-graph-wrapper');
+          if (containerElem && graphRef.current) {
+            const width = containerElem.clientWidth;
+            const height = containerElem.clientHeight;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            graphRef.current.centerAt(centerX + 80, centerY + 60, 0);
+          }
+        }, 0);
       } catch (error) {
         console.error('Failed to load graph data:', error);
       } finally {
@@ -178,40 +211,70 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     };
   }, [convertToGraphData]);
 
-  // 配置力布局参数
+  // 配置力布局参数（用可调节参数）
   useEffect(() => {
-    // 确保graphRef和d3Force可用
     if (graphRef.current && graphRef.current.d3Force) {
-      // 获取容器尺寸以设置中心点
       const containerElem = document.querySelector('.module-graph-wrapper');
       let centerX = 0, centerY = 0;
-      
       if (containerElem) {
         const width = containerElem.clientWidth;
         const height = containerElem.clientHeight;
         centerX = width / 2;
         centerY = height / 2;
       }
-
-      // 设置charge力（斥力）
+      // 设置斥力（取负值）
       const charge = graphRef.current.d3Force('charge');
       if (charge) {
-        charge.strength(-30); // 增强斥力，使节点分布更广
+        charge.strength(-chargeStrength).distanceMax(50);
       }
-      
-      // 设置中心引力 - 关键部分
+      // 设置中心引力
       const center = graphRef.current.d3Force('center');
       if (center) {
-        center.x(centerX).y(centerY).strength(0.1); // 添加适当的中心引力
+        center.x(centerX).y(centerY).strength(centerStrength);
       }
-      
-      // 调整link力（连接弹性）
+      // 设置链条长度
       const link = graphRef.current.d3Force('link');
       if (link) {
-        link.distance(70); // 设置连接的目标长度
+        link.distance(linkDistance);
+      }
+      
+      // 添加径向力约束，防止节点被无限推远
+      try {
+        // 尝试获取或创建径向力
+        let radial = graphRef.current.d3Force('radial');
+        
+        // 如果径向力不存在，尝试添加一个
+        if (!radial && window.d3) {
+          const radius = Math.min(containerElem ? containerElem.clientWidth : 300, containerElem ? containerElem.clientHeight : 300) / 2;
+          radial = window.d3.forceRadial(radius * 0.8, centerX, centerY).strength(0.05);
+          graphRef.current.d3Force('radial', radial);
+          
+          // 创建节点连接映射，识别孤立节点
+          const nodeConnections = new Map();
+          graphData.nodes.forEach(node => nodeConnections.set(node.id, 0));
+          
+          graphData.links.forEach(link => {
+            const sourceId = typeof link.source === 'object' ? (link.source as any).id : link.source;
+            const targetId = typeof link.target === 'object' ? (link.target as any).id : link.target;
+            nodeConnections.set(sourceId, (nodeConnections.get(sourceId) || 0) + 1);
+            nodeConnections.set(targetId, (nodeConnections.get(targetId) || 0) + 1);
+          });
+          
+          // 为孤立节点设置更强的径向力
+          radial.strength((node: any) => {
+            const connections = nodeConnections.get(node.id) || 0;
+            return connections === 0 ? 0.12 : 0.05; // 孤立节点使用更强的径向力
+          });
+        }
+      } catch (error) {
+        console.error("添加径向力失败:", error);
       }
     }
-  }, [graphData]); // 当图数据变化时重新设置
+    // 新增：参数变化后主动重启仿真
+    if (graphRef.current && graphRef.current.d3ReheatSimulation) {
+      graphRef.current.d3ReheatSimulation();
+    }
+  }, [graphData, chargeStrength, centerStrength, linkDistance]);
 
   // 过滤只显示关联节点
   const filteredGraphData = useMemo(() => {
@@ -244,26 +307,22 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     };
   }, [graphData, showOnlyRelated, currentModuleId]);
 
-  // 暴露给父组件的zoomToFit方法，支持自适应缩放
+  // 只自适应缩放，不做定位
   const zoomToFit = useCallback((duration = 400) => {
     if (graphRef.current && filteredGraphData.nodes.length > 0) {
       const nodes = filteredGraphData.nodes;
       const containerElem = document.querySelector('.module-graph-wrapper');
-      
       if (!containerElem) {
-        // 如果找不到容器，使用默认padding
-        graphRef.current.zoomToFit(duration, 40);
+        // 如果找不到容器，使用默认缩放
+        graphRef.current.zoom(1, duration);
         return;
       }
-      
       // 容器尺寸
       const containerWidth = containerElem.clientWidth;
       const containerHeight = containerElem.clientHeight;
-      
       // 计算图谱的边界框
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       let validNodes = 0;
-      
       nodes.forEach(node => {
         if (typeof node.x === 'number' && typeof node.y === 'number') {
           minX = Math.min(minX, node.x);
@@ -273,78 +332,35 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
           validNodes++;
         }
       });
-      
-      // 确保有有效节点坐标
       if (validNodes === 0 || !isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
-        // 如果没有有效坐标，使用默认padding
-        graphRef.current.zoomToFit(duration, 40);
+        graphRef.current.zoom(1, duration);
         return;
       }
-      
       // 计算图谱的宽高
-      const graphWidth = maxX - minX || 1; // 防止除以零
+      const graphWidth = maxX - minX || 1;
       const graphHeight = maxY - minY || 1;
-      
-      // 计算图谱与容器的比例
+      // 计算合适的缩放比例
       const widthRatio = graphWidth / containerWidth;
       const heightRatio = graphHeight / containerHeight;
-      
-      // 计算合适的padding
-      // 比例因子：图谱越大相对于容器，padding应该越小
-      const baseRatio = Math.max(widthRatio, heightRatio);
-      const graphArea = graphWidth * graphHeight;
-      const nodeDensity = validNodes / (graphArea > 0 ? graphArea : 1);
-      
+      let baseRatio = Math.max(widthRatio, heightRatio);
       // 基础padding比例，容器尺寸的百分比
-      let paddingRatio = 0.1; // 10%的容器尺寸
-      
-      // 根据节点数量和密度调整padding比例
+      let paddingRatio = 0.1;
       if (nodes.length <= 3) {
-        paddingRatio = 0.15; // 较少节点，稍大padding
+        paddingRatio = 0.15;
       } else if (nodes.length <= 10) {
         paddingRatio = 0.12;
-      } else if (nodeDensity > 0.0001) {
-        // 节点密度高，减小padding
+      } else if ((validNodes / (graphWidth * graphHeight)) > 0.0001) {
         paddingRatio = 0.08;
       }
-      
-      // 最终padding值
       const minDimension = Math.min(containerWidth, containerHeight);
       let padding = minDimension * paddingRatio;
-      
-      // 为小图谱设置最小padding，避免过大
-      if (baseRatio < 0.3) {
-        padding = Math.min(padding, minDimension * 0.05);
-      }
-      
-      // 为大图谱设置最大padding，避免过小
-      if (baseRatio > 2) {
-        padding = Math.max(padding, 30);
-      }
-      
-      // 自适应缩放计算完成
-      
-      // 使用计算出的padding进行缩放
-      graphRef.current.zoomToFit(duration, padding);
-      
-      // 延迟检查并限制缩放范围
-      setTimeout(() => {
-        if (graphRef.current) {
-          const currentZoom = graphRef.current.zoom();
-          
-          // 限制最小和最大缩放
-          if (currentZoom < 0.5) {
-            // 如果缩放太小，设置为最小值
-            graphRef.current.zoom(0.5, duration/2);
-          } else if (currentZoom > 2.5) {
-            // 如果缩放太大，设置为最大值
-            graphRef.current.zoom(2.5, duration/2);
-          }
-        }
-      }, duration + 50);
+      // 计算缩放倍率（只考虑缩放，不做平移）
+      let scale = 1 / (baseRatio + (padding / minDimension));
+      // 限制缩放范围
+      scale = Math.max(0.5, Math.min(2.5, scale));
+      graphRef.current.zoom(scale, duration);
     } else if (graphRef.current) {
-      // 没有节点时使用默认缩放
-      graphRef.current.zoomToFit(duration, 40);
+      graphRef.current.zoom(1, duration);
     }
   }, [filteredGraphData.nodes]);
 
@@ -360,28 +376,6 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     hasAutoFitted.current = false;
   }, [graphData]);
   
-  // 在数据加载完成后立即定位到中心，不等待力布局计算完成
-  useEffect(() => {
-    if (!loading && graphData.nodes.length > 0 && graphRef.current) {
-      // 短暂延迟确保DOM已完全渲染
-      setTimeout(() => {
-        const containerElem = document.querySelector('.module-graph-wrapper');
-        if (containerElem) {
-          const width = containerElem.clientWidth;
-          const height = containerElem.clientHeight;
-          const centerX = width / 2;
-          const centerY = height / 2;
-          
-          // 立即居中到容器中心，无动画
-          graphRef.current.centerAt(centerX, centerY, 0);
-          
-          // 设置一个适中的初始缩放级别
-          graphRef.current.zoom(1.2, 0);
-        }
-      }, 50);
-    }
-  }, [loading, graphData.nodes.length]);
-
   // 脉冲动画驱动
   useEffect(() => {
     if (highlightedNodeId) {
@@ -514,6 +508,90 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     }
   }, [showCoordinateSystem, mousePosition]);
   
+  // 新增：当图数据变化时，重置动画透明度为1.0
+  useEffect(() => {
+    const initialNodes: { [id: number]: number } = {};
+    graphData.nodes.forEach(node => initialNodes[node.id] = 1.0);
+    setAnimatedNodeAlphas(initialNodes);
+
+    const initialLinks: { [key: string]: number } = {};
+    graphData.links.forEach(link => {
+        const sourceId = typeof link.source === 'object' && link.source !== null ? (link.source as GraphNode).id : link.source as number;
+        const targetId = typeof link.target === 'object' && link.target !== null ? (link.target as GraphNode).id : link.target as number;
+        initialLinks[`${sourceId}-${targetId}`] = 1.0;
+    });
+    setAnimatedLinkAlphas(initialLinks);
+  }, [graphData.nodes, graphData.links]);
+
+  // 新增：当高亮节点或链接变化时，启动透明度动画
+  useEffect(() => {
+    const currentAnimatedNodeAlphas = { ...animatedNodeAlphas };
+    const currentAnimatedLinkAlphas = { ...animatedLinkAlphas };
+
+    let startTime: number | null = null;
+
+    const animateAlphas = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsedTime = timestamp - startTime;
+      const progress = Math.min(elapsedTime / ALPHA_TRANSITION_DURATION, 1);
+
+      const newAlphasNodes: { [id: number]: number } = {};
+      graphData.nodes.forEach(node => {
+        const isNodeHighlighted = highlightedNodeIds.size === 0 || highlightedNodeIds.has(node.id);
+        const targetAlpha = highlightedNodeIds.size === 0 ? 1.0 : (isNodeHighlighted ? 1.0 : NODE_DIM_ALPHA);
+        const initialAlpha = currentAnimatedNodeAlphas[node.id] !== undefined ? currentAnimatedNodeAlphas[node.id] : 1.0;
+        newAlphasNodes[node.id] = initialAlpha + (targetAlpha - initialAlpha) * progress;
+      });
+
+      const newAlphasLinks: { [key: string]: number } = {};
+      graphData.links.forEach(link => {
+        const sourceId = typeof link.source === 'object' && link.source !== null ? (link.source as GraphNode).id : link.source as number;
+        const targetId = typeof link.target === 'object' && link.target !== null ? (link.target as GraphNode).id : link.target as number;
+        const key = `${sourceId}-${targetId}`;
+        const isLinkHighlightedForAnim = highlightedLinkKeys.size === 0 || highlightedLinkKeys.has(key);
+        const targetAlpha = highlightedLinkKeys.size === 0 ? 1.0 : (isLinkHighlightedForAnim ? 1.0 : LINK_DIM_ALPHA);
+        const initialAlpha = currentAnimatedLinkAlphas[key] !== undefined ? currentAnimatedLinkAlphas[key] : 1.0;
+        newAlphasLinks[key] = initialAlpha + (targetAlpha - initialAlpha) * progress;
+      });
+
+      setAnimatedNodeAlphas(newAlphasNodes);
+      setAnimatedLinkAlphas(newAlphasLinks);
+
+      if (progress < 1) {
+        alphaAnimationRef.current = requestAnimationFrame(animateAlphas);
+      } else {
+        // Ensure final state is set precisely after animation
+        const finalNodes: { [id: number]: number } = {};
+         graphData.nodes.forEach(node => {
+            const isNodeHighlighted = highlightedNodeIds.size === 0 || highlightedNodeIds.has(node.id);
+            finalNodes[node.id] = highlightedNodeIds.size === 0 ? 1.0 : (isNodeHighlighted ? 1.0 : NODE_DIM_ALPHA);
+        });
+        setAnimatedNodeAlphas(finalNodes);
+
+        const finalLinks: { [key: string]: number } = {};
+        graphData.links.forEach(link => {
+            const sourceId = typeof link.source === 'object' && link.source !== null ? (link.source as GraphNode).id : link.source as number;
+            const targetId = typeof link.target === 'object' && link.target !== null ? (link.target as GraphNode).id : link.target as number;
+            const key = `${sourceId}-${targetId}`;
+            const isLinkHighlightedForAnim = highlightedLinkKeys.size === 0 || highlightedLinkKeys.has(key);
+            finalLinks[key] = highlightedLinkKeys.size === 0 ? 1.0 : (isLinkHighlightedForAnim ? 1.0 : LINK_DIM_ALPHA);
+        });
+        setAnimatedLinkAlphas(finalLinks);
+      }
+    };
+
+    if (alphaAnimationRef.current) {
+      cancelAnimationFrame(alphaAnimationRef.current);
+    }
+    alphaAnimationRef.current = requestAnimationFrame(animateAlphas);
+
+    return () => {
+      if (alphaAnimationRef.current) {
+        cancelAnimationFrame(alphaAnimationRef.current);
+      }
+    };
+  }, [highlightedNodeIds, highlightedLinkKeys, graphData.nodes, graphData.links]); // Removed animatedNodeAlphas, animatedLinkAlphas from deps to avoid re-triggering
+
   // 自定义节点渲染
   const nodeCanvasObject = useCallback((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const label = node.name;
@@ -522,15 +600,16 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     const textWidth = ctx.measureText(label).width;
     const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
 
-    // 高亮/模糊处理
-    let isHighlighted = highlightedNodeIds.size === 0 || highlightedNodeIds.has(node.id);
-    ctx.globalAlpha = highlightedNodeIds.size === 0 ? 1 : (isHighlighted ? 1 : 0.15);
+    // 使用动画透明度
+    ctx.globalAlpha = animatedNodeAlphas[node.id] !== undefined ? animatedNodeAlphas[node.id] : 1.0;
 
     // 脉冲高亮动画
     if (node.id === highlightedNodeId) {
       const t = (pulseFrame % 1000) / 1000;
       const pulseRadius = 5 + 5 * Math.abs(Math.sin(t * Math.PI));
       const pulseAlpha = 0.5 + 0.3 * Math.abs(Math.sin(t * Math.PI));
+      // Preserve current animated alpha for pulse, then restore
+      const currentGlobalAlpha = ctx.globalAlpha;
       ctx.save();
       ctx.beginPath();
       ctx.arc(node.x!, node.y!, pulseRadius, 0, 2 * Math.PI, false);
@@ -538,47 +617,40 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
       ctx.lineWidth = 2;
       ctx.shadowColor = '#ffd666';
       ctx.shadowBlur = 12;
-      ctx.globalAlpha = pulseAlpha;
+      ctx.globalAlpha = pulseAlpha * currentGlobalAlpha; // Modulate pulse alpha with base animated alpha
       ctx.stroke();
       ctx.restore();
+      ctx.globalAlpha = currentGlobalAlpha; // Restore base animated alpha
     }
 
     // 设置节点样式
-    ctx.fillStyle = node.isCurrentModule ? '#1890ff' : 
+    ctx.fillStyle = node.isCurrentModule ? '#1890ff' :
                    node.isTopLevel ? '#722ed1' :  // 顶级节点使用紫色
                    node.isContentPage ? '#52c41a' : '#d9d9d9';
     ctx.beginPath();
     ctx.arc(node.x!, node.y!, 5, 0, 2 * Math.PI, false);
     ctx.fill();
 
-    // 文字透明度渐变区间
-    const minScale = 1.2;  // 开始渐变的最小缩放值
-    const maxScale = 2;  // 完全显示的最大缩放值
-    
-    // 计算文字透明度
+    const minScale = 1.2;
+    const maxScale = 2;
     let textAlpha = 0;
     if (globalScale >= maxScale) {
         textAlpha = 1;
     } else if (globalScale > minScale) {
-        // 在minScale和maxScale之间线性插值
         textAlpha = (globalScale - minScale) / (maxScale - minScale);
     }
     
-    // 只在有透明度时绘制文字
     if (textAlpha > 0) {
-        // 绘制标签背景
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * textAlpha})`;
-        ctx.fillRect(
-            node.x! - bckgDimensions[0] / 2,
-            node.y! + 8,
-            bckgDimensions[0],
-            bckgDimensions[1]
-        );
-
-        // 绘制标签文本
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = `rgba(0, 0, 0, ${textAlpha})`;
+        const baseNodeAlpha = animatedNodeAlphas[node.id] !== undefined ? animatedNodeAlphas[node.id] : 1.0;
+        // 移除背景色绘制
+        // ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * textAlpha * baseNodeAlpha})`;
+        // ctx.fillRect(
+        //     node.x! - bckgDimensions[0] / 2,
+        //     node.y! + 8,
+        //     bckgDimensions[0],
+        //     bckgDimensions[1]
+        // );
+        ctx.fillStyle = `rgba(0, 0, 0, ${textAlpha * baseNodeAlpha})`;
         ctx.fillText(
             label,
             node.x!,
@@ -586,8 +658,8 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
         );
     }
     
-    ctx.globalAlpha = 1;
-  }, [highlightedNodeId, pulseFrame, highlightedNodeIds]);
+    ctx.globalAlpha = 1; // Reset for next node by ForceGraph2D convention
+  }, [highlightedNodeId, pulseFrame, animatedNodeAlphas]); // Added animatedNodeAlphas
 
   // 自定义连接渲染
   const linkCanvasObject = useCallback((link: GraphLink, ctx: CanvasRenderingContext2D) => {
@@ -595,18 +667,19 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     const start = { x: source.x, y: source.y };
     const end = { x: target.x, y: target.y };
     const key = `${source.id}-${target.id}`;
-    let isHighlighted = highlightedLinkKeys.size === 0 || highlightedLinkKeys.has(key);
-    ctx.save();
-    ctx.globalAlpha = highlightedLinkKeys.size === 0 ? 1 : (isHighlighted ? 1 : 0.08);
+    
+    // 使用动画透明度
+    ctx.globalAlpha = animatedLinkAlphas[key] !== undefined ? animatedLinkAlphas[key] : 1.0;
     ctx.strokeStyle = isRelated ? '#1890ff' : '#d9d9d9';
-    ctx.lineWidth = 1; // 线条宽度始终为1
+    ctx.lineWidth = 1;
     ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
-    ctx.restore();
-  }, [highlightedLinkKeys]);
+    
+    ctx.globalAlpha = 1; // Reset for next link
+  }, [animatedLinkAlphas]); // Added animatedLinkAlphas
 
   // 节点点击事件
   const handleNodeClick = useCallback((node: GraphNode) => {
@@ -647,7 +720,11 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     const nodes = filteredGraphData.nodes;
     const currentNode = nodes.find(n => n.id === currentModuleId);
     if (currentNode && typeof currentNode.x === 'number' && typeof currentNode.y === 'number') {
-      graphRef.current?.centerAt(currentNode.x, currentNode.y, 600, 1.2); // 600ms动画，缩放到1.2倍
+      if (graphRef.current) {
+        // 同时设置缩放和中心位置，使用相同的动画持续时间
+        graphRef.current.zoom(3.5, 600); // 缩放到350%
+        graphRef.current.centerAt(currentNode.x + 50, currentNode.y + 60, 500); // 不指定缩放比例
+      }
     }
     // 高亮当前节点
     setHighlightedNodeId(currentModuleId);
@@ -809,6 +886,15 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     setMousePosition({ x: mouseX, y: mouseY });
   }, [showCoordinateSystem]);
   
+  // 辅助函数：检查链路是否高亮
+  const isLinkHighlighted = useCallback((link: any) => {
+    // 安全地获取source和target的id
+    const sourceId = typeof link.source === 'object' && link.source !== null ? link.source.id : link.source;
+    const targetId = typeof link.target === 'object' && link.target !== null ? link.target.id : link.target;
+    const key = `${sourceId}-${targetId}`;
+    return highlightedLinkKeys.size === 0 || highlightedLinkKeys.has(key);
+  }, [highlightedLinkKeys]);
+  
 
 
   return (
@@ -837,6 +923,60 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
         >
           坐标系
         </Button>
+      </div>
+      {/* 参数调节面板 */}
+      <div className="graph-param-panel">
+        <div className="param-row">
+          <span className="param-label">
+            斥力
+            <Tooltip title="斥力强度，数值越大节点越分散。">
+              <InfoCircleOutlined style={{ marginLeft: 4, color: '#888', cursor: 'pointer' }} />
+            </Tooltip>
+          </span>
+          <Slider
+            min={10}
+            max={200}
+            step={1}
+            value={chargeStrength}
+            onChange={setChargeStrength}
+            style={{ width: 120 }}
+          />
+          <span className="param-value">{chargeStrength}</span>
+        </div>
+        <div className="param-row">
+          <span className="param-label">
+            引力
+            <Tooltip title="控制所有节点向中心靠拢的强度，越大越集中。">
+              <InfoCircleOutlined style={{ marginLeft: 4, color: '#888', cursor: 'pointer' }} />
+            </Tooltip>
+          </span>
+          <Slider
+            min={0}
+            max={2}
+            step={0.01}
+            value={centerStrength}
+            onChange={setCenterStrength}
+            style={{ width: 120 }}
+          />
+          <span className="param-value">{centerStrength}</span>
+        </div>
+        <div className="param-row">
+          <span className="param-label">
+            链长
+            <Tooltip title="控制节点之间连线的理想长度，越大节点间距越远。">
+              <InfoCircleOutlined style={{ marginLeft: 4, color: '#888', cursor: 'pointer' }} />
+            </Tooltip>
+          </span>
+          <Slider
+            min={10}
+            max={200}
+            step={1}
+            value={linkDistance}
+            onChange={setLinkDistance}
+            style={{ width: 120 }}
+          />
+          <span className="param-value">{linkDistance}</span>
+        </div>
       </div>
       {loading ? (
         <div className="module-graph-loading">
@@ -873,9 +1013,9 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
             // 设置更低的alpha最小值，使模拟更快停止
             d3AlphaMin={0.001}
             // 微调alpha衰减速度，使模拟更快收敛
-            d3AlphaDecay={0.015}
+            d3AlphaDecay={0.02}
             // 增加速度衰减，使节点稳定性更好
-            d3VelocityDecay={0.4}
+            d3VelocityDecay={0.5}
             // 设置最小/最大缩放比例，防止过度缩小/放大
             minZoom={0.5}
             maxZoom={8}
@@ -888,37 +1028,38 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
                 // 获取画布容器中心
                 const containerElem = document.querySelector('.module-graph-wrapper');
                 if (containerElem && graphRef.current) {
-                  const width = containerElem.clientWidth;
-                  const height = containerElem.clientHeight;
-                  const centerX = width / 2;
-                  const centerY = height / 2;
-                  
-                  // 直接居中到容器中心（引力中心）
-                  graphRef.current.centerAt(centerX, centerY, 200);
-                  
-                  // 短暂延迟后再适应视图大小以确保所有节点可见
-                  setTimeout(() => {
-                    zoomToFit(200);
-                    hasAutoFitted.current = true;
-                  }, 250);
+                  // 只做缩放，不再centerAt
+                  zoomToFit(500);
+                  hasAutoFitted.current = true;
                 } else {
-                  // 如果无法获取容器，直接适应视图
-                  zoomToFit(200);
+                  zoomToFit(500);
                   hasAutoFitted.current = true;
                 }
               }
             }}
-            linkDirectionalParticles={2}
+            linkDirectionalParticles={link => isLinkHighlighted(link) ? 2 : 1} // 高亮2个粒子，非高亮1个
             linkDirectionalParticleSpeed={0.003}
-            linkDirectionalParticleWidth={4}
-            linkDirectionalParticleColor={link => link.isRelated ? '#1890ff' : '#d9d9d9'}
+            linkDirectionalParticleWidth={link => isLinkHighlighted(link) ? 4 : 2} // 高亮粒子更大
+            linkDirectionalParticleColor={link => {
+              const isHighlighted = isLinkHighlighted(link);
+              const baseColor = (link as any).isRelated ? '#1890ff' : '#d9d9d9';
+              
+              // 如果没有高亮状态或当前链路被高亮，使用完全不透明的颜色
+              if (isHighlighted) {
+                return baseColor;
+              }
+              
+              // 否则，返回半透明的颜色
+              // 将颜色转换为rgba格式，设置透明度为0.3
+              return baseColor === '#1890ff' ? 'rgba(24, 144, 255, 0.5)' : 'rgba(217, 217, 217, 0.5)';
+            }}
           />
           {/* 图例 */}
           <div className="module-graph-legend">
             <div className="legend-title">图例</div>
             <div className="legend-row">
               <span className="legend-dot legend-dot-blue"></span>
-              当前模块
+              当前节点
             </div>
             <div className="legend-row">
               <span className="legend-dot legend-dot-green"></span>
@@ -926,11 +1067,11 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
             </div>
             <div className="legend-row">
               <span className="legend-dot legend-dot-purple"></span>
-              顶级模块
+              顶级节点
             </div>
             <div className="legend-row">
               <span className="legend-dot legend-dot-gray"></span>
-              普通模块
+              普通节点
             </div>
             <div className="legend-row">
               <span className="legend-line legend-line-blue"></span>
@@ -941,20 +1082,18 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
               层级关系
             </div>
           </div>
-          {/* 缩放控制 */}
+          {/* 缩放控制面板 */}
           <div className="zoom-controls">
-            <button className="control-button" onClick={zoomIn} title="放大">
-              <ZoomInOutlined />
-            </button>
-            <div className="zoom-scale-display">
-              {(currentScale * 100).toFixed(0)}%
-            </div>
-            <button className="control-button" onClick={zoomOut} title="缩小">
-              <ZoomOutOutlined />
-            </button>
-            <button className="control-button" onClick={resetZoom} title="重置缩放">
-              <FullscreenOutlined />
-            </button>
+            <Tooltip title="缩小">
+              <Button className="control-button" icon={<ZoomOutOutlined />} onClick={zoomOut} />
+            </Tooltip>
+            <span className="zoom-scale-display">{(currentScale * 100).toFixed(0)}%</span>
+            <Tooltip title="放大">
+              <Button className="control-button" icon={<ZoomInOutlined />} onClick={zoomIn} />
+            </Tooltip>
+            <Tooltip title="适应屏幕">
+              <Button className="control-button" icon={<FullscreenOutlined />} onClick={resetZoom} />
+            </Tooltip>
           </div>
           {/* 布局计算指示器 */}
           {!hasAutoFitted.current && !loading && (

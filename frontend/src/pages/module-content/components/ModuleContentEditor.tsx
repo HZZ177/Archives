@@ -133,14 +133,15 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
     const relatedRef = useRef<HTMLDivElement>(null);
     const interfaceRef = useRef<HTMLDivElement>(null);
 
-    // 表格折叠状态
-    const [collapsedTables, setCollapsedTables] = useState<number[]>([]);
+    // 修改表格折叠状态为对象形式
+    const [collapsedTables, setCollapsedTables] = useState<{[key: number]: boolean}>({});
     
     // 计算所有表格是否都已折叠或展开
     const allTablesCollapsed = databaseTables.length > 0 && 
-      collapsedTables.length === databaseTables.length;
+      Object.keys(collapsedTables).length === databaseTables.length &&
+      Object.values(collapsedTables).every(collapsed => collapsed);
     const allTablesExpanded = databaseTables.length > 0 && 
-      collapsedTables.length === 0;
+      Object.keys(collapsedTables).length === 0;
       
     // 计算所有API卡片是否都已折叠或展开
     const apiCardsCollapsed = apiInterfaces.length > 0 && expandedApiCards.length === 0;
@@ -183,29 +184,29 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
 
     // 切换表格折叠状态
     const toggleTableCollapse = (tableIndex: number) => {
-      setCollapsedTables(prev => {
-        if (prev.includes(tableIndex)) {
-          return prev.filter(i => i !== tableIndex);
-        } else {
-          return [...prev, tableIndex];
-        }
-      });
+      setCollapsedTables(prev => ({
+        ...prev,
+        [tableIndex]: !prev[tableIndex]
+      }));
     };
 
     // 检查表格是否折叠
     const isTableCollapsed = (tableIndex: number): boolean => {
-      return collapsedTables.includes(tableIndex);
+      return !!collapsedTables[tableIndex];
     };
 
     // 全部展开
     const expandAllTables = () => {
-      setCollapsedTables([]);
+      setCollapsedTables({});
     };
 
     // 全部折叠
     const collapseAllTables = () => {
-      const allIndices = databaseTables.map((_, index) => index);
-      setCollapsedTables(allIndices);
+      const allCollapsed = databaseTables.reduce((acc, _, index) => ({
+        ...acc,
+        [index]: true
+      }), {});
+      setCollapsedTables(allCollapsed);
     };
 
     // 切换所有表格的展开/收起状态
@@ -323,15 +324,15 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
         
         // 处理数据库表数据，兼容旧格式
         if (moduleContent.database_tables_json && Array.isArray(moduleContent.database_tables_json)) {
+          let newDbTables: DatabaseTable[]; // Declare newDbTables
           // 检查是否为新格式（包含扩展字段）
           const isNewFormat = moduleContent.database_tables_json.length > 0 && 
                              ('nullable' in (moduleContent.database_tables_json[0].columns?.[0] || {}));
           
           if (isNewFormat) {
             // 如果是新格式，直接使用
-            setDatabaseTables(moduleContent.database_tables_json);
-            // 设置所有表格为收起状态
-            setCollapsedTables(moduleContent.database_tables_json.map((_, index) => index));
+            newDbTables = moduleContent.database_tables_json;
+            setDatabaseTables(newDbTables);
           } else {
             // 如果是旧格式，转换为新格式
             const convertedTables = moduleContent.database_tables_json.map(table => ({
@@ -353,14 +354,25 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
               })),
               relationships: []
             }));
-            setDatabaseTables(convertedTables);
-            // 设置所有表格为收起状态
-            setCollapsedTables(convertedTables.map((_, index) => index));
+            newDbTables = convertedTables;
+            setDatabaseTables(newDbTables);
           }
+
+          // 智能初始化 collapsedTables
+          // 只有当 collapsedTables 为空对象，或者其键的数量与新加载的 databaseTables 数量不一致时，才将所有表初始化为收起状态。
+          // 否则，保持 collapsedTables 的现有状态不变。
+          if (Object.keys(collapsedTables).length === 0 || Object.keys(collapsedTables).length !== newDbTables.length) {
+            const initialCollapsed = newDbTables.reduce((acc, _, index) => ({
+              ...acc,
+              [index]: true // 默认收起
+            }), {});
+            setCollapsedTables(initialCollapsed);
+          }
+          // 如果表数量一致，则不改变现有的 collapsedTables 状态
         } else {
           setDatabaseTables([]);
           // 清空折叠表格索引
-          setCollapsedTables([]);
+          setCollapsedTables({});
         }
         
         setRelatedModuleIds(moduleContent.related_module_ids_json || []);
@@ -779,6 +791,8 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
               <DatabaseTablesSection 
                 tables={databaseTables} 
                 onChange={setDatabaseTables} 
+                collapsedTables={collapsedTables}
+                setCollapsedTables={setCollapsedTables}
               />
             ) : (
               <div className="section-content">

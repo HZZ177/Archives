@@ -4,8 +4,9 @@
   min-height: 500px;
   position: relative;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 16px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  transition: box-shadow 0.3s;
 }
 
 .module-graph-controls {
@@ -54,20 +55,27 @@
 }
 
 .node-tooltip {
-  padding: 8px;
-  max-width: 300px;
+  padding: 10px 14px;
+  max-width: 320px;
+  background: rgba(255,255,255,0.98);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+  color: #222;
+  font-size: 14px;
+  border: 1px solid #e6eaf0;
+  animation: fadeInPanel 0.3s;
 }
 
 .node-tooltip-title {
-  font-weight: 500;
+  font-weight: 700;
   margin-bottom: 4px;
-  color: #fff;
+  color: #1890ff;
 }
 
 .node-tooltip-overview {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
-  max-height: 100px;
+  font-size: 13px;
+  color: #555;
+  max-height: 120px;
   overflow-y: auto;
 }
 
@@ -77,22 +85,25 @@
 
 .module-graph-legend {
   position: absolute;
-  left: 24px;
-  bottom: 24px;
-  background: rgba(255,255,255,0.96);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  padding: 12px 18px 10px 18px;
+  left: 28px;
+  bottom: 28px;
+  background: rgba(255,255,255,0.98);
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+  padding: 10px 16px 8px 16px;
   font-size: 13px;
   color: #222;
   z-index: 10;
   min-width: 110px;
+  border: 1px solid #e6eaf0;
+  animation: fadeInPanel 0.4s;
 }
 
 .legend-title {
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 6px;
   font-size: 13px;
+  color: #1890ff;
 }
 
 .legend-row {
@@ -108,14 +119,17 @@
   border-radius: 50%;
   margin-right: 8px;
   border: 2px solid #fff;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
+
 .legend-dot-blue {
   background: #1890ff;
 }
+
 .legend-dot-green {
   background: #52c41a;
 }
+
 .legend-dot-gray {
   background: #d9d9d9;
 }
@@ -130,10 +144,13 @@
   height: 2px;
   margin-right: 8px;
   vertical-align: middle;
+  border-radius: 2px;
 }
+
 .legend-line-blue {
-  background: #1890ff;
+  background: linear-gradient(90deg, #1890ff 0%, #6ec6ff 100%);
 }
+
 .legend-line-gray {
   background: #d9d9d9;
 }
@@ -141,42 +158,53 @@
 /* 缩放控制面板样式 */
 .zoom-controls {
   position: absolute;
-  right: 24px;
-  bottom: 24px;
+  right: 28px;
+  bottom: 28px;
   display: flex;
-  flex-direction: column;
-  background: rgba(255,255,255,0.96);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  padding: 8px;
+  flex-direction: row;
+  align-items: center;
+  background: rgba(255,255,255,0.98);
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+  padding: 8px 10px;
   z-index: 10;
+  border: 1px solid #e6eaf0;
+  animation: fadeInPanel 0.4s;
 }
 
 .zoom-controls .control-button {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 4px 0;
+  margin: 0 6px;
   border: 1px solid #d9d9d9;
-  border-radius: 4px;
+  border-radius: 50%;
   background: #fff;
   cursor: pointer;
   transition: all 0.3s;
-  font-size: 18px;
+  font-size: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 
 .zoom-controls .control-button:hover {
   color: #1890ff;
   border-color: #1890ff;
+  background: #e6f7ff;
 }
 
 .zoom-scale-display {
   text-align: center;
-  font-size: 12px;
-  color: #666;
-  margin: 4px 0;
+  font-size: 13px;
+  color: #1890ff;
+  margin: 0 6px;
+  background: #f0f7ff;
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  box-shadow: 0 1px 4px rgba(24,144,255,0.08);
 }
 
 .legend-desc {
@@ -206,4 +234,96 @@
 
 .layout-calculating-indicator .ant-spin {
   margin-right: 8px;
+}
+
+.graph-param-panel {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 20;
+  background: rgba(255,255,255,0.85);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+  padding: 18px 22px 12px 22px;
+  min-width: 200px;
+  font-size: 14px;
+  color: #222;
+  user-select: none;
+  backdrop-filter: blur(8px);
+  border: 1px solid #e6eaf0;
+  animation: fadeInPanel 0.4s;
+}
+
+@keyframes fadeInPanel {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.param-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.param-label {
+  display: flex;
+  align-items: center;
+  margin-right: 12px;
+  font-weight: 600;
+  color: #2a2a2a;
+  font-size: 15px;
+}
+
+.param-label .anticon-info-circle {
+  margin-left: 4px;
+  font-size: 13px;
+  color: #b0b0b0;
+  transition: color 0.2s;
+}
+
+.param-label .anticon-info-circle:hover {
+  color: #1890ff;
+}
+
+.param-value {
+  min-width: 38px;
+  text-align: right;
+  margin-left: 10px;
+  color: #888;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-param-panel .ant-slider {
+  margin: 0 10px;
+}
+
+.graph-param-panel .ant-slider-track {
+  background: linear-gradient(90deg, #1890ff 0%, #6ec6ff 100%);
+}
+
+.graph-param-panel .ant-slider-handle {
+  border-color: #1890ff;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(24,144,255,0.15);
+}
+
+.graph-param-panel .ant-slider-handle:focus {
+  border-color: #40a9ff;
+  box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
+}
+
+.graph-param-panel .ant-slider-rail {
+  background: #e6eaf0;
+}
+
+/* 节点高亮发光效果 */
+.force-graph-node-highlight {
+  filter: drop-shadow(0 0 8px #1890ff) drop-shadow(0 0 16px #6ec6ff);
+  transition: filter 0.2s;
+}
+
+/* 过渡动画 */
+.module-graph-container, .graph-param-panel, .module-graph-legend, .zoom-controls, .node-tooltip {
+  transition: box-shadow 0.3s, background 0.3s, border 0.3s, color 0.3s;
 } 

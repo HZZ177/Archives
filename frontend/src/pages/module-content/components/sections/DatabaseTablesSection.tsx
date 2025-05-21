@@ -13,6 +13,8 @@ const { Text } = Typography;
 interface DatabaseTablesSectionProps {
   tables: DatabaseTable[];
   onChange: (tables: DatabaseTable[]) => void;
+  collapsedTables: {[key: number]: boolean};
+  setCollapsedTables: React.Dispatch<React.SetStateAction<{[key: number]: boolean}>>;
 }
 
 // 数据库字段类型选项
@@ -287,12 +289,16 @@ const parseSql = (sql: string): DatabaseTable | null => {
   }
 };
 
-const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, onChange }) => {
+const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ 
+  tables, 
+  onChange,
+  collapsedTables,
+  setCollapsedTables
+}) => {
   const [activeTabKeys, setActiveTabKeys] = useState<Record<number, string>>({});
   const [tableErrors, setTableErrors] = useState<Record<number, string[]>>({});
   const [sqlInput, setSqlInput] = useState<string>('');
   const [importLoading, setImportLoading] = useState<boolean>(false);
-  const [collapsedTables, setCollapsedTables] = useState<Record<number, boolean>>({});
   const [sqlImportModalVisible, setSqlImportModalVisible] = useState<boolean>(false);
   const newTableRef = React.useRef<HTMLDivElement>(null);
   
@@ -340,7 +346,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
         }
         if (!column.foreign_key.reference_column || column.foreign_key.reference_column.trim() === '') {
           errors.push(`字段 "${column.field_name}" 的外键引用列不能为空`);
-    }
+        }
       }
     });
     
@@ -391,7 +397,13 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
       schema_name: '',
       columns: []
     };
-    onChange([...tables, newTable]);
+    const newTablesArray = [...tables, newTable];
+    onChange(newTablesArray);
+    // 确保新添加的表默认展开
+    setCollapsedTables(prev => ({
+      ...prev,
+      [newTablesArray.length - 1]: false
+    }));
   };
 
   // 更新表信息
@@ -477,8 +489,8 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ tables, o
         [field]: value
       };
     } else {
-    newColumns[columnIndex] = {
-      ...newColumns[columnIndex],
+      newColumns[columnIndex] = {
+        ...newColumns[columnIndex],
         [field]: value
       };
     }

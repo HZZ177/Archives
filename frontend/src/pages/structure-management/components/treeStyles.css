@@ -223,15 +223,22 @@
   top: unset;
   transform: none;
   display: flex;
+  align-items: center;
   gap: 4px;
   opacity: 1;
-  transition: opacity 0.3s;
+  transition: opacity 0.3s, background-color 0.3s, box-shadow 0.3s;
+
+  background-color: #f8f9fa;
+  padding: 5px 8px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  margin-left: 10px;
 }
 
-/* 移除悬停时才显示操作按钮的逻辑 */
-/* .tree-node-wrapper:hover .node-actions {
-  opacity: 1;
-} */
+.tree-node-wrapper:hover .node-actions {
+  background-color: #f1f3f5;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
 
 .node-action-btn {
   padding: 4px;
@@ -292,23 +299,28 @@
   top: 0;
   bottom: 0;
   left: 0;
-  width: 100%;
+  width: 0; /* 默认宽度为0，依赖层级规则设置具体宽度 */
   height: 100%;
   pointer-events: none;
-  background-repeat: repeat-x;
+  background-repeat: no-repeat; /* 禁止横向重复 */
   background-image: repeating-linear-gradient(
     to right,
     transparent,
-    transparent 11px, /* 调整偏移 */
-    #d9d9d9 11px, /* 调整偏移 */
-    #d9d9d9 12px, /* 线宽1px */
+    transparent 11px,
+    #d9d9d9 11px,
+    #d9d9d9 12px,
     transparent 12px,
     transparent 24px
   );
+  background-size: 100% 100%; /* 确保背景图限制在伪元素尺寸内 */
   z-index: -1;
 }
 
 /* 为每个层级单独设置背景线的位置和宽度 */
+.tree-node-wrapper[data-level="0"]::before {
+  display: none;
+}
+
 .tree-node-wrapper[data-level="1"]::before {
   width: 24px; /* 1个缩进宽度 */
 }
@@ -329,9 +341,43 @@
   width: 120px; /* 5个缩进宽度 */
 }
 
-/* 根节点不需要背景线 */
-.tree-node-wrapper[data-level="0"]::before {
-  display: none;
+.tree-node-wrapper[data-level="6"]::before {
+  width: 144px; /* 6个缩进宽度 */
+}
+
+.tree-node-wrapper[data-level="7"]::before {
+  width: 168px; /* 7个缩进宽度 */
+}
+
+.tree-node-wrapper[data-level="8"]::before {
+  width: 192px; /* 8个缩进宽度 */
+}
+
+.tree-node-wrapper[data-level="9"]::before {
+  width: 216px; /* 9个缩进宽度 */
+}
+
+/* 为子树容器添加同样的背景线样式 */
+.tree-node-wrapper + div > div::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0; /* 维持上次的修改，确保与 data-level 规则配合 */
+  height: 100%;
+  pointer-events: none;
+  background-repeat: no-repeat; /* 维持上次的修改 */
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent,
+    transparent 11px,
+    #d9d9d9 11px,
+    #d9d9d9 12px,
+    transparent 12px,
+    transparent 24px
+  );
+  background-size: 100% 100%; /* 确保背景图限制在伪元素尺寸内 */
+  z-index: -1;
 }
 
 /* 同样为子树容器设置不同层级的宽度 */
@@ -355,6 +401,22 @@
   width: 120px;
 }
 
+.tree-node-wrapper[data-level="6"] + div > div::before {
+  width: 144px;
+}
+
+.tree-node-wrapper[data-level="7"] + div > div::before {
+  width: 168px;
+}
+
+.tree-node-wrapper[data-level="8"] + div > div::before {
+  width: 192px;
+}
+
+.tree-node-wrapper[data-level="9"] + div > div::before {
+  width: 216px;
+}
+
 /* 当树节点被hover时，保持缩进线可见 */
 .tree-node-wrapper:hover::before {
   opacity: 1;
@@ -363,28 +425,6 @@
 /* 修复子节点列表的容器样式，确保背景线正确连接 */
 .tree-node-wrapper + div > div {
   position: relative;
-}
-
-/* 为子树容器添加同样的背景线样式 */
-.tree-node-wrapper + div > div::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  background-repeat: repeat-x;
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent,
-    transparent 11px,
-    #d9d9d9 11px,
-    #d9d9d9 12px,
-    transparent 12px,
-    transparent 24px
-  );
-  z-index: -1;
 }
 
 /* 禁用叶子节点的缩进线 */
@@ -549,7 +589,7 @@
 .tree-panel {
   height: 100%;
   overflow: auto;
-  padding: 0 8px;
+  padding: 0;
   transition: all 0.3s;
   position: relative;
 }

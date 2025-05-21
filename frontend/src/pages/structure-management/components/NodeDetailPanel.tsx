@@ -120,7 +120,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
               label="模块类型"
               rules={[{ required: true, message: '请选择模块类型' }]}
             >
-              <Radio.Group>
+              <Radio.Group disabled>
                 <Radio value="structure_node">节点 (可添加子模块)</Radio>
                 <Radio value="content_page">内容页面 (可编辑模块功能)</Radio>
               </Radio.Group>

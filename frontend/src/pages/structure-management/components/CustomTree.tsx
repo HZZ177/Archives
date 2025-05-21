@@ -29,7 +29,7 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
   onDelete,
   autoExpandParentId,
 }) => {
-  const [expandedKeys, setExpandedKeys] = useState<number[]>(() => treeData.length > 0 ? [treeData[0].id] : []);
+  const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
   const [selectedKey, setSelectedKey] = useState<number | null>(focusNodeId || null);
   const treeContainerRef = useRef<HTMLDivElement>(null);
   const [treeWidth, setTreeWidth] = useState<number>(0);
