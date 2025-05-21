@@ -5,6 +5,29 @@
   overflow-x: hidden;
   overflow-y: auto;
   position: relative;
+  padding: 0;
+  /* background-image: none; */
+}
+
+/* 新增：树缩进线背景层（需在树结构容器内插入<div class="tree-indent-bg"></div>） */
+.tree-indent-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 120px; /* 最大缩进层级宽度，可根据实际层级调整 */
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent,
+    transparent 11px,
+    #d9d9d9 11px,
+    #d9d9d9 12px,
+    transparent 12px,
+    transparent 24px
+  );
+  background-repeat: repeat-y;
 }
 
 .tree-header {
@@ -28,10 +51,8 @@
 
 /* 修复图标和文字显示在同一行 */
 .modern-tree .ant-tree-treenode {
-  padding: 0 0 2px 0;
-  transition: all 0.3s;
-  border-radius: 4px;
-  margin: 4px 0;
+  padding: 0;
+  margin: 0;
   display: flex;
   align-items: center;
   position: relative;
@@ -92,7 +113,7 @@
   display: inline-flex !important;
   align-items: center !important;
   height: auto !important;
-  padding: 0 !important;
+  padding: 0;
   flex: 1;
   overflow: hidden;
   width: 100%; /* 确保内容包装器占满宽度 */
@@ -125,26 +146,34 @@
 
 /* 树节点自定义样式 */
 .tree-node-wrapper {
+  background: #fff;
   position: relative;
-  padding: 8px 12px;
-  margin: 4px 0;
+  z-index: 1;
+  margin: 0;
+  padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s;
   user-select: none;
-  z-index: 2;
+  box-shadow: none;
+  min-height: 36px;
+  line-height: 1.8;
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
+/* 调整悬停时的背景色，确保不影响缩进线 */
 .tree-node-wrapper:hover {
-  background-color: #f5f5f5;
+  background-color: rgba(245, 245, 245, 0.9);
 }
 
+/* 调整选中状态下的背景 */
 .tree-node-wrapper.ant-tree-node-selected {
-  background-color: #e6f7ff;
+  background-color: rgba(230, 247, 255, 0.9) !important;
 }
 
 .tree-node-wrapper.dragging {
-  background-color: #f0f0f0;
+  background-color: rgba(240, 240, 240, 0.9);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
@@ -189,19 +218,20 @@
 }
 
 .node-actions {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: static;
+  right: unset;
+  top: unset;
+  transform: none;
   display: flex;
   gap: 4px;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.3s;
 }
 
-.tree-node-wrapper:hover .node-actions {
+/* 移除悬停时才显示操作按钮的逻辑 */
+/* .tree-node-wrapper:hover .node-actions {
   opacity: 1;
-}
+} */
 
 .node-action-btn {
   padding: 4px;
@@ -219,61 +249,202 @@
   color: #666;
 }
 
+/* 缩进占位元素 */
 .tree-indent {
-  flex-shrink: 0;
+  display: inline-block;
+  width: 24px;
+  height: 100%;
   position: relative;
-  /* 确保缩进div本身不遮挡伪元素 */
-  z-index: 0; 
-  align-self: stretch; /* 新增：确保tree-indent元素在flex容器中垂直拉伸以获得高度 */
 }
 
-/* 基础垂直线 */
 .tree-indent::before {
   content: '';
   position: absolute;
-  top: 0;
-  /* 将左边定位到缩进块的中间偏右一点，视觉上更靠近文字内容 */
-  left: calc(100% - 12px); /* 新的定位：对齐父级switcher中心 */
-  height: 100%;
-  width: 1px;
-  background-color: #d9d9d9; /* 更柔和的颜色 */
-  z-index: 1;
-}
-
-/* L形线的横线部分，用于连接最后一个子节点 */
-.tree-indent[data-is-last="true"]::after {
-  content: '';
-  position: absolute;
-  top: 50%; /* 定位在垂直中间 */
-  left: calc(100% - 12px); /* 新的定位：与垂直线对齐 */
-  width: 12px; /* 横线长度，延伸到节点文字方向 */
-  height: 1px;
-  background-color: #d9d9d9;
-  z-index: 1;
-}
-
-/* 对于最后一个子节点，垂直线只延伸到中间横线处 */
-.tree-indent[data-is-last="true"]::before {
-  height: 50%;
-}
-
-/* 移除之前测试性的缩进线，如果存在 */
-/* 
-.tree-indent[data-is-last="true"].last-indent::before {
-  height: 50%;
-}
-
-.tree-indent[data-is-last="true"].last-indent::after {
-  content: '';
-  position: absolute;
-  top: 50%;
   left: 50%;
-  width: 50%;
-  height: 1px;
-  background-color: #e8e8e8;
+  top: 0;
+  width: 1px;
+  background: #d9d9d9;
   z-index: 1;
+  height: 100%;
+  transform: translateX(-50%);
 }
-*/
+
+/* 最后一个节点的缩进线只到节点中线 */
+.tree-node-wrapper[data-is-last="true"] .tree-indent:last-child::before {
+  height: 50%;
+}
+
+/* 创建一个新的类，用于包装每个节点的缩进区域，并添加背景线 */
+.indent-lines-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 为每个缩进级别创建垂直线 - 使用伪元素和绝对定位 */
+.tree-node-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background-repeat: repeat-x;
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent,
+    transparent 11px, /* 调整偏移 */
+    #d9d9d9 11px, /* 调整偏移 */
+    #d9d9d9 12px, /* 线宽1px */
+    transparent 12px,
+    transparent 24px
+  );
+  z-index: -1;
+}
+
+/* 为每个层级单独设置背景线的位置和宽度 */
+.tree-node-wrapper[data-level="1"]::before {
+  width: 24px; /* 1个缩进宽度 */
+}
+
+.tree-node-wrapper[data-level="2"]::before {
+  width: 48px; /* 2个缩进宽度 */
+}
+
+.tree-node-wrapper[data-level="3"]::before {
+  width: 72px; /* 3个缩进宽度 */
+}
+
+.tree-node-wrapper[data-level="4"]::before {
+  width: 96px; /* 4个缩进宽度 */
+}
+
+.tree-node-wrapper[data-level="5"]::before {
+  width: 120px; /* 5个缩进宽度 */
+}
+
+/* 根节点不需要背景线 */
+.tree-node-wrapper[data-level="0"]::before {
+  display: none;
+}
+
+/* 同样为子树容器设置不同层级的宽度 */
+.tree-node-wrapper[data-level="1"] + div > div::before {
+  width: 24px;
+}
+
+.tree-node-wrapper[data-level="2"] + div > div::before {
+  width: 48px;
+}
+
+.tree-node-wrapper[data-level="3"] + div > div::before {
+  width: 72px;
+}
+
+.tree-node-wrapper[data-level="4"] + div > div::before {
+  width: 96px;
+}
+
+.tree-node-wrapper[data-level="5"] + div > div::before {
+  width: 120px;
+}
+
+/* 当树节点被hover时，保持缩进线可见 */
+.tree-node-wrapper:hover::before {
+  opacity: 1;
+}
+
+/* 修复子节点列表的容器样式，确保背景线正确连接 */
+.tree-node-wrapper + div > div {
+  position: relative;
+}
+
+/* 为子树容器添加同样的背景线样式 */
+.tree-node-wrapper + div > div::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background-repeat: repeat-x;
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent,
+    transparent 11px,
+    #d9d9d9 11px,
+    #d9d9d9 12px,
+    transparent 12px,
+    transparent 24px
+  );
+  z-index: -1;
+}
+
+/* 禁用叶子节点的缩进线 */
+.tree-node-wrapper[data-is-leaf="true"]::before {
+  /* 叶子节点不需要背景线 - 但为了保持连续性，仍然保留 */
+}
+
+/* 调整箭头图标的位置，确保不遮挡背景线 */
+.ant-tree-switcher {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  z-index: 3;
+  position: relative;
+}
+
+/* 调整拖拽占位符的样式 */
+.dragging-placeholder {
+  position: relative;
+  background-color: rgba(250, 250, 250, 0.9) !important;
+}
+
+/* 使用伪元素为所有拖放相关元素添加背景 */
+.droppable-area.drag-over::before,
+.droppable-area.valid-drop::before,
+.droppable-area.invalid-drop::before {
+  background-color: rgba(255, 255, 255, 0.7);
+  z-index: 0;
+}
+
+/* 确保不会有额外的内边距影响线条的连续性 */
+.ant-tree-list,
+.ant-tree-list-holder > div,
+.ant-tree-list-holder-inner,
+.droppable-area {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* 移除子元素容器的间隙 */
+.tree-node-wrapper + div {
+  padding: 0;
+  margin: 0;
+}
+
+/* 确保树容器本身也有正确的边距设置 */
+.structure-tree-container {
+  padding: 0;
+}
+
+/* 调整树节点，使其更加紧密排列 */
+.ant-tree-treenode {
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* 确保树节点内容垂直对齐 */
+.ant-tree-node-content-wrapper {
+  padding: 0;
+}
 
 .empty-tree-placeholder {
   display: flex;
@@ -294,7 +465,7 @@
   background-color: #fafafa;
   border: 2px dashed #d9d9d9;
   border-radius: 4px;
-  margin: 4px 0;
+  margin: 0;
   height: 40px;
 }
 
@@ -302,6 +473,8 @@
 .droppable-area {
   min-height: 40px;
   transition: background-color 0.3s;
+  margin: 0;
+  padding: 0;
 }
 
 .droppable-area.drag-over {
@@ -558,6 +731,7 @@
   width: 100%;
   opacity: 1 !important;
   animation: pulse 1.5s infinite;
+  margin: 0;
 }
 
 /* 拖动指示器的闪烁动画 */
@@ -700,4 +874,161 @@
   padding-right: 100px;
   display: flex;
   align-items: center;
+}
+
+/* 确保树容器内元素紧密排列，没有间隙 */
+.ant-tree-list-holder > div {
+  margin: 0;
+  padding: 0;
+}
+
+/* 确保最外层容器没有影响缩进线的内边距 */
+.ant-tree-list {
+  padding: 0;
+}
+
+/* 调整拖拽时的样式，确保与新的紧凑布局兼容 */
+.dragging-placeholder {
+  margin: 0;
+}
+
+/* 确保拖拽节点间的占位样式正确 */
+.ant-tree-drop-indicator {
+  margin: 0;
+}
+
+/* 设置树根容器的样式 */
+.droppable-area[data-level="0"] {
+  position: relative;
+  /* 使用背景网格线替代单独的缩进线 */
+  background-image: none; /* 最上层不需要背景线 */
+}
+
+/* 二级及以下层级的容器添加背景网格 */
+.droppable-area:not([data-level="0"]) {
+  position: relative;
+  /* 设置背景为无 */
+  background-image: none;
+}
+
+/* 确保树节点容器没有内边距干扰背景线 */
+.droppable-area > div {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* 确保子树容器的边距也为0 */
+.tree-node-wrapper ~ div {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* 确保展开图标不会遮挡背景线 */
+.ant-tree-switcher {
+  z-index: 2;
+  background-color: transparent !important;
+}
+
+/* 确保每个节点内容区域有正确的z-index */
+.node-content, 
+.node-actions,
+.ant-tree-iconEle {
+  position: relative;
+  z-index: 3;
+}
+
+/* 调整选中状态下的背景色，确保不会遮挡缩进线 */
+.tree-node-wrapper.ant-tree-node-selected {
+  background-color: rgba(230, 247, 255, 0.9) !important;
+}
+
+/* 确保缩进线在拖拽状态下也可见 */
+.dragging-placeholder::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent,
+    transparent 12px,
+    #d9d9d9 12px,
+    #d9d9d9 13px,
+    transparent 13px,
+    transparent 24px
+  );
+  background-position: 12px 0;
+  z-index: -1;
+}
+
+/* 使节点之间没有空隙 */
+div[role="rowgroup"] > div {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* 确保所有操作按钮和图标在线条之上 */
+.node-actions, 
+.node-content, 
+.drag-handle {
+  position: relative;
+  z-index: 3;
+}
+
+/* 调整拖拽状态下的样式，保持背景色半透明 */
+.tree-node-wrapper.dragging {
+  background-color: rgba(240, 240, 240, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 确保拖拽占位符也有背景，避免显示多余的线条 */
+.dragging-placeholder {
+  position: relative;
+  background-color: rgba(250, 250, 250, 0.9) !important;
+}
+
+/* 调整悬停效果的层级，确保线条正确显示 */
+.tree-node-wrapper:hover .node-actions {
+  opacity: 1;
+  z-index: 4;
+}
+
+/* 遮住最后一个节点下方多余的缩进线 */
+.tree-node-wrapper[data-is-last="true"]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 120px; /* 与缩进线宽度一致 */
+  height: 12px; /* 遮罩高度可微调 */
+  background: #fff;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* 子节点容器动画效果 */
+.node-children-wrapper {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-in-out;
+}
+
+.node-children-wrapper.expanded {
+  max-height: 1000px; /* 一个足够大的值，确保内容能完全展开 */
+}
+
+/* 箭头图标动画 */
+.tree-arrow-icon {
+  transition: transform 0.2s ease-in-out;
+  transform: rotate(-90deg);
+}
+
+.node-children-wrapper.expanded + .ant-tree-switcher .tree-arrow-icon,
+.tree-node-wrapper.expanded .ant-tree-switcher .tree-arrow-icon {
+  transform: rotate(0deg);
 } 

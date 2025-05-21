@@ -36,6 +36,9 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isValidDrop, setIsValidDrop] = useState(true);
   const [localTreeData, setLocalTreeData] = useState<ModuleStructureNode[]>(treeData);
+  const [showDragTip, setShowDragTip] = useState(false);
+  const [dragTipPos, setDragTipPos] = useState({ x: 0, y: 0 });
+  const [hasMoved, setHasMoved] = useState(false);
 
   useLayoutEffect(() => {
     setLocalTreeData(treeData);
@@ -52,6 +55,22 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
       setExpandedKeys(keys => [...keys, autoExpandParentId]);
     }
   }, [autoExpandParentId]);
+
+  // 拖拽时监听鼠标移动，更新dragTipPos
+  useEffect(() => {
+    function handleMouseMove(e: MouseEvent) {
+      setDragTipPos({ x: e.clientX, y: e.clientY });
+      setHasMoved(true);
+    }
+    if (showDragTip) {
+      window.addEventListener('mousemove', handleMouseMove);
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [showDragTip]);
 
   const handleExpand = (id: number) => {
     setExpandedKeys(keys => keys.includes(id) ? keys.filter(k => k !== id) : [...keys, id]);
@@ -244,7 +263,11 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
             className={`droppable-area${snapshot.isDraggingOver ? ' drag-over' : ''}${snapshot.isDraggingOver && !isValidDrop ? ' invalid-drop' : ''}${snapshot.isDraggingOver && isValidDrop ? ' valid-drop' : ''}`}
             style={{ 
               width: '100%',
-              overflow: 'visible'
+              overflow: 'visible',
+              position: 'relative',
+              minHeight: 0,
+              padding: 0,
+              margin: 0
             }}
             data-level={level}
           >
@@ -258,7 +281,7 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
                   >
                   {(provided, snapshot) => (
                     <div
-                      className={`tree-node-wrapper${selectedKey === node.id ? ' ant-tree-node-selected' : ''}${snapshot.isDragging ? ' dragging' : ''}${snapshot.isDragging && !isValidDrop ? ' invalid-drop' : ''}${snapshot.isDragging && isValidDrop ? ' valid-drop' : ''}`}
+                      className={`tree-node-wrapper ${selectedKey === node.id ? ' ant-tree-node-selected' : ''} ${snapshot.isDragging ? ' dragging' : ''} ${snapshot.isDragging && !isValidDrop ? ' invalid-drop' : ''} ${snapshot.isDragging && isValidDrop ? ' valid-drop' : ''} ${expandedKeys.includes(node.id) ? 'expanded' : ''}`}
                       ref={provided.innerRef}
                       {...provided.draggableProps}
                       style={{
@@ -273,25 +296,20 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
                       onClick={() => handleSelect(node)}
                       onMouseEnter={e => e.currentTarget.classList.add('ant-tree-treenode-hover')}
                       onMouseLeave={e => e.currentTarget.classList.remove('ant-tree-treenode-hover')}
-                        data-node-id={node.id}
-                        data-level={level}
-                        data-is-leaf={!node.children || node.children.length === 0 ? 'true' : 'false'}
-                        data-is-content-page={node.is_content_page ? 'true' : 'false'}
+                      data-node-id={node.id}
+                      data-level={level}
+                      data-is-leaf={!node.children || node.children.length === 0 ? 'true' : 'false'}
+                      data-is-content-page={node.is_content_page ? 'true' : 'false'}
                     >
-                        {/* 调整缩进线渲染逻辑 */}
+                      {/* 左侧：缩进线、图标、名称 */}
+                      <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
                         {Array.from({ length: level }).map((_, i) => {
-                          // i 是当前渲染的缩进段的索引 (0 to level-1)
-                          // currentIndentInfo 数组的长度是 level + 1
-                          // currentIndentInfo[j] 表示在深度j的节点是否是其父节点的最后一个孩子
                           let isLastForThisSegment: boolean;
                           if (i < level - 1) {
-                            // 对于祖先层级的缩进段，强制为I型（非L型）
                             isLastForThisSegment = false;
-                          } else { // i === level - 1，这是最靠近当前节点的缩进段
-                            // 这个缩进段的 L 型转角取决于当前节点是否是其父节点的最后一个孩子
-                            isLastForThisSegment = currentIndentInfo[level]; // currentIndentInfo[level] 即 isLastChild
+                          } else {
+                            isLastForThisSegment = currentIndentInfo[level];
                           }
-                          
                           return (
                             <div
                               key={`indent-${node.id}-${i}`}
@@ -301,22 +319,20 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
                             />
                           );
                         })}
-                      {/* 展开/收起箭头或占位 */}
-                      <span
-                        className="ant-tree-switcher"
-                        onClick={node.children && node.children.length > 0 ? (e => { e.stopPropagation(); handleExpand(node.id); }) : undefined}
-                        style={{ width: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: node.children && node.children.length > 0 ? 'pointer' : 'default' }}
-                      >
-                        {node.children && node.children.length > 0 ? (
-                          <DownOutlined style={{ transform: expandedKeys.includes(node.id) ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }} />
-                        ) : null}
-                      </span>
-                      {/* 图标 */}
-                      {node.is_content_page ? <FileOutlined style={{ marginRight: 6 }} /> : <FolderOutlined style={{ marginRight: 6 }} />}
-                      {/* 名称 */}
-                      <span className="node-content" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 100 }}>{node.name}</span>
-                      {/* 操作按钮区 */}
-                      <div className={`node-actions${node.is_content_page ? ' content-node-actions' : ''}`} style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }} onClick={e => e.stopPropagation()}>
+                        <span
+                          className="ant-tree-switcher"
+                          onClick={node.children && node.children.length > 0 ? (e => { e.stopPropagation(); handleExpand(node.id); }) : undefined}
+                          style={{ width: 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: node.children && node.children.length > 0 ? 'pointer' : 'default' }}
+                        >
+                          {node.children && node.children.length > 0 ? (
+                            <DownOutlined className={`tree-arrow-icon ${expandedKeys.includes(node.id) ? 'expanded' : ''}`} />
+                          ) : null}
+                        </span>
+                        {node.is_content_page ? <FileOutlined style={{ marginRight: 6 }} /> : <FolderOutlined style={{ marginRight: 6 }} />}
+                        <span className="node-content" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 0 }}>{node.name}</span>
+                      </div>
+                      {/* 右侧：操作按钮区 */}
+                      <div className={`node-actions${node.is_content_page ? ' content-node-actions' : ''}`} style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'static', right: 'unset', top: 'unset', transform: 'none' }} onClick={e => e.stopPropagation()}>
                         {!node.is_content_page && (
                           <Tooltip title="添加子模块" placement="top">
                             <Button type="text" size="small" icon={<PlusOutlined />} className="node-action-btn"
@@ -335,20 +351,21 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
                   )}
                 </Draggable>
                 {/* 只在本节点下方递归渲染children */}
-                {expandedKeys.includes(node.id) && node.children && node.children.length > 0 && (
-                  <div>
+                {node.children && node.children.length > 0 && (
+                  <div className={`node-children-wrapper ${expandedKeys.includes(node.id) ? 'expanded' : ''}`}>
                       {renderNodes(node.children, node.id, level + 1, currentIndentInfo)}
                   </div>
                 )}
               </React.Fragment>
               );
             })}
-            {provided.placeholder}
+            {/* 只在拖拽时渲染provided.placeholder，避免撑高区域 */}
+            {isDragging && provided.placeholder}
           </div>
         )}
       </Droppable>
     );
-  }, [expandedKeys, selectedKey, onAddChild, onDelete, treeWidth, isValidDrop, localTreeData, handleSelect, handleExpand]);
+  }, [expandedKeys, selectedKey, onAddChild, onDelete, treeWidth, isValidDrop, localTreeData, handleSelect, handleExpand, isDragging]);
 
   return (
     <div 
@@ -379,15 +396,51 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
         </div>
       ) : (
         <DragDropContext 
-          onDragStart={() => {
+          onDragStart={initial => {
             setIsDragging(true);
             setIsValidDrop(true);
+            setShowDragTip(true);
+            setHasMoved(false);
+            // 自动收起同层级所有节点（包括被拖动节点本身）
+            const draggedId = parseInt(initial.draggableId);
+            const { siblings } = findNodeAndParent(localTreeData, draggedId);
+            if (siblings && siblings.length > 0) {
+              setExpandedKeys(prev => prev.filter(key => !siblings.some(sib => sib.id === key)));
+            }
           }}
-          onDragUpdate={handleDragUpdate}
-          onDragEnd={handleDragEnd}
+          onDragUpdate={update => {
+            handleDragUpdate(update);
+          }}
+          onDragEnd={result => {
+            setIsDragging(false);
+            setShowDragTip(false);
+            setHasMoved(false);
+            handleDragEnd(result);
+          }}
         >
           {renderNodes(localTreeData)}
         </DragDropContext>
+      )}
+      {/* 全局拖拽提示浮层 */}
+      {showDragTip && hasMoved && (
+        <div
+          className="drag-tip"
+          style={{
+            position: 'fixed',
+            left: dragTipPos.x + 16,
+            top: dragTipPos.y + 16,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,0.85)',
+            color: '#fff',
+            padding: '6px 14px',
+            borderRadius: 6,
+            fontSize: 14,
+            pointerEvents: 'none',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+          }}
+        >
+          只能在同层级拖动排序
+        </div>
       )}
     </div>
   );

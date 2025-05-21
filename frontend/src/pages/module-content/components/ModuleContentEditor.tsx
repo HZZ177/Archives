@@ -171,19 +171,13 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
     // 弹窗关闭时重置自动定位标记
     const handleGraphModalClose = () => {
       setGraphModalVisible(false);
-      if (graphRef.current) {
-        graphRef.current.resetAutoFit();
-      }
     };
 
-    // 每次弹窗打开时自动zoomToFit
+    // 修改弹窗打开时的自动缩放逻辑
     useEffect(() => {
       if (graphModalVisible && graphRef.current) {
-        setTimeout(() => {
-          if (graphRef.current) {
-            graphRef.current.zoomToFit();
-          }
-        }, 200);
+        // 强制更新图谱时间戳，触发重新渲染
+        setGraphUpdateTime(Date.now());
       }
     }, [graphModalVisible]);
 

@@ -126,22 +126,62 @@
 
 .legend-line {
   display: inline-block;
-  width: 22px;
-  height: 0;
-  border-top: 3px solid;
+  width: 20px;
+  height: 2px;
   margin-right: 8px;
-  border-radius: 2px;
+  vertical-align: middle;
 }
 .legend-line-blue {
-  border-color: #1890ff;
+  background: #1890ff;
 }
 .legend-line-gray {
-  border-color: #d9d9d9;
+  background: #d9d9d9;
+}
+
+/* 缩放控制面板样式 */
+.zoom-controls {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255,255,255,0.96);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  padding: 8px;
+  z-index: 10;
+}
+
+.zoom-controls .control-button {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 18px;
+}
+
+.zoom-controls .control-button:hover {
+  color: #1890ff;
+  border-color: #1890ff;
+}
+
+.zoom-scale-display {
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  margin: 4px 0;
 }
 
 .legend-desc {
   margin-top: 8px;
   font-size: 12px;
-  color: #888;
-  line-height: 1.6;
+  color: #666;
+  line-height: 1.2;
 } 

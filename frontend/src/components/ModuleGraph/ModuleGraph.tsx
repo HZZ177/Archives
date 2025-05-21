@@ -4,7 +4,7 @@ import { ModuleStructureNode } from '../../types/modules';
 import { fetchModuleTree, fetchModuleContent } from '../../apis/moduleService';
 import { Tooltip, Button, Spin } from 'antd';
 import './ModuleGraph.css';
-import { AimOutlined, LinkOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { AimOutlined, LinkOutlined, InfoCircleOutlined, ZoomInOutlined, ZoomOutOutlined, FullscreenOutlined } from '@ant-design/icons';
 
 interface ModuleGraphProps {
   currentModuleId: number;
@@ -47,6 +47,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
   const graphRef = useRef<any>();
   const hasAutoFitted = useRef(false);
   const pulseAnimRef = useRef<number>();
+  const [currentScale, setCurrentScale] = useState<number>(1);
 
   // 将模块树转换为图形数据
   const convertToGraphData = useCallback(async (modules: ModuleStructureNode[]) => {
@@ -151,6 +152,18 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     };
   }, [convertToGraphData]);
 
+  // 新增useEffect，用于配置斥力参数
+  useEffect(() => {
+    // 确保graphRef和d3Force可用
+    if (graphRef.current && graphRef.current.d3Force) {
+      // 设置charge力（斥力）强度为-10
+      const charge = graphRef.current.d3Force('charge');
+      if (charge) {
+        charge.strength(-10);
+      }
+    }
+  }, [graphData]); // 当图数据变化时重新设置
+
   // 过滤只显示关联节点
   const filteredGraphData = useMemo(() => {
     if (!showOnlyRelated) return graphData;
@@ -202,6 +215,12 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     zoomToFit: () => zoomToFit(400),
     resetAutoFit: () => { hasAutoFitted.current = false; }
   }));
+
+  // 初次加载或图数据变更时重置自动适应状态
+  useEffect(() => {
+    // 当图数据发生变化时，重置自动适应状态
+    hasAutoFitted.current = false;
+  }, [graphData]);
 
   // 脉冲动画驱动
   useEffect(() => {
@@ -255,6 +274,9 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     ctx.arc(node.x!, node.y!, 5, 0, 2 * Math.PI, false);
     ctx.fill();
 
+    // 只在缩放比例大于阈值时显示节点名称
+    const labelVisibilityThreshold = 0.9;
+    if (globalScale > labelVisibilityThreshold) {
     // 绘制标签背景
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.fillRect(
@@ -273,6 +295,8 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
       node.x!,
       node.y! + 8 + bckgDimensions[1] / 2
     );
+    }
+    
     ctx.globalAlpha = 1;
   }, [highlightedNodeId, pulseFrame, highlightedNodeIds]);
 
@@ -379,6 +403,32 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     });
   }
 
+  // 处理缩放事件，更新当前缩放比例
+  const handleZoom = useCallback(({ k }: { k: number }) => {
+    setCurrentScale(k);
+  }, []);
+
+  // 缩放控制函数
+  const zoomIn = useCallback(() => {
+    if (graphRef.current) {
+      const newScale = currentScale * 1.2;
+      graphRef.current.zoom(newScale, 300);
+    }
+  }, [currentScale]);
+
+  const zoomOut = useCallback(() => {
+    if (graphRef.current) {
+      const newScale = currentScale / 1.2;
+      graphRef.current.zoom(newScale, 300);
+    }
+  }, [currentScale]);
+
+  const resetZoom = useCallback(() => {
+    if (graphRef.current) {
+      zoomToFit(300);
+    }
+  }, [zoomToFit]);
+
   return (
     <div className="module-graph-container">
       <div className="module-graph-controls">
@@ -405,6 +455,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
         </div>
       ) : (
         <div className="module-graph-wrapper">
+          {/* @ts-ignore */}
           <ForceGraph2D
             ref={graphRef}
             graphData={filteredGraphData}
@@ -414,14 +465,29 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
             linkWidth={1}
             onNodeClick={handleNodeClick}
             onNodeHover={handleNodeHover}
-            cooldownTicks={100}
+            // 增加预热迭代次数，加快初始布局计算速度
+            warmupTicks={50}
+            // 减少降温迭代次数，加快渲染完成速度
+            cooldownTicks={50}
+            // 设置更低的alpha最小值，使模拟更快停止
+            d3AlphaMin={0.001}
+            // 增加alpha衰减速度，使模拟更快收敛
+            d3AlphaDecay={0.02}
+            // 减小速度衰减，使节点更快到达目标位置
+            d3VelocityDecay={0.3}
+            // 设置最小/最大缩放比例，防止过度缩小/放大
+            minZoom={0.5}
+            maxZoom={8}
+            // 监听缩放事件，更新当前缩放比例
+            onZoom={handleZoom}
             onEngineStop={() => {
               if (!hasAutoFitted.current) {
                 const nodes: GraphNode[] = filteredGraphData.nodes || [];
                 console.log('onEngineStop 节点坐标:', nodes.map((n: GraphNode) => ({ id: n.id, x: n.x, y: n.y })));
                 const allValid = nodes.length > 0 && nodes.every((n: GraphNode) => typeof n.x === 'number' && typeof n.y === 'number');
                 if (allValid) {
-                  zoomToFit(400);
+                  // 减少缩放动画时间，使缩放更快完成
+                  zoomToFit(200);
                   hasAutoFitted.current = true;
                 } else {
                   console.warn('节点坐标无效，未自动缩放');
@@ -458,6 +524,22 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
               <InfoCircleOutlined style={{ marginRight: 4, color: '#ff4d4f' }} />
               查看全部节点时，只会展示与当前页面有关联的关联关系
             </div>
+          </div>
+          
+          {/* 缩放控制面板 */}
+          <div className="zoom-controls">
+            <button className="control-button" onClick={zoomIn} title="放大">
+              <ZoomInOutlined />
+            </button>
+            <div className="zoom-scale-display">
+              {Math.round(currentScale * 100)}%
+            </div>
+            <button className="control-button" onClick={zoomOut} title="缩小">
+              <ZoomOutOutlined />
+            </button>
+            <button className="control-button" onClick={resetZoom} title="适应画布">
+              <FullscreenOutlined />
+            </button>
           </div>
         </div>
       )}
