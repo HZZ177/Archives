@@ -175,38 +175,23 @@
 .tree-node-wrapper.dragging {
   background-color: rgba(240, 240, 240, 0.9);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  /* 使用transform替代多重阴影与边框，减少渲染负担 */
+  transform: translateZ(0);
+  will-change: transform;
+  z-index: 10;
 }
 
 .tree-node-wrapper.dragging .drag-handle {
   color: #1890ff;
 }
 
-.tree-node-wrapper.dragging.invalid-drop .drag-handle {
-  color: #ff4d4f;
+/* 减少伪元素的使用，优化拖拽过程中的重绘 */
+.tree-node-wrapper.dragging.invalid-drop {
+  background-color: rgba(255, 240, 240, 0.9);
 }
 
-.tree-node-wrapper.dragging.invalid-drop::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border: 2px dashed #ff4d4f;
-  border-radius: 4px;
-  pointer-events: none;
-}
-
-.tree-node-wrapper.dragging.valid-drop::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border: 2px dashed #52c41a;
-  border-radius: 4px;
-  pointer-events: none;
+.tree-node-wrapper.dragging.valid-drop {
+  background-color: rgba(240, 255, 240, 0.9);
 }
 
 .node-content {
@@ -245,11 +230,16 @@
   font-size: 14px;
 }
 
+/* 使用更高效的CSS选择器 */
 .drag-handle {
   cursor: grab;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 4px;
-  color: #999;
-  transition: color 0.3s;
+  border-radius: 4px;
 }
 
 .drag-handle:hover {
@@ -439,10 +429,15 @@
   position: relative;
 }
 
-/* 调整拖拽占位符的样式 */
+/* 简化拖拽占位符样式 */
 .dragging-placeholder {
-  position: relative;
-  background-color: rgba(250, 250, 250, 0.9) !important;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  background-color: rgba(230, 247, 255, 0.3);
+  border: 1px dashed #1890ff;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* 使用伪元素为所有拖放相关元素添加背景 */
