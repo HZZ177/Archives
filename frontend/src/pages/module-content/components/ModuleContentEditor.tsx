@@ -133,15 +133,13 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
     const relatedRef = useRef<HTMLDivElement>(null);
     const interfaceRef = useRef<HTMLDivElement>(null);
 
-    // 修改表格折叠状态为对象形式
-    const [collapsedTables, setCollapsedTables] = useState<{[key: number]: boolean}>({});
+    // 修改为使用Set形式的折叠状态，以便与DatabaseTablesSection组件兼容
+    const [collapsedTableNames, setCollapsedTableNames] = useState<Set<string>>(new Set());
     
     // 计算所有表格是否都已折叠或展开
     const allTablesCollapsed = databaseTables.length > 0 && 
-      Object.keys(collapsedTables).length === databaseTables.length &&
-      Object.values(collapsedTables).every(collapsed => collapsed);
-    const allTablesExpanded = databaseTables.length > 0 && 
-      Object.keys(collapsedTables).length === 0;
+      databaseTables.every(table => collapsedTableNames.has(table.table_name));
+    const allTablesExpanded = databaseTables.length > 0 && collapsedTableNames.size === 0;
       
     // 计算所有API卡片是否都已折叠或展开
     const apiCardsCollapsed = apiInterfaces.length > 0 && expandedApiCards.length === 0;
@@ -184,29 +182,34 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
 
     // 切换表格折叠状态
     const toggleTableCollapse = (tableIndex: number) => {
-      setCollapsedTables(prev => ({
-        ...prev,
-        [tableIndex]: !prev[tableIndex]
-      }));
+      const tableName = databaseTables[tableIndex]?.table_name;
+      if (!tableName) return;
+      
+      setCollapsedTableNames(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(tableName)) {
+          newSet.delete(tableName);
+        } else {
+          newSet.add(tableName);
+        }
+        return newSet;
+      });
     };
 
     // 检查表格是否折叠
     const isTableCollapsed = (tableIndex: number): boolean => {
-      return !!collapsedTables[tableIndex];
+      const tableName = databaseTables[tableIndex]?.table_name;
+      return tableName ? collapsedTableNames.has(tableName) : false;
     };
 
     // 全部展开
     const expandAllTables = () => {
-      setCollapsedTables({});
+      setCollapsedTableNames(new Set());
     };
 
     // 全部折叠
     const collapseAllTables = () => {
-      const allCollapsed = databaseTables.reduce((acc, _, index) => ({
-        ...acc,
-        [index]: true
-      }), {});
-      setCollapsedTables(allCollapsed);
+      setCollapsedTableNames(new Set(databaseTables.map(table => table.table_name)));
     };
 
     // 切换所有表格的展开/收起状态
@@ -361,18 +364,15 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
           // 智能初始化 collapsedTables
           // 只有当 collapsedTables 为空对象，或者其键的数量与新加载的 databaseTables 数量不一致时，才将所有表初始化为收起状态。
           // 否则，保持 collapsedTables 的现有状态不变。
-          if (Object.keys(collapsedTables).length === 0 || Object.keys(collapsedTables).length !== newDbTables.length) {
-            const initialCollapsed = newDbTables.reduce((acc, _, index) => ({
-              ...acc,
-              [index]: true // 默认收起
-            }), {});
-            setCollapsedTables(initialCollapsed);
+          if (collapsedTableNames.size === 0 || collapsedTableNames.size !== newDbTables.length) {
+            // 使用表名作为标识符，而不是索引
+            setCollapsedTableNames(new Set(newDbTables.map(table => table.table_name)));
           }
           // 如果表数量一致，则不改变现有的 collapsedTables 状态
         } else {
           setDatabaseTables([]);
           // 清空折叠表格索引
-          setCollapsedTables({});
+          setCollapsedTableNames(new Set());
         }
         
         setRelatedModuleIds(moduleContent.related_module_ids_json || []);
@@ -791,8 +791,11 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
               <DatabaseTablesSection 
                 tables={databaseTables} 
                 onChange={setDatabaseTables} 
-                collapsedTables={collapsedTables}
-                setCollapsedTables={setCollapsedTables}
+                onValidationChange={(tableId, errors) => {
+                  // 处理验证错误
+                }}
+                collapsedTables={collapsedTableNames}
+                setCollapsedTables={setCollapsedTableNames}
               />
             ) : (
               <div className="section-content">

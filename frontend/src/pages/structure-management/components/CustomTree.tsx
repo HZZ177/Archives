@@ -333,12 +333,21 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
                       </div>
                       {/* 右侧：操作按钮区 */}
                       <div className={`node-actions${node.is_content_page ? ' content-node-actions' : ''}`} style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'static', right: 'unset', top: 'unset', transform: 'none' }} onClick={e => e.stopPropagation()}>
-                        {!node.is_content_page && (
-                          <Tooltip title="添加子模块" placement="top">
-                            <Button type="text" size="small" icon={<PlusOutlined />} className="node-action-btn"
-                              onClick={e => { e.stopPropagation(); onAddChild(node); }} />
-                          </Tooltip>
-                        )}
+                        <Tooltip title={node.is_content_page ? "内容页面不可添加子节点" : "添加子模块"} placement="top">
+                          <Button 
+                            type="text" 
+                            size="small" 
+                            icon={<PlusOutlined />} 
+                            className="node-action-btn"
+                            disabled={node.is_content_page}
+                            onClick={e => { 
+                              e.stopPropagation(); 
+                              if (!node.is_content_page) {
+                                onAddChild(node); 
+                              }
+                            }} 
+                          />
+                        </Tooltip>
                         <Tooltip title="删除" placement="top">
                           <Button type="text" size="small" icon={<DeleteOutlined />} className="node-action-btn" danger
                             onClick={e => { e.stopPropagation(); onDelete(node); }} />

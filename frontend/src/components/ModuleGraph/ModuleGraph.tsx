@@ -17,6 +17,7 @@ declare global {
 interface ModuleGraphProps {
   currentModuleId: number;
   onNodeClick: (moduleId: number) => void;
+  isOverviewMode?: boolean; // 添加概览模式标志，首页使用时为true
 }
 
 interface GraphNode {
@@ -55,7 +56,7 @@ const DEFAULT_CHARGE = 40; // 斥力默认值（正数，UI展示）
 const DEFAULT_CENTER_STRENGTH = 0.6; // 引力默认值
 const DEFAULT_LINK_DISTANCE = 30; // 链接长度默认值
 
-const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModuleId, onNodeClick }, ref) => {
+const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModuleId, onNodeClick, isOverviewMode }, ref) => {
   const [graphData, setGraphData] = useState<{ nodes: GraphNode[], links: GraphLink[] }>({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
   const [showOnlyRelated, setShowOnlyRelated] = useState(false);
@@ -136,7 +137,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     modules.forEach((node, index) => processNode(node, undefined, 0, index, modules.length));
 
     // 获取关联模块的连接
-    if (currentModuleId) {
+    if (currentModuleId && !isOverviewMode) {
       try {
         const moduleContent = await fetchModuleContent(currentModuleId);
         const relatedModuleIds = moduleContent.related_module_ids_json || [];
@@ -167,7 +168,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     }
 
     return { nodes, links };
-  }, [currentModuleId]);
+  }, [currentModuleId, isOverviewMode]);
 
   // 加载图形数据
   useEffect(() => {
@@ -624,7 +625,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     }
 
     // 设置节点样式
-    ctx.fillStyle = node.isCurrentModule ? '#1890ff' :
+    ctx.fillStyle = !isOverviewMode && node.isCurrentModule ? '#1890ff' :
                    node.isTopLevel ? '#722ed1' :  // 顶级节点使用紫色
                    node.isContentPage ? '#52c41a' : '#d9d9d9';
     ctx.beginPath();
@@ -659,7 +660,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     }
     
     ctx.globalAlpha = 1; // Reset for next node by ForceGraph2D convention
-  }, [highlightedNodeId, pulseFrame, animatedNodeAlphas]); // Added animatedNodeAlphas
+  }, [highlightedNodeId, pulseFrame, animatedNodeAlphas, isOverviewMode]);
 
   // 自定义连接渲染
   const linkCanvasObject = useCallback((link: GraphLink, ctx: CanvasRenderingContext2D) => {
@@ -716,6 +717,12 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
 
   // 新增：定位到当前模块节点的方法
   const locateCurrentModule = useCallback(() => {
+    // 在概览模式下不执行定位操作
+    if (isOverviewMode) {
+      message.info('概览模式下不支持定位到当前模块');
+      return;
+    }
+    
     // 直接合并缩放与居中动画为一个过程
     const nodes = filteredGraphData.nodes;
     const currentNode = nodes.find(n => n.id === currentModuleId);
@@ -729,7 +736,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     // 高亮当前节点
     setHighlightedNodeId(currentModuleId);
     setTimeout(() => setHighlightedNodeId(null), 2000);
-  }, [filteredGraphData.nodes, currentModuleId, zoomToFit]);
+  }, [filteredGraphData.nodes, currentModuleId, isOverviewMode]);
 
   // --- 高亮链路递归查找工具函数 ---
   // 构建节点和链路的映射
@@ -900,20 +907,24 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
   return (
     <div className="module-graph-container">
       <div className="module-graph-controls">
-        <Button
-          className={`control-button ${showOnlyRelated ? 'active' : ''}`}
-          onClick={() => setShowOnlyRelated(!showOnlyRelated)}
-          icon={<LinkOutlined />}
-        >
-          {showOnlyRelated ? "查看所有关联图谱" : "仅查看当前模块关联图谱"}
-        </Button>
-        <Button
-          className="control-button"
-          icon={<AimOutlined />}
-          onClick={locateCurrentModule}
-        >
-          定位当前模块
-        </Button>
+        {!isOverviewMode && (
+          <Button
+            className={`control-button ${showOnlyRelated ? 'active' : ''}`}
+            onClick={() => setShowOnlyRelated(!showOnlyRelated)}
+            icon={<LinkOutlined />}
+          >
+            {showOnlyRelated ? "查看所有关联图谱" : "仅查看当前模块关联图谱"}
+          </Button>
+        )}
+        {!isOverviewMode && (
+          <Button
+            className="control-button"
+            icon={<AimOutlined />}
+            onClick={locateCurrentModule}
+          >
+            定位当前模块
+          </Button>
+        )}
 
         <Button
           className={`control-button ${showCoordinateSystem ? 'active' : ''}`}
@@ -1057,10 +1068,12 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
           {/* 图例 */}
           <div className="module-graph-legend">
             <div className="legend-title">图例</div>
-            <div className="legend-row">
-              <span className="legend-dot legend-dot-blue"></span>
-              当前节点
-            </div>
+            {!isOverviewMode && (
+              <div className="legend-row">
+                <span className="legend-dot legend-dot-blue"></span>
+                当前节点
+              </div>
+            )}
             <div className="legend-row">
               <span className="legend-dot legend-dot-green"></span>
               内容页

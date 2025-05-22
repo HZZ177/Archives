@@ -630,224 +630,124 @@
 }
 
 .database-table-container {
-  margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  border: 1px solid #e8e8e8;
-  border-radius: 4px;
-  transition: all 0.3s ease;
+  margin-bottom: 16px;
 }
 
-.database-table-container.collapsed {
-  background-color: #fafafa;
+.database-table-container .ant-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.table-collapse-button {
-  color: #1890ff;
-  cursor: pointer;
-  transition: all 0.3s ease;
+.database-table-container .ant-card-head {
+  padding: 16px 24px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.table-collapse-button:hover {
-  color: #40a9ff;
-}
-
-.table-collapsed-summary {
-  color: #666;
-  font-size: 12px;
-  margin-right: 8px;
-  background-color: #f0f0f0;
-  padding: 2px 8px;
-  border-radius: 4px;
+.database-table-container .ant-card-body {
+  padding: 16px 24px;
 }
 
 .table-header {
   width: 100%;
-  padding: 0;
 }
 
-.field-details {
-  padding: 8px 0;
+.table-header .ant-form-item {
+  margin-bottom: 0;
 }
 
-.column-detail-card {
-  margin-bottom: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-
-.column-detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.sql-preview {
-  margin: 10px 0;
-  padding: 16px;
-  background-color: #f5f5f5;
+.table-header .ant-input,
+.table-header .ant-input-textarea {
   border-radius: 4px;
-  overflow: auto;
 }
 
-.sql-code {
-  margin: 0;
-  white-space: pre-wrap;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 13px;
-  line-height: 1.5;
+.table-header .ant-input-textarea {
+  resize: none;
 }
 
-.empty-columns, .empty-relationships {
-  text-align: center;
-  padding: 20px;
-  color: #999;
-  font-style: italic;
+.table-collapsed-summary {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  padding: 2px 12px;
   background-color: #f9f9f9;
   border-radius: 4px;
-  margin: 10px 0;
+  border: none;
 }
 
-.database-table-item {
-  margin-bottom: 30px;
-  border: 1px solid #f0f0f0;
-  border-radius: 4px;
-  padding: 16px;
-  background-color: #fff;
-}
-
-.database-table-item .table-name {
-  font-weight: 600;
-  margin-bottom: 8px;
+.table-collapsed-summary .summary-content {
   display: flex;
-  align-items: center;
-}
-
-.database-table-item .table-schema {
+  gap: 16px;
   color: #666;
-  margin-right: 4px;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-.database-table-item .table-description {
-  margin-bottom: 12px;
-  color: #666;
-  font-style: italic;
+.table-collapse-button {
+  padding: 4px 8px;
 }
 
-.database-table-item .table-columns {
-  margin-bottom: 12px;
+.table-collapse-button:hover {
+  background-color: #f5f5f5;
 }
 
-.database-table-item .field-name {
-  display: flex;
+.ant-btn-text {
+  display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
-.database-table-item .field-tag {
-  font-size: 11px;
-  padding: 1px 4px;
-  border-radius: 2px;
-  margin-left: 4px;
-  color: #fff;
+.ant-btn-text .anticon {
+  font-size: 16px;
 }
 
-.database-table-item .field-tag.primary-key {
-  background-color: #1890ff;
+/* 表格操作按钮样式 */
+.database-table-container .ant-card-extra {
+  padding: 0;
+  border-bottom: none;
 }
 
-.database-table-item .field-tag.unique {
-  background-color: #722ed1;
-}
-
-.database-table-item .field-tag.index {
-  background-color: #faad14;
-  color: #333;
-}
-
-.database-table-item .nullable-status {
-  display: inline-block;
-  padding: 2px 5px;
-  border-radius: 2px;
-  font-size: 12px;
-}
-
-.database-table-item .nullable-status.nullable {
-  background-color: #f9f0ff;
-  color: #722ed1;
-}
-
-.database-table-item .nullable-status.not-nullable {
-  background-color: #e6f7ff;
-  color: #1890ff;
-}
-
-.database-table-item .foreign-key-reference {
-  color: #1890ff;
-  font-weight: 500;
-}
-
-.database-table-item .table-relationships {
-  margin-top: 16px;
-  border-top: 1px dashed #eee;
-  padding-top: 12px;
-}
-
-.database-table-item .table-relationships h5 {
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-.database-table-item .relationship-list {
-  list-style: none;
-  padding-left: 0;
-  margin: 0;
-}
-
-.database-table-item .relationship-item {
-  padding: 6px 0;
-  display: flex;
+.database-table-container .ant-space {
+  gap: 8px !important;
   align-items: center;
-  gap: 8px;
 }
 
-.database-table-item .relationship-type {
-  background-color: #f5f5f5;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 12px;
+.database-table-container .ant-btn {
+  height: 32px;
+  padding: 0 12px;
 }
 
-.database-table-item .relationship-table {
-  font-weight: 500;
-  color: #1890ff;
-}
-
-.database-table-item .relationship-description {
-  color: #666;
-  font-size: 12px;
-}
-
-/* 数据验证错误样式 */
-.error-row {
-  background-color: #fff1f0;
-}
-
+/* 表格验证错误样式 */
 .table-validation-errors {
-  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  background-color: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 4px;
 }
 
 .error-indicator {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   color: #ff4d4f;
-  cursor: pointer;
+  font-size: 13px;
 }
 
 .error-list {
   margin: 0;
-  padding-left: 16px;
-  font-size: 12px;
-} 
+  padding: 0;
+  list-style: none;
+}
+
+.error-list li {
+  margin-bottom: 4px;
+  color: #ff4d4f;
+}
+
+.error-list li:last-child {
+  margin-bottom: 0;
+}
 
 /* SQL导入样式 */
 .sql-import {
@@ -1155,4 +1055,188 @@
   color: #fa8c16;
   background-color: rgba(250, 140, 22, 0.1);
   padding: 2px;
+}
+
+/* 数据库表字段编辑器样式 */
+.table-fields-editor {
+  padding: 16px;
+}
+
+.table-fields-editor .ant-table {
+  background: #fff;
+}
+
+.table-fields-editor .ant-table-thead > tr > th {
+  background: #fafafa;
+  font-weight: 500;
+  color: #262626;
+}
+
+.table-fields-editor .ant-table-tbody > tr > td {
+  padding: 12px 16px;
+}
+
+.table-fields-editor .ant-input,
+.table-fields-editor .ant-select,
+.table-fields-editor .ant-input-textarea {
+  width: 100%;
+}
+
+.table-fields-editor .ant-checkbox-wrapper {
+  margin-right: 0;
+}
+
+.table-fields-editor .ant-btn {
+  height: 32px;
+  padding: 0 12px;
+}
+
+.table-fields-editor .ant-btn-dashed {
+  border-style: dashed;
+  border-color: #d9d9d9;
+  color: #666;
+}
+
+.table-fields-editor .ant-btn-dashed:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+/* 表格验证错误样式 */
+.table-fields-editor .ant-form-item-has-error .ant-input,
+.table-fields-editor .ant-form-item-has-error .ant-select-selector {
+  border-color: #ff4d4f;
+}
+
+.table-fields-editor .ant-form-item-explain-error {
+  color: #ff4d4f;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* 表格行悬停效果 */
+.table-fields-editor .ant-table-tbody > tr:hover > td {
+  background: #f5f5f5;
+}
+
+/* 表格行选中效果 */
+.table-fields-editor .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: #e6f7ff;
+}
+
+/* 表格操作按钮样式 */
+.table-fields-editor .ant-table-cell .ant-btn {
+  padding: 4px 8px;
+}
+
+.table-fields-editor .ant-table-cell .ant-btn-dangerous {
+  color: #ff4d4f;
+}
+
+.table-fields-editor .ant-table-cell .ant-btn-dangerous:hover {
+  color: #ff7875;
+  background: #fff1f0;
+}
+
+/* 表格描述字段样式 */
+.table-fields-editor .ant-input-textarea {
+  resize: none;
+}
+
+.table-fields-editor .ant-input-textarea textarea {
+  padding: 8px 12px;
+  line-height: 1.5;
+}
+
+/* 表格类型选择器样式 */
+.table-fields-editor .ant-select-selector {
+  padding: 4px 11px;
+}
+
+.table-fields-editor .ant-select-selection-item {
+  line-height: 24px;
+}
+
+/* 表格复选框样式 */
+.table-fields-editor .ant-checkbox-wrapper {
+  display: inline-flex;
+  align-items: center;
+}
+
+.table-fields-editor .ant-checkbox {
+  top: 0;
+}
+
+/* 表格长度输入框样式 */
+.table-fields-editor .ant-input-number {
+  width: 100%;
+}
+
+.table-fields-editor .ant-input-number-input {
+  height: 32px;
+  padding: 4px 11px;
+}
+
+/* 表格添加按钮样式 */
+.table-fields-editor .ant-btn-dashed {
+  height: 40px;
+  font-size: 14px;
+}
+
+.table-fields-editor .ant-btn-dashed .anticon {
+  margin-right: 8px;
+}
+
+.form-label-required {
+  position: relative;
+  display: inline-block;
+  padding-right: 10px;
+}
+.form-label-star {
+  color: #ff4d4f;
+  position: absolute;
+  top: -2px;
+  right: 2px;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.database-table-container.collapsed .ant-card-head {
+  padding: 16px 24px;
+}
+
+.database-table-container.collapsed .ant-card-body {  
+  padding: 4px 24px;
+}
+
+.database-table-container.collapsed .table-header .ant-form-item {
+  margin-bottom: 0;
+}
+
+.database-table-container.collapsed .table-header .ant-row {
+  row-gap: 8px !important;
+}
+
+.table-fade-enter {
+  opacity: 0;
+  max-height: 0;
+  transform: scaleY(0.95);
+}
+.table-fade-enter-active {
+  opacity: 1;
+  max-height: 500px;
+  transform: scaleY(1);
+  transition: opacity 300ms, max-height 300ms, transform 300ms;
+}
+.table-fade-exit {
+  opacity: 1;
+  max-height: 500px;
+  transform: scaleY(1);
+}
+.table-fade-exit-active {
+  opacity: 0;
+  max-height: 0;
+  transform: scaleY(0.95);
+  transition: opacity 300ms, max-height 300ms, transform 300ms;
 } 

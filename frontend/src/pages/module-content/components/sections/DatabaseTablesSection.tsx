@@ -1,9 +1,10 @@
 import React, { ChangeEvent, useState } from 'react';
 import { Button, Input, Form, Table, Space, Select, Checkbox, Tooltip, Card, Tabs, Typography, Row, Col, message, Modal } from 'antd';
-import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined, LinkOutlined, KeyOutlined, ExclamationCircleOutlined, ImportOutlined } from '@ant-design/icons';
+import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined, LinkOutlined, KeyOutlined, ExclamationCircleOutlined, ImportOutlined, ExpandOutlined, CompressOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { DatabaseTable, DatabaseTableColumn } from '../../../../types/modules';
 import './SectionStyles.css';
+import { CSSTransition } from 'react-transition-group';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -13,8 +14,9 @@ const { Text } = Typography;
 interface DatabaseTablesSectionProps {
   tables: DatabaseTable[];
   onChange: (tables: DatabaseTable[]) => void;
-  collapsedTables: {[key: number]: boolean};
-  setCollapsedTables: React.Dispatch<React.SetStateAction<{[key: number]: boolean}>>;
+  onValidationChange: (tableId: string, errors: string[]) => void;
+  collapsedTables?: Set<string>;
+  setCollapsedTables?: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
 // 数据库字段类型选项
@@ -50,6 +52,15 @@ const PK_WIDTH = '7%';
 const DEFAULT_VALUE_WIDTH = '12%';
 const OPTIONS_WIDTH = '18%';
 const ACTION_WIDTH = '8%';
+
+const formItemLayout = {
+  labelCol: { flex: '60px' },
+  wrapperCol: { flex: '1' },
+  colon: false,
+  labelAlign: 'left' as const,
+};
+
+const inputStyle = { maxWidth: 400 };
 
 // 解析MySQL CREATE TABLE语句
 const parseSql = (sql: string): DatabaseTable | null => {
@@ -289,11 +300,12 @@ const parseSql = (sql: string): DatabaseTable | null => {
   }
 };
 
-const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({ 
-  tables, 
+const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
+  tables,
   onChange,
-  collapsedTables,
-  setCollapsedTables
+  onValidationChange,
+  collapsedTables = new Set<string>(),
+  setCollapsedTables = () => {},
 }) => {
   const [activeTabKeys, setActiveTabKeys] = useState<Record<number, string>>({});
   const [tableErrors, setTableErrors] = useState<Record<number, string[]>>({});
@@ -301,7 +313,103 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
   const [importLoading, setImportLoading] = useState<boolean>(false);
   const [sqlImportModalVisible, setSqlImportModalVisible] = useState<boolean>(false);
   const newTableRef = React.useRef<HTMLDivElement>(null);
-  
+  const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
+
+  const toggleCollapse = (tableId: string) => {
+    setCollapsedTables(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(tableId)) {
+        newSet.delete(tableId);
+      } else {
+        newSet.add(tableId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleTableChange = (tableId: string, changes: Partial<DatabaseTable>) => {
+    const updatedTables = tables.map(table => 
+      table.table_name === tableId ? { ...table, ...changes } : table
+    );
+    onChange(updatedTables);
+  };
+
+  const handleDeleteTable = (tableId: string) => {
+    const updatedTables = tables.filter(table => table.table_name !== tableId);
+    onChange(updatedTables);
+  };
+
+  const renderTableHeader = (table: DatabaseTable) => {
+    const isCollapsed = collapsedTables.has(table.table_name);
+    const errors = validationErrors[table.table_name] || [];
+
+    // 自定义label，星号右上角
+    const requiredLabel = (
+      <span className="form-label-required">
+        表名
+        <span className="form-label-star">*</span>
+      </span>
+    );
+
+    return (
+      <div className="table-header">
+        <Row gutter={[16, 8]} align="middle">
+          <Col span={24}>
+            <Form.Item
+              label={requiredLabel}
+              validateStatus={errors.length > 0 ? 'error' : ''}
+              help={errors.length > 0 ? errors[0] : ''}
+              {...formItemLayout}
+            >
+              <Input
+                value={table.table_name}
+                onChange={(e) => handleTableChange(table.table_name, { table_name: e.target.value })}
+                placeholder="请输入表名"
+                style={inputStyle}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={24}>
+            <Form.Item label="描述" {...formItemLayout}>
+              <Input.TextArea
+                value={table.description}
+                onChange={(e) => handleTableChange(table.table_name, { description: e.target.value })}
+                placeholder="请输入表描述"
+                autoSize={{ minRows: 1, maxRows: 2 }}
+                style={inputStyle}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+      </div>
+    );
+  };
+
+  const renderTableActions = (table: DatabaseTable) => {
+    const isCollapsed = collapsedTables.has(table.table_name);
+
+    return (
+      <Space>
+        <Button
+          type="text"
+          icon={isCollapsed ? <ExpandOutlined /> : <CompressOutlined />}
+          onClick={() => toggleCollapse(table.table_name)}
+          className="table-collapse-button"
+        >
+          {isCollapsed ? '展开' : '折叠'}
+        </Button>
+        <Button
+          type="text"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => handleDeleteTable(table.table_name)}
+        >
+          删除
+        </Button>
+      </Space>
+    );
+  };
+
   // 验证单个表的数据
   const validateTable = (table: DatabaseTable, tableIndex: number): string[] => {
     const errors: string[] = [];
@@ -400,109 +508,11 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
     const newTablesArray = [...tables, newTable];
     onChange(newTablesArray);
     // 确保新添加的表默认展开
-    setCollapsedTables(prev => ({
-      ...prev,
-      [newTablesArray.length - 1]: false
-    }));
-  };
-
-  // 更新表信息
-  const updateTableField = (index: number, field: keyof DatabaseTable, value: any) => {
-    const newTables = [...tables];
-    newTables[index] = {
-      ...newTables[index],
-      [field]: value
-    };
-    onChange(newTables);
-    
-    // 重新验证表
-    validateTable(newTables[index], index);
-  };
-
-  // 删除表
-  const removeTable = (index: number) => {
-    const newTables = [...tables];
-    newTables.splice(index, 1);
-    onChange(newTables);
-    
-    // 更新错误状态
-    setTableErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[index];
-      // 重新映射索引
-      const updatedErrors: Record<number, string[]> = {};
-      Object.keys(newErrors).forEach(key => {
-        const keyNum = parseInt(key);
-        if (keyNum > index) {
-          updatedErrors[keyNum - 1] = newErrors[keyNum];
-        } else {
-          updatedErrors[keyNum] = newErrors[keyNum];
-        }
-      });
-      return updatedErrors;
+    setCollapsedTables(prev => {
+      const newSet = new Set(prev);
+      newSet.add(newTable.table_name);
+      return newSet;
     });
-  };
-
-  // 添加列
-  const addColumn = (tableIndex: number) => {
-    const newColumn: DatabaseTableColumn = {
-      field_name: '',
-      field_type: 'varchar',
-      length: 255,
-      nullable: true,
-      is_primary_key: false,
-      is_unique: false,
-      is_index: false,
-      description: ''
-    };
-    
-    const newTables = [...tables];
-    newTables[tableIndex] = {
-      ...newTables[tableIndex],
-      columns: [...newTables[tableIndex].columns, newColumn]
-    };
-    onChange(newTables);
-    
-    // 重新验证表
-    validateTable(newTables[tableIndex], tableIndex);
-  };
-
-  // 更新列信息
-  const updateColumn = (tableIndex: number, columnIndex: number, field: keyof DatabaseTableColumn, value: any) => {
-    const newTables = [...tables];
-    const newColumns = [...newTables[tableIndex].columns];
-    
-    // 处理特殊情况：如果是主键，设置非空和唯一
-    if (field === 'is_primary_key' && value === true) {
-      // 确保其他列不是主键
-      newColumns.forEach((col, idx) => {
-        if (idx !== columnIndex && col.is_primary_key) {
-          col.is_primary_key = false;
-          message.info('一个表只能有一个主键，之前的主键已被取消');
-        }
-      });
-      
-      newColumns[columnIndex] = {
-        ...newColumns[columnIndex],
-        nullable: false,
-        is_unique: true,
-        [field]: value
-      };
-    } else {
-      newColumns[columnIndex] = {
-        ...newColumns[columnIndex],
-        [field]: value
-      };
-    }
-    
-    newTables[tableIndex] = {
-      ...newTables[tableIndex],
-      columns: newColumns
-    };
-    onChange(newTables);
-    
-    // 重新验证表
-    validateTable(newTables[tableIndex], tableIndex);
   };
 
   // 更新外键信息
@@ -524,18 +534,6 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
       [field]: value
     };
     
-    newTables[tableIndex] = {
-      ...newTables[tableIndex],
-      columns: newColumns
-    };
-    onChange(newTables);
-  };
-
-  // 删除列
-  const removeColumn = (tableIndex: number, columnIndex: number) => {
-    const newTables = [...tables];
-    const newColumns = [...newTables[tableIndex].columns];
-    newColumns.splice(columnIndex, 1);
     newTables[tableIndex] = {
       ...newTables[tableIndex],
       columns: newColumns
@@ -614,7 +612,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         render: (text: string, record: DatabaseTableColumn, index: number) => (
           <Input
             value={text}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => updateColumn(tableIndex, index, 'field_name', e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => updateForeignKey(tableIndex, index, 'field_name', e.target.value)}
             placeholder="输入字段名"
           />
         )
@@ -627,7 +625,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         render: (text: string, record: DatabaseTableColumn, index: number) => (
           <Select
             value={text}
-            onChange={(value: string) => updateColumn(tableIndex, index, 'field_type', value)}
+            onChange={(value: string) => updateForeignKey(tableIndex, index, 'field_type', value)}
             style={{ width: '100%' }}
           >
             {FIELD_TYPE_OPTIONS.map(option => (
@@ -646,7 +644,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
             type="number"
             value={text}
             onChange={(e: ChangeEvent<HTMLInputElement>) => 
-              updateColumn(tableIndex, index, 'length', e.target.value ? parseInt(e.target.value) : undefined)
+              updateForeignKey(tableIndex, index, 'length', e.target.value ? e.target.value : '')
             }
             placeholder="长度"
           />
@@ -660,7 +658,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         render: (nullable: boolean, record: DatabaseTableColumn, index: number) => (
           <Checkbox
             checked={nullable}
-            onChange={(e) => updateColumn(tableIndex, index, 'nullable', e.target.checked)}
+            onChange={(e) => updateForeignKey(tableIndex, index, 'nullable', e.target.checked ? 'YES' : 'NO')}
             disabled={record.is_primary_key} // 主键不能为空
           />
         )
@@ -673,7 +671,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         render: (isPrimaryKey: boolean, record: DatabaseTableColumn, index: number) => (
           <Checkbox
             checked={isPrimaryKey}
-            onChange={(e) => updateColumn(tableIndex, index, 'is_primary_key', e.target.checked)}
+            onChange={(e) => updateForeignKey(tableIndex, index, 'is_primary_key', e.target.checked ? 'YES' : 'NO')}
           />
         )
       },
@@ -685,7 +683,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         render: (text: string | undefined, record: DatabaseTableColumn, index: number) => (
           <Input
             value={text}
-            onChange={(e) => updateColumn(tableIndex, index, 'default_value', e.target.value)}
+            onChange={(e) => updateForeignKey(tableIndex, index, 'default_value', e.target.value)}
             placeholder="默认值"
           />
         )
@@ -699,7 +697,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
             <Tooltip title="唯一约束">
               <Checkbox
                 checked={record.is_unique}
-                onChange={(e) => updateColumn(tableIndex, index, 'is_unique', e.target.checked)}
+                onChange={(e) => updateForeignKey(tableIndex, index, 'is_unique', e.target.checked ? 'YES' : 'NO')}
                 disabled={record.is_primary_key} // 主键已经是唯一的
               >
                 唯一
@@ -708,7 +706,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
             <Tooltip title="索引">
               <Checkbox
                 checked={record.is_index}
-                onChange={(e) => updateColumn(tableIndex, index, 'is_index', e.target.checked)}
+                onChange={(e) => updateForeignKey(tableIndex, index, 'is_index', e.target.checked ? 'YES' : 'NO')}
               >
                 索引
               </Checkbox>
@@ -725,7 +723,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
             type="text"
             danger
             icon={<MinusCircleOutlined />}
-            onClick={() => removeColumn(tableIndex, index)}
+            onClick={() => updateForeignKey(tableIndex, index, 'field_name', '')}
             size="small"
           >
             删除
@@ -760,7 +758,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
             <Form.Item label="描述">
               <TextArea
                 value={column.description || ''}
-                onChange={(e) => updateColumn(tableIndex, columnIndex, 'description', e.target.value)}
+                onChange={(e) => updateForeignKey(tableIndex, columnIndex, 'description', e.target.value)}
                 placeholder="输入字段描述"
                 autoSize={{ minRows: 3, maxRows: 6 }}
               />
@@ -842,19 +840,6 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
     message.info('已填充示例SQL，您可以根据需要修改并导入');
   };
 
-  // 切换表格折叠状态
-  const toggleTableCollapse = (tableIndex: number) => {
-    setCollapsedTables(prev => ({
-      ...prev,
-      [tableIndex]: !prev[tableIndex]
-    }));
-  };
-
-  // 检查表格是否折叠
-  const isTableCollapsed = (tableIndex: number): boolean => {
-    return !!collapsedTables[tableIndex];
-  };
-
   // 打开SQL导入弹窗
   const showSqlImportModal = () => {
     setSqlImportModalVisible(true);
@@ -870,128 +855,78 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
       {tables.map((table, tableIndex) => (
         <div 
           key={tableIndex} 
-          className={`database-table-container ${isTableCollapsed(tableIndex) ? 'collapsed' : ''}`}
+          className={`database-table-container ${collapsedTables.has(table.table_name) ? 'collapsed' : ''}`}
           ref={tableIndex === tables.length - 1 ? newTableRef : null}
         >
           <Card 
-            title={
-              <div className="table-header" style={{ padding: '0 12px' }}>
-                <Row gutter={[16, 16]} align="middle" style={{ marginBottom: '12px', marginTop: '8px' }}>
-                  <Col span={16}>
-                    <Form.Item 
-                      label="表名" 
-                      style={{ marginBottom: 0, marginTop: 12 }}
-                      validateStatus={table.table_name.trim() === '' ? 'error' : 'success'}
-                      help={table.table_name.trim() === '' ? '表名不能为空' : ''}
-                    >
-              <Input
-                value={table.table_name}
-                        onChange={(e) => updateTableField(tableIndex, 'table_name', e.target.value)}
-                placeholder="输入表名"
-                        status={table.table_name.trim() === '' ? 'error' : ''}
-              />
-            </Form.Item>
-                  </Col>
-                  <Col span={8} style={{ textAlign: 'right' }}>
-                    <Space>
-                      <Button
-                        type="text"
-                        className="table-collapse-button"
-                        icon={isTableCollapsed(tableIndex) ? <PlusOutlined /> : <MinusCircleOutlined />}
-                        onClick={() => toggleTableCollapse(tableIndex)}
-                      >
-                        {isTableCollapsed(tableIndex) ? '展开' : '折叠'}
-                      </Button>
-            <Button
-              type="text"
-              danger
-              icon={<MinusCircleOutlined />}
-              onClick={() => removeTable(tableIndex)}
+            title={renderTableHeader(table)}
+            extra={renderTableActions(table)}
+          >
+            <CSSTransition
+              in={collapsedTables.has(table.table_name)}
+              timeout={300}
+              classNames="table-fade"
+              unmountOnExit
             >
-              删除表
-            </Button>
-                    </Space>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col span={24}>
-                    <Form.Item label="表描述" style={{ marginBottom: 12 }}>
-                      <Input
-                        value={table.description}
-                        onChange={(e) => updateTableField(tableIndex, 'description', e.target.value)}
-                        placeholder="表描述"
-                      />
-                    </Form.Item>
-                  </Col>
-                </Row>
+              <div>
+                <div className="table-collapsed-summary">
+                  <div className="summary-content">
+                    <span>字段: {table.columns.length}</span>
+                    {table.columns.filter(f => f.is_primary_key).length > 0 && (
+                      <span>主键: {table.columns.filter(f => f.is_primary_key).length}</span>
+                    )}
+                    {table.columns.filter(f => f.foreign_key).length > 0 && (
+                      <span>外键: {table.columns.filter(f => f.foreign_key).length}</span>
+                    )}
+                  </div>
+                </div>
               </div>
-            }
-            style={{ marginBottom: 24 }}
-            extra={
-              tableErrors[tableIndex] && tableErrors[tableIndex].length > 0 ? (
-                <div className="table-validation-errors">
-                  <Tooltip 
-                    title={
-                      <ul className="error-list">
-                        {tableErrors[tableIndex].map((error, idx) => (
-                          <li key={idx}>{error}</li>
-                        ))}
-                      </ul>
-                    }
-                  >
-                    <span className="error-indicator">
-                      <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} /> 
-                      {tableErrors[tableIndex].length}个错误
-                    </span>
-                  </Tooltip>
-          </div>
-              ) : isTableCollapsed(tableIndex) ? (
-                <span className="table-collapsed-summary">
-                  共{table.columns.length}个字段
-                  {table.columns.filter(col => col.is_primary_key).length > 0 && '，含主键'}
-                  {table.columns.filter(col => col.foreign_key).length > 0 && '，含外键'}
-                </span>
-              ) : null
-            }
-          >
-            {!isTableCollapsed(tableIndex) && (
-              <Tabs 
-                activeKey={getTableActiveTab(tableIndex)}
-                onChange={(activeKey) => setTableActiveTab(tableIndex, activeKey)}
-                style={{ paddingLeft: '8px', paddingRight: '8px' }}
-              >
-                <TabPane tab="字段列表" key="columns">
-          <Table
-            dataSource={table.columns}
-            columns={getColumnsDefinition(tableIndex)}
-            pagination={false}
-                    rowKey={(record, index) => `${tableIndex}_column_${index}`}
-            size="small"
-                    style={{ marginBottom: 16 }}
-                    rowClassName={(record, index) => {
-                      if (!record.field_name || record.field_name.trim() === '') {
-                        return 'error-row';
-                      }
-                      return '';
-                    }}
-          />
-          
-          <Button
-            type="dashed"
-            onClick={() => addColumn(tableIndex)}
-            block
-            icon={<PlusOutlined />}
-                    style={{ marginTop: 8, marginBottom: 8 }}
-          >
-            添加字段
-          </Button>
-                </TabPane>
-                
-                <TabPane tab="字段详情" key="details">
-                  {renderFieldDetailsTab(tableIndex)}
-                </TabPane>
-              </Tabs>
-            )}
+            </CSSTransition>
+            <CSSTransition
+              in={!collapsedTables.has(table.table_name)}
+              timeout={300}
+              classNames="table-fade"
+              unmountOnExit
+            >
+              <div>
+                <Tabs 
+                  activeKey={getTableActiveTab(tableIndex)}
+                  onChange={(activeKey) => setTableActiveTab(tableIndex, activeKey)}
+                  style={{ paddingLeft: '8px', paddingRight: '8px' }}
+                >
+                  <TabPane tab="字段列表" key="columns">
+                    <Table
+                      dataSource={table.columns}
+                      columns={getColumnsDefinition(tableIndex)}
+                      pagination={false}
+                      rowKey={(record, index) => `${tableIndex}_column_${index}`}
+                      size="small"
+                      style={{ marginBottom: 16 }}
+                      rowClassName={(record, index) => {
+                        if (!record.field_name || record.field_name.trim() === '') {
+                          return 'error-row';
+                        }
+                        return '';
+                      }}
+                    />
+                    
+                    <Button
+                      type="dashed"
+                      onClick={() => updateForeignKey(tableIndex, table.columns.length, 'field_name', '')}
+                      block
+                      icon={<PlusOutlined />}
+                      style={{ marginTop: 8, marginBottom: 8 }}
+                    >
+                      添加字段
+                    </Button>
+                  </TabPane>
+                  
+                  <TabPane tab="字段详情" key="details">
+                    {renderFieldDetailsTab(tableIndex)}
+                  </TabPane>
+                </Tabs>
+              </div>
+            </CSSTransition>
           </Card>
         </div>
       ))}
@@ -1033,34 +968,6 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
           <Tooltip title="验证所有表格结构是否符合规范，包括检查表名是否为空、字段名是否重复、主键是否唯一、外键引用是否完整等">
             <InfoCircleOutlined style={{ marginLeft: 8 }} />
           </Tooltip>
-        </Button>
-        
-        <Button
-          onClick={() => {
-            // 全部展开
-            const newCollapsedState: Record<number, boolean> = {};
-            tables.forEach((_, index) => {
-              newCollapsedState[index] = false;
-            });
-            setCollapsedTables(newCollapsedState);
-          }}
-          disabled={tables.length === 0}
-        >
-          全部展开
-        </Button>
-        
-        <Button
-          onClick={() => {
-            // 全部折叠
-            const newCollapsedState: Record<number, boolean> = {};
-            tables.forEach((_, index) => {
-              newCollapsedState[index] = true;
-            });
-            setCollapsedTables(newCollapsedState);
-          }}
-          disabled={tables.length === 0}
-        >
-          全部折叠
         </Button>
       </Space>
       

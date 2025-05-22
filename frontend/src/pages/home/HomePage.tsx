@@ -61,6 +61,7 @@ const HomePage: React.FC = () => {
               ref={graphRef}
               currentModuleId={currentModuleId || modules[0].id}
               onNodeClick={handleNodeClick}
+              isOverviewMode={true}
             />
           ) : (
             <div className="no-modules-message">暂无模块数据</div>
