@@ -74,4 +74,42 @@
   padding: 48px;
   font-size: 16px;
   color: rgba(0, 0, 0, 0.65);
+}
+
+.empty-modules-card {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  border: 1px dashed #d9d9d9;
+}
+
+.empty-modules-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 0;
+}
+
+.empty-modules-icon {
+  font-size: 64px;
+  color: #bfbfbf;
+  margin-bottom: 24px;
+}
+
+.empty-modules-title {
+  margin-bottom: 8px !important;
+  color: #262626;
+}
+
+.empty-modules-description {
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.empty-modules-button {
+  height: 40px;
+  padding: 0 24px;
+  font-size: 16px;
 } 

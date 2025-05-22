@@ -1,6 +1,15 @@
 import React, { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react';
 import { Button, Tooltip, message } from 'antd';
-import { PlusOutlined, DeleteOutlined, FolderOutlined, FileOutlined, DownOutlined, DragOutlined } from '@ant-design/icons';
+import { 
+  PlusOutlined, 
+  DeleteOutlined, 
+  FileTextOutlined, 
+  FolderOpenOutlined, 
+  DownOutlined, 
+  DragOutlined,
+  FileOutlined,
+  FolderOutlined 
+} from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable, DropResult, DragUpdate } from 'react-beautiful-dnd';
 import { ModuleStructureNode } from '../../../types/modules';
 import { batchUpdateNodeOrder } from '../../../apis/moduleService';
@@ -328,7 +337,10 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
                             <DownOutlined className={`tree-arrow-icon ${expandedKeys.includes(node.id) ? 'expanded' : ''}`} />
                           ) : null}
                         </span>
-                        {node.is_content_page ? <FileOutlined style={{ marginRight: 6 }} /> : <FolderOutlined style={{ marginRight: 6 }} />}
+                        {node.is_content_page ? 
+                          <span className="custom-tree-icon file-icon"><FileTextOutlined style={{ marginRight: 6 }} /></span> : 
+                          <span className="custom-tree-icon folder-icon"><FolderOpenOutlined style={{ marginRight: 6 }} /></span>
+                        }
                         <span className="node-content" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 0 }}>{node.name}</span>
                       </div>
                       {/* 右侧：操作按钮区 */}

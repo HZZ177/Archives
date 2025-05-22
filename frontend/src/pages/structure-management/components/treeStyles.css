@@ -1071,4 +1071,22 @@ div[role="rowgroup"] > div {
 .node-children-wrapper.expanded + .ant-tree-switcher .tree-arrow-icon,
 .tree-node-wrapper.expanded .ant-tree-switcher .tree-arrow-icon {
   transform: rotate(0deg);
+}
+
+/* 自定义树图标样式 */
+.custom-tree-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  transition: all 0.3s;
+}
+
+.custom-tree-icon.file-icon {
+  color: #1890ff;
+}
+
+.custom-tree-icon.folder-icon {
+  color: #faad14;
 } 

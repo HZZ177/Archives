@@ -1041,20 +1041,15 @@
   justify-content: center;
   width: 18px;
   height: 18px;
-  border-radius: 3px;
   margin-right: 2px;
 }
 
 .custom-tree-icon.file-icon {
   color: #1890ff;
-  background-color: rgba(24, 144, 255, 0.1);
-  padding: 2px;
 }
 
 .custom-tree-icon.folder-icon {
   color: #fa8c16;
-  background-color: rgba(250, 140, 22, 0.1);
-  padding: 2px;
 }
 
 /* 数据库表字段编辑器样式 */

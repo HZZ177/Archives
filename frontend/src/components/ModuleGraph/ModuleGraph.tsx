@@ -15,9 +15,8 @@ declare global {
 }
 
 interface ModuleGraphProps {
-  currentModuleId: number;
+  currentModuleId: number | null;
   onNodeClick: (moduleId: number) => void;
-  isOverviewMode?: boolean; // 添加概览模式标志，首页使用时为true
 }
 
 interface GraphNode {
@@ -56,7 +55,7 @@ const DEFAULT_CHARGE = 40; // 斥力默认值（正数，UI展示）
 const DEFAULT_CENTER_STRENGTH = 0.6; // 引力默认值
 const DEFAULT_LINK_DISTANCE = 30; // 链接长度默认值
 
-const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModuleId, onNodeClick, isOverviewMode }, ref) => {
+export const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModuleId, onNodeClick }, ref) => {
   const [graphData, setGraphData] = useState<{ nodes: GraphNode[], links: GraphLink[] }>({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
   const [showOnlyRelated, setShowOnlyRelated] = useState(false);
@@ -110,7 +109,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
         id: node.id,
         name: node.name,
         isContentPage: node.is_content_page,
-        isCurrentModule: node.id === currentModuleId,
+        isCurrentModule: currentModuleId !== null && node.id === currentModuleId,
         isTopLevel: parentId === undefined,  // 如果没有父节点，则为顶级节点
         val: 1,
         // 初始位置 - 按层级环形布局
@@ -137,7 +136,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     modules.forEach((node, index) => processNode(node, undefined, 0, index, modules.length));
 
     // 获取关联模块的连接
-    if (currentModuleId && !isOverviewMode) {
+    if (currentModuleId !== null) {
       try {
         const moduleContent = await fetchModuleContent(currentModuleId);
         const relatedModuleIds = moduleContent.related_module_ids_json || [];
@@ -168,7 +167,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     }
 
     return { nodes, links };
-  }, [currentModuleId, isOverviewMode]);
+  }, [currentModuleId]);
 
   // 加载图形数据
   useEffect(() => {
@@ -279,7 +278,8 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
 
   // 过滤只显示关联节点
   const filteredGraphData = useMemo(() => {
-    if (!showOnlyRelated) return graphData;
+    // 如果不是显示关联节点模式，或者currentModuleId为null，则返回完整图数据
+    if (!showOnlyRelated || currentModuleId === null) return graphData;
 
     const relatedNodeIds = new Set<number>();
     // 兼容source/target为对象或数字
@@ -368,7 +368,25 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
   // 暴露给父组件的重置方法（可选）
   useImperativeHandle(ref, () => ({
     zoomToFit: () => zoomToFit(400),
-    resetAutoFit: () => { hasAutoFitted.current = false; }
+    resetAutoFit: () => { 
+      hasAutoFitted.current = false; 
+      // 添加重置定位功能
+      setTimeout(() => {
+        const containerElem = document.querySelector('.module-graph-wrapper');
+        if (containerElem && graphRef.current) {
+          const width = containerElem.clientWidth;
+          const height = containerElem.clientHeight;
+          const centerX = width / 2;
+          const centerY = height / 2;
+          graphRef.current.centerAt(centerX + 80, centerY + 60, 0);
+          // 延迟执行自适应缩放
+          setTimeout(() => {
+            zoomToFit(500);
+            hasAutoFitted.current = true;
+          }, 100);
+        }
+      }, 0);
+    }
   }));
 
   // 初次加载或图数据变更时重置自动适应状态
@@ -625,7 +643,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     }
 
     // 设置节点样式
-    ctx.fillStyle = !isOverviewMode && node.isCurrentModule ? '#1890ff' :
+    ctx.fillStyle = node.isCurrentModule ? '#1890ff' :
                    node.isTopLevel ? '#722ed1' :  // 顶级节点使用紫色
                    node.isContentPage ? '#52c41a' : '#d9d9d9';
     ctx.beginPath();
@@ -660,7 +678,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     }
     
     ctx.globalAlpha = 1; // Reset for next node by ForceGraph2D convention
-  }, [highlightedNodeId, pulseFrame, animatedNodeAlphas, isOverviewMode]);
+  }, [highlightedNodeId, pulseFrame, animatedNodeAlphas]); // Added animatedNodeAlphas
 
   // 自定义连接渲染
   const linkCanvasObject = useCallback((link: GraphLink, ctx: CanvasRenderingContext2D) => {
@@ -717,12 +735,12 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
 
   // 新增：定位到当前模块节点的方法
   const locateCurrentModule = useCallback(() => {
-    // 在概览模式下不执行定位操作
-    if (isOverviewMode) {
-      message.info('概览模式下不支持定位到当前模块');
+    // 如果没有当前模块ID，不执行定位操作
+    if (currentModuleId === null) {
+      message.info('主页视图中没有当前模块');
       return;
     }
-    
+
     // 直接合并缩放与居中动画为一个过程
     const nodes = filteredGraphData.nodes;
     const currentNode = nodes.find(n => n.id === currentModuleId);
@@ -736,7 +754,7 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
     // 高亮当前节点
     setHighlightedNodeId(currentModuleId);
     setTimeout(() => setHighlightedNodeId(null), 2000);
-  }, [filteredGraphData.nodes, currentModuleId, isOverviewMode]);
+  }, [filteredGraphData.nodes, currentModuleId, zoomToFit]);
 
   // --- 高亮链路递归查找工具函数 ---
   // 构建节点和链路的映射
@@ -907,16 +925,16 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
   return (
     <div className="module-graph-container">
       <div className="module-graph-controls">
-        {!isOverviewMode && (
-          <Button
-            className={`control-button ${showOnlyRelated ? 'active' : ''}`}
-            onClick={() => setShowOnlyRelated(!showOnlyRelated)}
-            icon={<LinkOutlined />}
-          >
-            {showOnlyRelated ? "查看所有关联图谱" : "仅查看当前模块关联图谱"}
-          </Button>
-        )}
-        {!isOverviewMode && (
+        <Button
+          className={`control-button ${showOnlyRelated ? 'active' : ''}`}
+          onClick={() => setShowOnlyRelated(!showOnlyRelated)}
+          icon={<LinkOutlined />}
+          disabled={currentModuleId === null}
+        >
+          {showOnlyRelated ? "查看所有关联图谱" : "仅查看当前模块关联图谱"}
+        </Button>
+        
+        {currentModuleId !== null && (
           <Button
             className="control-button"
             icon={<AimOutlined />}
@@ -1068,12 +1086,10 @@ const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ currentModul
           {/* 图例 */}
           <div className="module-graph-legend">
             <div className="legend-title">图例</div>
-            {!isOverviewMode && (
-              <div className="legend-row">
-                <span className="legend-dot legend-dot-blue"></span>
-                当前节点
-              </div>
-            )}
+            <div className="legend-row">
+              <span className="legend-dot legend-dot-blue"></span>
+              当前节点
+            </div>
             <div className="legend-row">
               <span className="legend-dot legend-dot-green"></span>
               内容页
