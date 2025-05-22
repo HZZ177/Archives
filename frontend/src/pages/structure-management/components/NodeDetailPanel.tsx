@@ -3,6 +3,8 @@ import { Spin, Tabs, Button, Form, Input, Radio, message, Space, Divider } from 
 import { EditOutlined, SaveOutlined, FolderOutlined, FileOutlined } from '@ant-design/icons';
 import { ModuleStructureNode, ModuleStructureNodeRequest } from '../../../types/modules';
 import { updateModuleNode } from '../../../apis/moduleService';
+import { useModules } from '../../../contexts/ModuleContext';
+import { refreshModuleTreeEvent } from '../../../layouts/MainLayout';
 
 const { TabPane } = Tabs;
 
@@ -20,6 +22,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
   const [form] = Form.useForm();
   const [editing, setEditing] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
+  const { fetchModules } = useModules();
 
   // 当节点变化时，重置表单和编辑状态
   useEffect(() => {
@@ -52,10 +55,16 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
         is_content_page: values.module_type === 'content_page'
       };
       
+      // 调用API更新节点
       await updateModuleNode(node.id, nodeData);
       message.success('更新成功');
       setSaving(false);
       setEditing(false);
+      
+      // 触发全局刷新事件
+      window.dispatchEvent(refreshModuleTreeEvent);
+      
+      // 调用父组件的更新回调
       onNodeUpdated();
     } catch (error) {
       console.error('更新失败:', error);

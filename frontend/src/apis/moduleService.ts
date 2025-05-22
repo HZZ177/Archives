@@ -75,13 +75,12 @@ export const fetchModuleTree = async (parentId?: number, forceRefresh = false): 
   const fetchPromise = async (): Promise<ModuleTreeResponse> => {
     try {
       const params = parentId ? { parent_id: parentId } : {};
+      
       const response = await request.get<APIResponse<any>>(API_MODULE_STRUCTURES, { params });
       const unwrappedData = unwrapResponse<any>(response.data);
       
       // 适配不同的响应格式
       let nodeItems: ModuleStructureNode[] = [];
-      
-      console.log('模块树响应数据:', unwrappedData);
       
       // 判断响应数据的格式并提取节点列表
       if (unwrappedData) {
@@ -112,7 +111,6 @@ export const fetchModuleTree = async (parentId?: number, forceRefresh = false): 
       moduleTreeCache.pendingPromise = null;
       
       console.log(`模块树数据已更新到缓存，时间：${new Date(moduleTreeCache.timestamp).toLocaleTimeString()}`);
-      console.log('处理后的模块树数据:', formattedData);
       return moduleTreeCache.data;
     } catch (error) {
       // 请求失败，重置加载状态
@@ -141,8 +139,10 @@ export const createModuleNode = async (data: ModuleStructureNodeRequest): Promis
 
 export const updateModuleNode = async (nodeId: number, data: ModuleStructureNodeRequest): Promise<ModuleStructureNode> => {
   const response = await request.post<APIResponse<ModuleStructureNode>>(`${API_MODULE_STRUCTURES}/update/${nodeId}`, data);
+  
   // 更新节点后清除缓存
   invalidateModuleTreeCache();
+  
   return unwrapResponse<ModuleStructureNode>(response.data);
 };
 

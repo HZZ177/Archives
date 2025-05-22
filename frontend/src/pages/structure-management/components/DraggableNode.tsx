@@ -141,6 +141,8 @@ export default memo(DraggableNode, (prevProps, nextProps) => {
   // 只有在关键属性发生变化时才重新渲染
   return (
     prevProps.node.id === nextProps.node.id &&
+    prevProps.node.name === nextProps.node.name &&
+    prevProps.node.is_content_page === nextProps.node.is_content_page &&
     prevProps.index === nextProps.index &&
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.isExpanded === nextProps.isExpanded &&
