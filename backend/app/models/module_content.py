@@ -13,6 +13,8 @@ class ModuleContent(Base):
     id = Column(Integer, primary_key=True, index=True)
     module_node_id = Column(Integer, ForeignKey("module_structure_nodes.id", ondelete="CASCADE"), nullable=False, unique=True)
     overview_text = Column(Text, nullable=True)  # 模块功能概述
+    diagram_data = Column(JSON)  # 存储流程图数据
+    diagram_version = Column(Integer, default=1)  # 版本控制
     details_text = Column(Text, nullable=True)  # 功能详解
     database_tables_json = Column(JSON, nullable=True)  # 数据库表
     related_module_ids_json = Column(JSON, nullable=True)  # 关联模块
@@ -20,8 +22,6 @@ class ModuleContent(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # 最后修改者
     created_at = Column(DateTime, default=get_local_time)
     updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
-    diagram_data = Column(JSON)  # 存储流程图数据
-    diagram_version = Column(Integer, default=1)  # 版本控制
     created_by = Column(Integer, ForeignKey("users.id"))
 
     # 关系
