@@ -113,7 +113,6 @@ export interface ModuleContent {
   id: number;
   module_node_id: number;
   overview_text?: string;
-  diagram_image_path?: string;
   key_tech_items_json?: KeyTechItem[];
   details_text?: string;
   database_tables_json?: DatabaseTable[];

@@ -1,8 +1,9 @@
-import { ExcalidrawElement, ExcalidrawState } from "@excalidraw/excalidraw/types/types";
+import type { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
+import type { AppState } from "@excalidraw/excalidraw/types";
 
 export interface DiagramData {
   elements: ExcalidrawElement[];
-  state: ExcalidrawState;
+  state: AppState;
   version?: number;
 }
 

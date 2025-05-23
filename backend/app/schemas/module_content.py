@@ -94,7 +94,6 @@ class ModuleContentResponse(ModuleContentBase):
     """模块内容的响应模型"""
     id: int
     module_node_id: int
-    diagram_image_path: Optional[str] = None
     user_id: int
     created_at: datetime
     updated_at: datetime

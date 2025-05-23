@@ -4,7 +4,7 @@ import { Button, message, Modal } from 'antd';
 import { ZoomInOutlined } from '@ant-design/icons';
 import { getDiagram } from '../../../apis/moduleService';
 import { DiagramData } from '../../../types/diagram';
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types/types';
+import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 
 interface DiagramEditorProps {
   moduleId: number;

@@ -1,6 +1,6 @@
 from typing import Annotated, List, Optional, Any
 
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -60,49 +60,6 @@ async def upsert_module_content(
     except Exception as e:
         logger.error(f"更新模块内容失败: {str(e)}")
         return error_response(message=str(e) if hasattr(e, "detail") else f"更新模块内容失败: {str(e)}")
-
-
-@router.post("/upload-diagram/{module_node_id}", response_model=APIResponse[ModuleContentResponse])
-async def upload_diagram_image(
-        module_node_id: int,
-        db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(get_current_active_user)],
-        file: UploadFile = File(...)
-):
-    """
-    上传模块的逻辑图/数据流向图
-    """
-    try:
-        # 调用服务层上传模块图片
-        content, message = await module_content_service.upload_diagram_image(
-            db, module_node_id, file, current_user
-        )
-        
-        return success_response(data=content, message=message)
-    except Exception as e:
-        logger.error(f"上传模块图片失败: {str(e)}")
-        return error_response(message=str(e) if hasattr(e, "detail") else f"上传模块图片失败: {str(e)}")
-
-
-@router.delete("/delete-diagram/{module_node_id}", response_model=APIResponse[ModuleContentResponse])
-async def delete_diagram_image(
-        module_node_id: int,
-        db: Annotated[AsyncSession, Depends(get_db)],
-        current_user: Annotated[User, Depends(get_current_active_user)]
-):
-    """
-    删除模块的逻辑图/数据流向图
-    """
-    try:
-        # 调用服务层删除模块图片
-        content, message = await module_content_service.delete_diagram_image(
-            db, module_node_id, current_user
-        )
-        
-        return success_response(data=content, message=message)
-    except Exception as e:
-        logger.error(f"删除模块图片失败: {str(e)}")
-        return error_response(message=str(e) if hasattr(e, "detail") else f"删除模块图片失败: {str(e)}")
 
 
 @router.put("/{module_node_id}/diagram", response_model=APIResponse[ModuleContentResponse])

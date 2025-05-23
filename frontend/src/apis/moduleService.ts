@@ -127,23 +127,19 @@ export const fetchModuleTree = async (parentId?: number, forceRefresh = false): 
 
 export const fetchModuleNode = async (nodeId: number): Promise<ModuleStructureNode> => {
   const response = await request.get<APIResponse<ModuleStructureNode>>(`${API_MODULE_STRUCTURES}/${nodeId}`);
-  return unwrapResponse<ModuleStructureNode>(response.data);
+  return unwrapResponse<ModuleStructureNode>(response.data)!;
 };
 
 export const createModuleNode = async (data: ModuleStructureNodeRequest): Promise<ModuleStructureNode> => {
   const response = await request.post<APIResponse<ModuleStructureNode>>(API_MODULE_STRUCTURES, data);
-  // 新建节点后清除缓存
   invalidateModuleTreeCache();
-  return unwrapResponse<ModuleStructureNode>(response.data);
+  return unwrapResponse<ModuleStructureNode>(response.data)!;
 };
 
 export const updateModuleNode = async (nodeId: number, data: ModuleStructureNodeRequest): Promise<ModuleStructureNode> => {
   const response = await request.post<APIResponse<ModuleStructureNode>>(`${API_MODULE_STRUCTURES}/update/${nodeId}`, data);
-  
-  // 更新节点后清除缓存
   invalidateModuleTreeCache();
-  
-  return unwrapResponse<ModuleStructureNode>(response.data);
+  return unwrapResponse<ModuleStructureNode>(response.data)!;
 };
 
 export const deleteModuleNode = async (nodeId: number): Promise<void> => {
@@ -156,9 +152,8 @@ export const deleteModuleNode = async (nodeId: number): Promise<void> => {
 export const fetchModuleContent = async (moduleNodeId: number): Promise<ModuleContent> => {
   try {
     const response = await request.get<APIResponse<ModuleContent>>(`${API_MODULE_CONTENTS}/by-node/${moduleNodeId}`);
-    return unwrapResponse<ModuleContent>(response.data);
+    return unwrapResponse<ModuleContent>(response.data)!;
   } catch (error: any) {
-    // 如果内容不存在，返回空对象，允许用户创建新内容
     if (error.response && error.response.status === 404) {
       // 返回一个初始化的内容对象
       return {
@@ -168,7 +163,6 @@ export const fetchModuleContent = async (moduleNodeId: number): Promise<ModuleCo
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         overview_text: '',
-        diagram_image_path: '',
         key_tech_items_json: [],
         database_tables_json: [],
         related_module_ids_json: [],
@@ -180,47 +174,9 @@ export const fetchModuleContent = async (moduleNodeId: number): Promise<ModuleCo
 };
 
 export const saveModuleContent = async (moduleNodeId: number, data: ModuleContentRequest): Promise<ModuleContent> => {
-  // 后端的接口已经实现了upsert逻辑，可以直接使用
   const response = await request.post<APIResponse<ModuleContent>>(`${API_MODULE_CONTENTS}/update/by-node/${moduleNodeId}`, data);
-  return unwrapResponse<ModuleContent>(response.data);
+  return unwrapResponse<ModuleContent>(response.data)!;
 };
-
-/**
- * 上传模块逻辑图
- * @param moduleNodeId 模块节点ID
- * @param file 图片文件
- * @returns 
- */
-export const uploadDiagramImage = async (moduleNodeId: number, file: File): Promise<{diagram_image_path: string}> => {
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  const response = await request.post<APIResponse<ModuleContent>>(
-    `${API_MODULE_CONTENTS}/upload-diagram/${moduleNodeId}`, 
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }
-  );
-  
-  const content = unwrapResponse<ModuleContent>(response.data);
-  return { diagram_image_path: content.diagram_image_path || '' };
-};
-
-/**
- * 删除模块逻辑图
- * @param moduleNodeId 模块节点ID
- * @returns 已更新的模块内容
- */
-export const deleteDiagramImage = async (moduleNodeId: number): Promise<ModuleContent> => {
-  const response = await request.delete<APIResponse<ModuleContent>>(
-    `${API_MODULE_CONTENTS}/delete-diagram/${moduleNodeId}`
-  );
-  
-  return unwrapResponse<ModuleContent>(response.data);
-}; 
 
 /**
  * 更新节点排序顺序
@@ -233,9 +189,8 @@ export const updateNodeOrder = async (nodeId: number, orderIndex: number): Promi
     `${API_MODULE_STRUCTURES}/update-order/${nodeId}`, 
     { order_index: orderIndex }
   );
-  // 更新顺序后清除缓存
   invalidateModuleTreeCache();
-  return unwrapResponse<ModuleStructureNode>(response.data);
+  return unwrapResponse<ModuleStructureNode>(response.data)!;
 };
 
 /**
@@ -248,9 +203,8 @@ export const batchUpdateNodeOrder = async (updates: Array<{ node_id: number; ord
     `${API_MODULE_STRUCTURES}/batch-update-order`,
     { updates }
   );
-  // 更新顺序后清除缓存
   invalidateModuleTreeCache();
-  return unwrapResponse<ModuleStructureNode[]>(response.data);
+  return unwrapResponse<ModuleStructureNode[]>(response.data)!;
 }; 
 
 // 更新流程图数据

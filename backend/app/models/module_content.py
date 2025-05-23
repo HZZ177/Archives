@@ -13,7 +13,6 @@ class ModuleContent(Base):
     id = Column(Integer, primary_key=True, index=True)
     module_node_id = Column(Integer, ForeignKey("module_structure_nodes.id", ondelete="CASCADE"), nullable=False, unique=True)
     overview_text = Column(Text, nullable=True)  # 模块功能概述
-    diagram_image_path = Column(String(512), nullable=True)  # 逻辑图/数据流向图
     details_text = Column(Text, nullable=True)  # 功能详解
     database_tables_json = Column(JSON, nullable=True)  # 数据库表
     related_module_ids_json = Column(JSON, nullable=True)  # 关联模块

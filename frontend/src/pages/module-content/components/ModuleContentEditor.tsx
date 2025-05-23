@@ -124,7 +124,6 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
     const [relatedModuleIds, setRelatedModuleIds] = useState<number[]>([]);
     const [relatedModules, setRelatedModules] = useState<ModuleStructureNode[]>([]);
     const [apiInterfaces, setApiInterfaces] = useState<ApiInterfaceCard[]>([]);
-    const [diagramPath, setDiagramPath] = useState<string>('');
 
     // 创建各部分的ref，用于滚动定位
     const overviewRef = useRef<HTMLDivElement>(null);
@@ -327,7 +326,6 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
         // 初始化各部分状态
         setOverviewText(moduleContent.overview_text || '');
         setDetailsText(moduleContent.details_text || '');
-        setDiagramPath(moduleContent.diagram_image_path || '');
         
         // 处理数据库表数据，兼容旧格式
         if (moduleContent.database_tables_json && Array.isArray(moduleContent.database_tables_json)) {
@@ -566,7 +564,7 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
     // 当内容变更时更新填充状态
     useEffect(() => {
       updateSectionsFilled();
-    }, [overviewText, diagramPath, detailsText, databaseTables, relatedModuleIds, apiInterfaces]);
+    }, [overviewText, detailsText, databaseTables, relatedModuleIds, apiInterfaces]);
 
     // 暴露接口给父组件
     useImperativeHandle(ref, () => ({
@@ -587,7 +585,6 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
         const contentData = {
           overview_text: overviewText,
           details_text: detailsText,
-          diagram_image_path: diagramPath,
           database_tables_json: databaseTables,
           related_module_ids_json: relatedModuleIds,
           api_interfaces_json: apiInterfaces.map(card => ({
@@ -649,8 +646,6 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
       switch (key) {
         case 'overview':
           return !!overviewText && overviewText.trim().length > 0;
-        case 'diagram':
-          return !!diagramPath;
         case 'keyTech':
           return !!detailsText && detailsText.trim().length > 0;
         case 'database':

@@ -13,10 +13,10 @@ const getHeaders = () => {
 };
 
 // 获取权限列表（扁平结构）
-export const fetchPermissions = async (params = {}) => {
+export const fetchPermissions = async (params = {}): Promise<Permission[]> => {
   try {
     const response = await request.get<APIResponse<Permission[]>>('/permissions', { params });
-    return unwrapResponse<Permission[]>(response.data);
+    return unwrapResponse<Permission[]>(response.data)!;
   } catch (error) {
     console.error('获取权限列表失败', error);
     throw error;
@@ -71,10 +71,10 @@ export const fetchPermissionTree = async () => {
 };
 
 // 获取权限详情
-export const fetchPermissionById = async (id: number) => {
+export const fetchPermissionById = async (id: number): Promise<Permission> => {
   try {
     const response = await request.get<APIResponse<Permission>>(`/permissions/${id}`);
-    return unwrapResponse<Permission>(response.data);
+    return unwrapResponse<Permission>(response.data)!;
   } catch (error) {
     console.error(`获取权限ID:${id}详情失败`, error);
     throw error;
@@ -82,10 +82,10 @@ export const fetchPermissionById = async (id: number) => {
 };
 
 // 创建权限
-export const createPermission = async (permissionData: any) => {
+export const createPermission = async (permissionData: any): Promise<Permission> => {
   try {
     const response = await request.post<APIResponse<Permission>>('/permissions', permissionData);
-    return unwrapResponse<Permission>(response.data);
+    return unwrapResponse<Permission>(response.data)!;
   } catch (error) {
     console.error('创建权限失败', error);
     throw error;
@@ -93,10 +93,10 @@ export const createPermission = async (permissionData: any) => {
 };
 
 // 更新权限
-export const updatePermission = async (id: number, permissionData: any) => {
+export const updatePermission = async (id: number, permissionData: any): Promise<Permission> => {
   try {
     const response = await request.post<APIResponse<Permission>>(`/permissions/update/${id}`, permissionData);
-    return unwrapResponse<Permission>(response.data);
+    return unwrapResponse<Permission>(response.data)!;
   } catch (error) {
     console.error(`更新权限ID:${id}失败`, error);
     throw error;
@@ -115,10 +115,10 @@ export const deletePermission = async (id: number) => {
 };
 
 // 获取当前用户的权限
-export const fetchCurrentUserPermissions = async () => {
+export const fetchCurrentUserPermissions = async (): Promise<string[]> => {
   try {
     const response = await request.get<APIResponse<string[]>>('/permissions/user/current');
-    return unwrapResponse<string[]>(response.data);
+    return unwrapResponse<string[]>(response.data)!;
   } catch (error) {
     console.error('获取当前用户权限失败', error);
     throw error;
@@ -126,13 +126,13 @@ export const fetchCurrentUserPermissions = async () => {
 };
 
 // 获取当前用户可访问的页面路径
-export const fetchUserPagePermissions = async (workspaceId?: number) => {
+export const fetchUserPagePermissions = async (workspaceId?: number): Promise<string[]> => {
   try {
     const url = '/permissions/user/pages';
     const params = workspaceId ? { workspace_id: workspaceId } : {};
     
     const response = await request.get<APIResponse<string[]>>(url, { params });
-    return unwrapResponse<string[]>(response.data);
+    return unwrapResponse<string[]>(response.data)!;
   } catch (error) {
     console.error('获取用户页面权限失败', error);
     throw error;

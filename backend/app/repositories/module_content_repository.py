@@ -83,82 +83,9 @@ class ModuleContentRepository(BaseRepository[ModuleContent, ModuleContentCreate,
             logger.error(f"更新或创建模块内容失败: {str(e)}")
             raise
     
-    async def update_diagram_image(
-        self,
-        db: AsyncSession,
-        module_node_id: int,
-        user_id: int,
-        image_path: str
-    ) -> ModuleContent:
-        """
-        更新模块的图片路径
-        """
-        try:
-            # 获取现有内容
-            content = await self.get_by_node_id(db, module_node_id)
-            
-            if content:
-                # 更新图片路径
-                content.diagram_image_path = image_path
-                content.user_id = user_id
-            else:
-                # 创建新内容
-                content = ModuleContent(
-                    module_node_id=module_node_id,
-                    diagram_image_path=image_path,
-                    user_id=user_id
-                )
-                db.add(content)
-            
-            await db.commit()
-            await db.refresh(content)
-            
-            return content
-        except Exception as e:
-            await db.rollback()
-            logger.error(f"更新模块图片路径失败: {str(e)}")
-            raise
+    # 图像路径更新方法已移除
     
-    async def clear_diagram_image(
-        self,
-        db: AsyncSession,
-        module_node_id: int,
-        user_id: int
-    ) -> ModuleContent:
-        """
-        清空模块的图片路径
-        
-        :param db: 数据库会话
-        :param module_node_id: 模块节点ID
-        :param user_id: 用户ID
-        :return: 更新后的模块内容
-        """
-        try:
-            # 获取现有内容
-            content = await self.get_by_node_id(db, module_node_id)
-            
-            if content:
-                # 清空图片路径
-                content.diagram_image_path = None
-                content.user_id = user_id
-                
-                await db.commit()
-                await db.refresh(content)
-            else:
-                # 创建新的空内容
-                content = ModuleContent(
-                    module_node_id=module_node_id,
-                    user_id=user_id
-                )
-                db.add(content)
-                await db.commit()
-                await db.refresh(content)
-            
-            return content
-        except Exception as e:
-            await db.rollback()
-            logger.error(f"清空模块图片路径失败: {str(e)}")
-            raise
+    # 图像路径清除方法已移除
 
 
 # 创建模块内容仓库实例
