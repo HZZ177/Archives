@@ -38,7 +38,8 @@ import {
   ApiInterface,
   ApiInterfaceCard
 } from '../../../types/modules';
-import { fetchModuleContent, saveModuleContent, fetchModuleTree } from '../../../apis/moduleService';
+import { fetchModuleContent, saveModuleContent, fetchModuleTree, updateDiagram } from '../../../apis/moduleService';
+import type { DiagramEditorHandle } from '../../../components/business/SectionModules/DiagramEditor';
 import OverviewSection from './sections/OverviewSection';
 import DiagramSection from './sections/DiagramSection';
 import KeyTechSection from './sections/KeyTechSection';
@@ -166,6 +167,9 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
 
     // 添加时间戳状态用于强制更新图谱
     const [graphUpdateTime, setGraphUpdateTime] = useState<number>(Date.now());
+
+    // 引用 DiagramEditor，用于获取当前画布数据
+    const diagramEditorRef = useRef<DiagramEditorHandle>(null);
 
     // 弹窗关闭时重置自动定位标记
     const handleGraphModalClose = () => {
@@ -616,6 +620,15 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
         const result = await saveModuleContent(moduleNodeId, contentData);
         if (result) {
           message.success('保存成功');
+          // 保存流程图数据
+          const diagramData = diagramEditorRef.current?.getDiagramData();
+          if (diagramData) {
+            try {
+              await updateDiagram(moduleNodeId, diagramData);
+            } catch (error) {
+              console.error('流程图保存失败:', error);
+            }
+          }
           // 更新时间戳以触发图谱重新加载
           setGraphUpdateTime(Date.now());
           setSaving(false);
@@ -721,26 +734,12 @@ const ModuleContentEditor = forwardRef<ModuleContentEditorHandle, ModuleContentE
           <div id="section-diagram" className="content-section" ref={diagramRef}>
             <Title level={4} className="section-title">逻辑图</Title>
             <Divider className="section-divider" />
-            
-            {isEditMode ? (
+            {/* 阅读和编辑模式均使用DiagramSection渲染流程图 */}
               <DiagramSection
+              ref={diagramEditorRef}
                 moduleNodeId={moduleNodeId}
-                imagePath={diagramPath}
-                onImagePathChange={setDiagramPath}
-              />
-            ) : (
-              <div className="section-content text-center">
-                {diagramPath ? (
-                  <Image 
-                    src={processImageUrl(diagramPath)} 
-                    alt="模块逻辑图" 
-                    style={{ maxWidth: '100%' }} 
+              isEditable={isEditMode}
                   />
-                ) : (
-                  <div className="empty-content" onClick={handleEmptyContentClick}>暂未上传模块流程图</div>
-                )}
-              </div>
-            )}
           </div>
           
           {/* 功能详解 */}

@@ -1,6 +1,8 @@
 # 资料管理系统
 
-内部资料管理系统，用于标准化数据录入框架，支持工作区多级管理、模块化文档管理和图片上传。
+## 项目背景
+
+本项目旨在构建一个内部资料管理系统，用于标准化数据录入框架，支持工作区多级管理、模块化文档管理和图片上传。通过该系统，企业内部人员可以自主填充内容，提高资料管理的规范性和效率。
 
 ## 项目目标
 
@@ -11,11 +13,14 @@
 - 支持工作区管理，实现资料的多级组织和权限隔离。
 - (远期) 为后期RAG（Retrieval Augmented Generation）系统集成打下坚实的数据基础。
 
-## 项目架构
+## 技术栈
 
-本项目采用前后端分离架构：
 - **前端**：React 18 + TypeScript + Ant Design 5.x
 - **后端**：FastAPI + SQLAlchemy + SQLite
+
+## 项目架构
+
+本项目采用前后端分离架构，前端负责用户界面和交互，后端负责业务逻辑和数据处理。通过 RESTful API 进行通信，确保系统的可扩展性和维护性。
 
 ## 目录结构
 
@@ -174,6 +179,10 @@ Archives/
 - **`moduleService.ts`** - 模块管理API服务
 - **`workspaceService.ts`** - 工作区管理API服务 (新增)
 
+#### 组件 (`frontend/src/components/business/SectionModules`)
+
+- `DiagramEditor.tsx` - 交互式流程图编辑器组件，基于 Excalidraw，支持 JSON 存储(`diagram_data`)、版本控制(`diagram_version`)、自定义 UIOptions（仅导出、保存、帮助）以及自定义缩放和预览功能。
+
 ## 功能模块
 
 1. **用户、角色与权限管理** (原"用户认证与授权")
@@ -218,7 +227,10 @@ Archives/
    - 旨在提高文档编写的规范性和一致性。
 
 7. **模块内容管理** (新增详情)
-   - 每个模块内容包含六个固定部分：功能概述、逻辑图/数据流向图、功能详解、数据库表、关联模块、涉及接口
+   - 每个模块内容包含六个固定部分：功能概述、交互式逻辑图/流程图编辑器、功能详解、数据库表、关联模块、涉及接口
+   - 支持交互式流程图编辑，集成 Excalidraw，可导入/导出 `diagram_data` JSON 并配合后端 `diagram_version` 进行版本控制
+   - 提供 GET `/module_contents/{module_node_id}/diagram` 和 PUT `/module_contents/{module_node_id}/diagram` 接口，通过服务层统一处理 upsert 操作
+   - 画布 UI 自定义，仅保留导出、保存和帮助按钮；禁用外部链接；支持自定义缩放和滚轮及快捷键交互
    - 支持富文本编辑，包括图表、代码块等多种内容格式
    - 记录内容的修改历史和最后编辑者
 

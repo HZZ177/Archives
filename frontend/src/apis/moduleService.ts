@@ -252,3 +252,15 @@ export const batchUpdateNodeOrder = async (updates: Array<{ node_id: number; ord
   invalidateModuleTreeCache();
   return unwrapResponse<ModuleStructureNode[]>(response.data);
 }; 
+
+// 更新流程图数据
+export const updateDiagram = async (moduleId: number, diagramData: any) => {
+  const response = await request.put<APIResponse<void>>(`${API_MODULE_CONTENTS}/${moduleId}/diagram`, diagramData);
+  return response.data;
+};
+
+// 获取流程图数据
+export const getDiagram = async (moduleId: number) => {
+  const response = await request.get<APIResponse<any>>(`${API_MODULE_CONTENTS}/${moduleId}/diagram`);
+  return response.data;
+}; 

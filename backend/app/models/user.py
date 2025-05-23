@@ -6,6 +6,7 @@ from backend.app.db.base import Base
 from backend.app.db.utils import get_local_time
 from backend.app.models.permission import role_permission
 from backend.app.models.workspace import workspace_user
+from backend.app.models.module_content import ModuleContent  # 新增导入
 
 # 用户角色关联表
 user_role = Table(
@@ -40,6 +41,7 @@ class User(Base):
     default_workspace = relationship("Workspace", foreign_keys=[default_workspace_id])
     workspaces = relationship("Workspace", secondary=workspace_user, back_populates="users")
     created_workspaces = relationship("Workspace", foreign_keys="[Workspace.created_by]", back_populates="creator")
+    module_contents = relationship("ModuleContent", foreign_keys=[ModuleContent.created_by], back_populates="creator")  # 用户创建的模块内容列表
 
 
 class Role(Base):

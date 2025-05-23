@@ -79,9 +79,15 @@ class ModuleContentCreate(ModuleContentBase):
     module_node_id: int
 
 
+class DiagramData(BaseModel):
+    elements: list
+    state: Dict[str, Any]
+    version: Optional[int] = 1
+
+
 class ModuleContentUpdate(ModuleContentBase):
     """更新模块内容的请求模型"""
-    pass
+    diagram_data: Optional[DiagramData] = None
 
 
 class ModuleContentResponse(ModuleContentBase):

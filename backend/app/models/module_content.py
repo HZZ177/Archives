@@ -21,7 +21,11 @@ class ModuleContent(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # 最后修改者
     created_at = Column(DateTime, default=get_local_time)
     updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
+    diagram_data = Column(JSON)  # 存储流程图数据
+    diagram_version = Column(Integer, default=1)  # 版本控制
+    created_by = Column(Integer, ForeignKey("users.id"))
 
     # 关系
     module_node = relationship("ModuleStructureNode", back_populates="content")
     last_editor = relationship("User", foreign_keys=[user_id]) 
+    creator = relationship("User", foreign_keys=[created_by], back_populates="module_contents") 
