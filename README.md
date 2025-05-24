@@ -343,3 +343,7 @@ npm run dev
 5. 路由使用懒加载以提高性能。
 6. 状态管理优先使用React Context API，复杂状态可考虑 Zustand 或 Redux Toolkit。
 7. CSS方案推荐使用CSS Modules或Styled Components，并配合Ant Design的样式系统。
+
+
+DeepWiki badge
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/microsoft/vscode)
