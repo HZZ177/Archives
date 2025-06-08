@@ -19,6 +19,8 @@ class ModuleContent(Base):
     database_tables_json = Column(JSON, nullable=True)  # 数据库表
     related_module_ids_json = Column(JSON, nullable=True)  # 关联模块
     api_interfaces_json = Column(JSON, nullable=True)  # 涉及接口
+    terminology_json = Column(JSON, nullable=True)  # 术语表/名称解释
+    table_relation_diagram = Column(JSON, nullable=True)  # 表关联关系图
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # 最后修改者
     created_at = Column(DateTime, default=get_local_time)
     updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)

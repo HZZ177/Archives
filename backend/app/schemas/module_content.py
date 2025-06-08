@@ -65,6 +65,13 @@ class ApiInterface(BaseModel):
     response_params: List[ApiInterfaceParameter] = []
 
 
+class GlossaryItem(BaseModel):
+    """术语表项模型"""
+    id: str
+    term: str
+    explanation: str
+
+
 class ModuleContentBase(BaseModel):
     """模块内容的基础模型"""
     overview_text: Optional[str] = None
@@ -72,6 +79,8 @@ class ModuleContentBase(BaseModel):
     database_tables_json: Optional[List[DatabaseTable]] = []
     related_module_ids_json: Optional[List[int]] = []
     api_interfaces_json: Optional[List[ApiInterface]] = []
+    terminology_json: Optional[List[GlossaryItem]] = []
+    table_relation_diagram: Optional[Dict[str, Any]] = None
 
 
 class ModuleContentCreate(ModuleContentBase):

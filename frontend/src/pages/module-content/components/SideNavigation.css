@@ -1,6 +1,6 @@
 .side-navigation {
   width: 100%;
-  padding: 30px 12px;
+  padding: 30px 12px 30px 0px;
   position: relative;
   background-color: transparent;
   transition: all 0.3s ease;
@@ -70,9 +70,9 @@
   position: absolute;
   /* 线条从第一个节点开始，到最后一个节点结束 */
   top: 65px; /* 增加top值，确保线条从第一个节点开始 */
-  bottom: 48px; /* 最后一个节点的中心位置同理，通过约等于视图高度减去最后一个节点位置 */
+  bottom: 50px; /* 最后一个节点的中心位置同理，通过约等于视图高度减去最后一个节点位置 */
   /* 线条的水平位置，使其与节点中心对齐 */
-  left: 8px; /* 从4px增加为8px，找到准确的居中位置 */
+  left: 3.5px; /* 从8px减少为0px，向左移动 */
   width: 2px; /* 线条宽度为2px */
   background: #1890ff; /* 纯色 */
   opacity: 0.8;
@@ -86,7 +86,7 @@
 
 /* 编辑模式下模式面板更高，需要进一步调整线条起始位置 */
 .nav-mode-panel.edit-mode + .nav-line {
-  top: 220px; /* 适应编辑模式的面板高度，确保线条从第一个节点开始 */
+  top: 230px; /* 适应编辑模式的面板高度，确保线条从第一个节点开始 */
 }
 
 .nav-column .side-navigation {
@@ -103,7 +103,7 @@
   margin-right: 12px; /* 右侧间隔 */
   position: relative;
   /* 确保节点位于线条中间 */
-  left: -7px; /* 从-3px调整为-7px，更精确地向左调整 */
+  left: 0px; /* 从-7px调整为0px，更精确地向左调整 */
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   box-shadow: 0 0 0 3px white; /* 白色外发光效果 */
   z-index: 2;
@@ -140,7 +140,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 90px; /* 从110px减少为90px，减少约20% */
+  max-width: 140px; /* 从90px增加为110px，确保能显示六个字符 */
   letter-spacing: 0.3px;
   position: relative;
   left: 3px; /* 从5px减少为3px */

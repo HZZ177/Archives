@@ -155,18 +155,12 @@ export const fetchModuleContent = async (moduleNodeId: number): Promise<ModuleCo
     return unwrapResponse<ModuleContent>(response.data)!;
   } catch (error: any) {
     if (error.response && error.response.status === 404) {
-      // 返回一个初始化的内容对象
+      // 返回一个初始化的内容对象，匹配ModuleContent接口
       return {
         id: 0,
-        module_node_id: moduleNodeId,
-        user_id: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        overview_text: '',
-        key_tech_items_json: [],
-        database_tables_json: [],
-        related_module_ids_json: [],
-        api_interfaces_json: []
+        node_id: moduleNodeId,
+        content: {}, // 初始化为空对象
+        last_updated_at: new Date().toISOString(),
       };
     }
     throw error;
@@ -217,4 +211,14 @@ export const updateDiagram = async (moduleId: number, diagramData: any) => {
 export const getDiagram = async (moduleId: number) => {
   const response = await request.get<APIResponse<any>>(`${API_MODULE_CONTENTS}/${moduleId}/diagram`);
   return response.data;
+};
+
+// 获取模块配置
+export const getModuleSectionConfig = () => {
+  return request.get('/module-sections/config');
+};
+
+// 更新模块配置
+export const updateModuleSectionConfig = (sections: any[]) => {
+  return request.put('/module-sections/config', sections);
 }; 

@@ -6,6 +6,7 @@ import MainLayout from './layouts/MainLayout';
 import { ROUTES } from './config/constants';
 import PrivateRoute from './components/common/PrivateRoute';
 import { useUser } from './contexts/UserContext';
+import ModuleSectionConfig from './pages/structure-management/components/ModuleSectionConfig';
 
 // 使用React.lazy进行代码分割，减少初始加载时间
 const UserList = lazy(() => import('./pages/user/UserList'));
@@ -107,6 +108,10 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: '/system',
+        element: <div>系统管理页面</div>
+      },
+      {
         path: ROUTES.USER_LIST,
         element: <SuspenseWrapper component={UserList} />
       },
@@ -147,7 +152,7 @@ const router = createBrowserRouter([
         element: <SuspenseWrapper component={DocumentEdit} />
       },
       {
-        path: ROUTES.STRUCTURE_MANAGEMENT,
+        path: '/structure-management',
         element: <SuspenseWrapper component={StructureManagementPage} />
       },
       {
@@ -161,7 +166,15 @@ const router = createBrowserRouter([
       {
         path: 'user/profile',
         element: <SuspenseWrapper component={ProfilePage} />
-      }
+      },
+      {
+        path: '/structure-management/tree',
+        element: <SuspenseWrapper component={StructureManagementPage} />
+      },
+      {
+        path: '/structure-management/module-config',
+        element: <SuspenseWrapper component={ModuleSectionConfig} />
+      },
     ]
   },
   {

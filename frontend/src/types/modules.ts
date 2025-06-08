@@ -66,22 +66,22 @@ export interface ApiInterface {
 
 // 新增卡片式API接口类型定义
 export interface ApiInterfaceCard {
-  id: string;                    // 唯一标识符
-  path: string;                  // 接口地址 (必填)
-  method: string;                // 请求方法 (必填): GET, POST, PUT, DELETE 等
-  contentType?: string;          // 请求数据类型 (选填): application/json, multipart/form-data 等
-  requestParams?: ApiParam[];    // 请求参数 (选填)
-  responseParams?: ApiParam[];   // 响应参数 (选填)
-  description?: string;          // 接口描述 (选填)
+  id: string;
+  path: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  description: string;
+  contentType: string;
+  requestParams: ApiParam[];
+  responseParams: ApiParam[];
 }
 
 // API参数类型
 export interface ApiParam {
-  name: string;                  // 参数名称
-  type: string;                  // 参数类型: string, number, boolean, object, array 等
-  required: boolean;             // 是否必需
-  description?: string;          // 参数描述
-  example?: string;              // 示例值
+  name: string;
+  type: string;
+  required: boolean;
+  description?: string;
+  children?: ApiParam[];
 }
 
 // 常量定义
@@ -111,17 +111,18 @@ export interface ExampleItem {
 // 模块内容类型
 export interface ModuleContent {
   id: number;
-  module_node_id: number;
-  overview_text?: string;
-  key_tech_items_json?: KeyTechItem[];
-  details_text?: string;
-  database_tables_json?: DatabaseTable[];
-  related_module_ids_json?: number[];
-  api_interfaces_json?: ApiInterface[];
-  examples_json?: ExampleItem[];
-  user_id: number;
-  created_at: string;
-  updated_at: string;
+  node_id: number;
+  content: {
+    overview?: string;
+    diagram?: DiagramData;
+    key_tech?: KeyTechnology[];
+    database_tables?: DatabaseTable[];
+    related_modules?: RelatedModule[];
+    interface_definitions?: ApiInterfaceCard[];
+    glossary?: GlossaryItem[];
+  };
+  sections?: any[]; // 为动态模块添加sections
+  last_updated_at: string;
 }
 
 // 创建/更新模块结构节点的请求参数
@@ -141,9 +142,25 @@ export interface ModuleContentRequest {
   related_module_ids_json?: number[];
   api_interfaces_json?: ApiInterface[];
   examples_json?: ExampleItem[];
+  node_id: number;
+  content: {
+    overview?: string;
+    diagram?: any;
+    key_tech?: KeyTechItem[];
+    database_tables?: DatabaseTable[];
+    related_modules?: number[];
+    interface_definitions?: ApiInterfaceCard[];
+    glossary?: GlossaryItem[];
+  };
 }
 
 // 模块结构树响应
 export interface ModuleTreeResponse {
   items: ModuleStructureNode[];
+}
+
+export interface GlossaryItem {
+  id: string;
+  term: string;
+  explanation: string;
 } 

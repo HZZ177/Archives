@@ -11,6 +11,7 @@ from backend.app.models.user import User, Role
 from backend.app.models.permission import Permission
 from backend.app.models.document import Document, Template, Section, Image, Relation
 from backend.app.models.workspace import Workspace, workspace_user
+from backend.app.models.module_section_config import ModuleSectionConfig
 
 
 async def create_system_permissions(session: AsyncSession) -> None:
@@ -28,11 +29,11 @@ async def create_system_permissions(session: AsyncSession) -> None:
             "parent_id": None,
             "description": "系统首页"
         },
-        # 系统管理分组 - 作为父节点，不包含实际页面路径
+        # 系统管理分组 - 作为父节点，但添加实际页面路径
         {
             "code": "system",
             "name": "系统管理",
-            "page_path": "", # 空字符串表示不是实际页面
+            "page_path": "/system", # 添加系统管理的路径
             "sort": 100,
             "is_visible": True,
             "icon": "setting",
@@ -43,7 +44,7 @@ async def create_system_permissions(session: AsyncSession) -> None:
         {
             "code": "system:user",
             "name": "用户管理",
-            "page_path": "/users",
+            "page_path": "/system/users",
             "sort": 101,
             "is_visible": True,
             "icon": "user",
@@ -54,42 +55,106 @@ async def create_system_permissions(session: AsyncSession) -> None:
         {
             "code": "system:role",
             "name": "角色管理",
-            "page_path": "/roles",
+            "page_path": "/system/roles",
             "sort": 102,
             "is_visible": True,
             "icon": "peoples",
             "parent_id": 2,  # 系统管理分组
             "description": "角色管理页面"
         },
-        # 结构管理 - 实际页面，顶级节点
+        # 结构管理 - 作为父节点，添加实际页面路径
         {
             "code": "system:structure",
             "name": "结构管理",
-            "page_path": "/structure-management",
+            "page_path": "/structure-management", # 添加结构管理的路径
             "sort": 110,
             "is_visible": True,
             "icon": "tree",
             "parent_id": None,
-            "description": "结构管理页面"
+            "description": "结构管理模块分组"
+        },
+        # 结构树配置 - 作为结构管理的子页面
+        {
+            "code": "system:structure:tree-editor",
+            "name": "结构树配置",
+            "page_path": "/structure-management/tree",
+            "sort": 111,
+            "is_visible": True,
+            "icon": "apartment",
+            "parent_id": 5,  # 结构管理节点
+            "description": "配置系统模块结构树"
+        },
+        # 页面模块配置 - 作为结构管理的子页面
+        {
+            "code": "system:structure:module-config",
+            "name": "页面模块配置",
+            "page_path": "/structure-management/module-config",
+            "sort": 112,
+            "is_visible": True,
+            "icon": "appstore",
+            "parent_id": 5,  # 结构管理节点
+            "description": "配置页面模块的显示和顺序"
         }
     ]
 
-    # 检查是否已存在权限数据
-    result = await session.execute(text("SELECT COUNT(*) FROM permissions"))
-    permission_count = result.scalar()
-
-    if permission_count == 0:
-        logger.info("开始创建系统权限数据...")
-        
-        # 按顺序创建权限，确保父权限ID正确
-        for data in permissions_data:
+    logger.info("开始检查系统权限数据...")
+    
+    # 获取现有的所有权限记录
+    result = await session.execute(select(Permission))
+    existing_permissions = result.scalars().all()
+    
+    # 创建现有权限的代码集合，用于快速查找
+    existing_codes = {permission.code for permission in existing_permissions}
+    
+    # 创建ID映射，用于处理parent_id引用
+    id_mapping = {}
+    for perm in existing_permissions:
+        id_mapping[perm.code] = perm.id
+    
+    # 计数器
+    added_count = 0
+    updated_count = 0
+    
+    # 按顺序处理权限，确保父权限先创建
+    for idx, data in enumerate(permissions_data):
+        # 检查权限是否已存在
+        if data["code"] not in existing_codes:
+            # 处理parent_id引用，如果是数字引用，转换为实际ID
+            if data["parent_id"] is not None and isinstance(data["parent_id"], int):
+                # 找到对应索引的权限代码
+                if data["parent_id"] <= len(permissions_data):
+                    parent_code = permissions_data[data["parent_id"]-1]["code"]
+                    # 如果父权限已经在数据库中，使用其实际ID
+                    if parent_code in id_mapping:
+                        data["parent_id"] = id_mapping[parent_code]
+            
+            # 创建新权限
             permission = Permission(**data)
             session.add(permission)
-        
+            await session.flush()  # 立即获取新创建权限的ID
+            
+            # 更新ID映射
+            id_mapping[data["code"]] = permission.id
+            added_count += 1
+        else:
+            # 权限已存在，可以选择更新名称、图标等非关键字段
+            existing_perm = next(p for p in existing_permissions if p.code == data["code"])
+            # 只更新可能变化的字段
+            if existing_perm.name != data["name"] or existing_perm.icon != data["icon"] or existing_perm.description != data["description"]:
+                existing_perm.name = data["name"]
+                existing_perm.icon = data["icon"]
+                existing_perm.description = data["description"]
+                updated_count += 1
+    
+    # 如果有新增或更新，提交事务
+    if added_count > 0 or updated_count > 0:
         await session.commit()
-        logger.info(f"系统权限数据创建成功，共 {len(permissions_data)} 条权限")
+        if added_count > 0:
+            logger.info(f"新增了 {added_count} 条权限")
+        if updated_count > 0:
+            logger.info(f"更新了 {updated_count} 条权限")
     else:
-        logger.info(f"系统已存在权限数据，共 {permission_count} 条权限")
+        logger.info("所有权限已存在且无需更新")
 
 
 async def assign_permissions_to_admin_role(session: AsyncSession) -> None:
@@ -205,6 +270,103 @@ async def create_default_workspace(session: AsyncSession) -> None:
         logger.info(f"系统已存在工作区，共 {workspace_count} 个工作区")
 
 
+async def init_module_section_configs(session: AsyncSession) -> None:
+    """初始化模块配置数据"""
+    logger.info("开始检查模块配置...")
+    
+    # 定义默认配置
+    default_configs = [
+        {
+            "section_key": "overview",
+            "section_name": "功能概述",
+            "section_icon": "📝",
+            "section_type": 1,
+            "is_enabled": True,
+            "display_order": 1
+        },
+        {
+            "section_key": "terminology",
+            "section_name": "名称解释",
+            "section_icon": "📖",
+            "section_type": 10,
+            "is_enabled": True,
+            "display_order": 2
+        },
+        {
+            "section_key": "keyTech",
+            "section_name": "功能详解",
+            "section_icon": "🔍",
+            "section_type": 1,
+            "is_enabled": True,
+            "display_order": 3
+        },
+        {
+            "section_key": "diagram",
+            "section_name": "业务流程图",
+            "section_icon": "📊",
+            "section_type": 3,
+            "is_enabled": True,
+            "display_order": 4
+        },
+        {
+            "section_key": "tableRelation",
+            "section_name": "表关联关系图",
+            "section_icon": "🔄",
+            "section_type": 3,
+            "is_enabled": True,
+            "display_order": 5
+        },
+        {
+            "section_key": "database",
+            "section_name": "数据库表",
+            "section_icon": "💾",
+            "section_type": 6,
+            "is_enabled": True,
+            "display_order": 6
+        },
+        {
+            "section_key": "related",
+            "section_name": "关联模块",
+            "section_icon": "🔗",
+            "section_type": 8,
+            "is_enabled": True,
+            "display_order": 7
+        },
+        {
+            "section_key": "interface",
+            "section_name": "涉及接口",
+            "section_icon": "🔌",
+            "section_type": 7,
+            "is_enabled": True,
+            "display_order": 8
+        }
+    ]
+    
+    # 获取现有的所有配置记录
+    result = await session.execute(select(ModuleSectionConfig))
+    existing_configs = result.scalars().all()
+    
+    # 创建现有配置的键集合，用于快速查找
+    existing_keys = {config.section_key for config in existing_configs}
+    
+    # 计数器
+    added_count = 0
+    
+    # 检查每个默认配置，如果不存在则添加
+    for config in default_configs:
+        if config["section_key"] not in existing_keys:
+            db_config = ModuleSectionConfig(**config)
+            session.add(db_config)
+            added_count += 1
+    
+    # 如果有新增配置，提交事务
+    if added_count > 0:
+        await session.commit()
+        logger.info(f"新增了 {added_count} 条模块配置")
+    else:
+        logger.info("所有模块配置已存在，无需新增")
+
+
 async def init_db() -> None:
     """
     初始化数据库
@@ -267,6 +429,9 @@ async def init_db() -> None:
             
             # 创建默认工作区
             await create_default_workspace(session)
+
+            # 调用新函数来初始化数据
+            await init_module_section_configs(session)
 
     except Exception as e:
         logger.error(f"数据库初始化失败: {str(e)}")

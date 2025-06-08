@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, message, Spin, Typography, Row, Col } from 'antd';
 import { ModuleStructureNode } from '../../types/modules';
-import { fetchModuleNode } from '../../apis/moduleService';
+import { fetchModuleNode, getModuleSectionConfig } from '../../apis/moduleService';
 import ModuleContentEditor, { ModuleContentEditorHandle } from './components/ModuleContentEditor';
 import SideNavigation from './components/SideNavigation';
 import { useWorkspaceContext } from '../../contexts/WorkspaceContext';
@@ -12,11 +12,13 @@ import './ModuleContentPage.css';
 const { Title } = Typography;
 
 // 导航项定义
-const navItems = [
+const defaultNavItems = [
   { key: 'overview', title: '功能概述', icon: '📝', filled: false },
-  { key: 'diagram', title: '逻辑图', icon: '📊', filled: false },
+  { key: 'diagram', title: '业务流程图', icon: '📊', filled: false },
+  { key: 'terminology', title: '名称解释', icon: '📖', filled: false },
   { key: 'keyTech', title: '功能详解', icon: '🔍', filled: false },
   { key: 'database', title: '数据库表', icon: '💾', filled: false },
+  { key: 'tableRelation', title: '表关联关系图', icon: '🔄', filled: false },
   { key: 'related', title: '关联模块', icon: '🔗', filled: false },
   { key: 'interface', title: '涉及接口', icon: '🔌', filled: false },
 ];
@@ -29,11 +31,38 @@ const ModuleContentPage: React.FC = () => {
   const [moduleNode, setModuleNode] = useState<ModuleStructureNode | null>(null);
   const [activeSection, setActiveSection] = useState('overview');
   const [filledSections, setFilledSections] = useState<Set<string>>(new Set());
-  // 添加编辑状态相关状态
   const [isEditMode, setIsEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
-  // 获取工作区上下文
+  const [navItems, setNavItems] = useState(defaultNavItems);
   const { currentWorkspace, workspaces, setCurrentWorkspace } = useWorkspaceContext();
+
+  // 加载模块配置
+  useEffect(() => {
+    const loadModuleConfig = async () => {
+      try {
+        const response = await getModuleSectionConfig();
+        const enabled = response.data.data.filter((item: any) => item.is_enabled);
+        const navs = enabled.map((item: any) => ({
+          key: item.section_key,
+          title: item.section_name,
+          icon: <span>{item.section_icon}</span>
+        }));
+        setNavItems(navs);
+
+        const localConfig = { navs, timestamp: Date.now() };
+        localStorage.setItem('moduleSectionsConfig', JSON.stringify(localConfig));
+        
+        if (!navs.some((nav: any) => nav.key === activeSection)) {
+          setActiveSection(navs.length > 0 ? navs[0].key : '');
+        }
+      } catch (error) {
+        console.error('加载模块配置失败:', error);
+        setNavItems(defaultNavItems);
+      }
+    };
+    
+    loadModuleConfig();
+  }, [moduleId, activeSection]);
 
   useEffect(() => {
     const loadModuleNode = async () => {
@@ -162,6 +191,7 @@ const ModuleContentPage: React.FC = () => {
                 saving={saving}
                 setSaving={setSaving}
                 onSectionsUpdate={handleSectionsUpdate}
+                enabledSections={navItems.map(item => item.key)}
               />
             </div>
           </div>

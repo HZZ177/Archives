@@ -73,21 +73,22 @@ const staticMenuItems: ExtendedMenuItem[] = [
     page_path: '/',
   },
   {
-    key: 'system',
+    key: '/system',
     icon: <AppstoreOutlined />,
     label: '系统管理',
+    page_path: '/system',
     children: [
       {
-        key: '/users',
+        key: '/system/users',
         icon: <UserOutlined />,
         label: '用户管理',
-        page_path: '/users',
+        page_path: '/system/users',
       },
       {
-        key: '/roles',
+        key: '/system/roles',
         icon: <TeamOutlined />,
         label: '角色管理',
-        page_path: '/roles',
+        page_path: '/system/roles',
       },
     ],
   },
@@ -96,6 +97,20 @@ const staticMenuItems: ExtendedMenuItem[] = [
     icon: <AppstoreOutlined />,
     label: '结构管理',
     page_path: '/structure-management',
+    children: [
+        {
+            key: '/structure-management/tree',
+            icon: <AppstoreOutlined />,
+            label: '结构树配置',
+            page_path: '/structure-management/tree',
+        },
+        {
+            key: '/structure-management/module-config',
+            icon: <AppstoreOutlined />,
+            label: '页面模块配置',
+            page_path: '/structure-management/module-config',
+        }
+    ]
   },
 ];
 
@@ -255,13 +270,14 @@ const MainLayout: React.FC = () => {
           return item;
         }
         
-        // 检查当前项是否有直接权限
+        // 检查当前项是否有直接权限 - 严格匹配模式
         let hasDirectPermission = false;
         if ('page_path' in item && item.page_path) {
-          hasDirectPermission = permissions.some(path => 
-            path === item.page_path || 
-            (item.page_path && item.page_path.startsWith(path + '/'))
-          );
+          // 严格匹配：只有当权限列表中包含完全相同的路径时才认为有权限
+          hasDirectPermission = permissions.includes(item.page_path);
+          
+          // 移除特殊处理模块内容页面的宽松匹配逻辑
+          // 每个模块内容页面都需要有明确的权限
         }
         
         // 如果有子菜单，递归过滤子菜单
@@ -272,22 +288,25 @@ const MainLayout: React.FC = () => {
           const hasAccessibleChildren = filteredChildren.length > 0;
           
           if (isSystemMenu) {
-            // 系统菜单处理逻辑：保持原有的宽松权限策略
-            if (filteredChildren.length === 0 && !('page_path' in item && item.page_path)) {
+            // 系统菜单处理逻辑：仍然保持相对宽松的策略，但子菜单必须严格匹配
+            if (filteredChildren.length === 0 && !hasDirectPermission) {
               return null;
             }
             return { ...item, children: filteredChildren };
           } else {
-            // 模块菜单处理逻辑：修改为兼顾可用性的策略
-            // 只要有子节点有权限，也显示当前节点（作为导航路径）
-            if (hasDirectPermission || hasAccessibleChildren) {
+            // 模块菜单处理逻辑：严格权限策略
+            if (hasDirectPermission) {
+              // 如果用户有当前节点的直接权限，则显示当前节点和所有有权限的子节点
+              return { ...item, children: filteredChildren };
+            } else if (hasAccessibleChildren) {
+              // 如果用户没有当前节点的直接权限，但有子节点的权限，则显示当前节点作为导航路径，但只显示有权限的子节点
               return { ...item, children: filteredChildren };
             }
             return null;
           }
         }
         
-        // 叶子节点权限判断
+        // 叶子节点权限判断 - 严格匹配
         return hasDirectPermission ? item : null;
       })
       .filter(Boolean) as MenuItemOrDivider[];
@@ -473,6 +492,17 @@ const MainLayout: React.FC = () => {
         breadcrumbItems.push({
           title: <span>结构管理</span>,
         });
+        
+        // 处理结构管理的子页面
+        if (pathSnippets.includes('tree')) {
+          breadcrumbItems.push({
+            title: <span>结构树配置</span>,
+          });
+        } else if (pathSnippets.includes('module-config')) {
+          breadcrumbItems.push({
+            title: <span>页面模块配置</span>,
+          });
+        }
       }
     } else if (pathSnippets.includes('module-content')) {
       // 为模块内容页面查找对应的模块路径

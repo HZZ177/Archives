@@ -168,7 +168,7 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
         >
           <Radio.Group defaultValue="structure_node">
             <Radio value="structure_node">节点 (可添加子模块)</Radio>
-            <Radio value="content_page">内容页面 (显示六部分模板)</Radio>
+            <Radio value="content_page">内容页面 (根据配置模板渲染模块内容)</Radio>
           </Radio.Group>
         </Form.Item>
         
@@ -188,7 +188,7 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
                 {moduleType === 'content_page' && (
                   <div style={{ backgroundColor: '#f5f5f5', padding: '8px 12px', borderRadius: '4px', marginBottom: '12px' }}>
                     <p style={{ margin: 0, color: '#555' }}>
-                      内容页面将显示模块功能概述、逻辑图、功能详解、数据库表、关联模块、涉及接口六部分编辑内容。
+                      内容页面将根据配置模板按顺序渲染对应的模块内容，此为填写业务逻辑的页面。
                     </p>
                   </div>
                 )}

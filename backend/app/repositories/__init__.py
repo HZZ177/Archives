@@ -13,6 +13,7 @@ from backend.app.repositories.permission_repository import permission_repository
 from backend.app.repositories.role_repository import role_repository
 from backend.app.repositories.template_repository import template_repository
 from backend.app.repositories.workspace_repository import workspace_repository
+from backend.app.repositories.module_section_config_repository import module_section_config_repository
 
 __all__ = [
     'BaseRepository',
@@ -24,5 +25,6 @@ __all__ = [
     'permission_repository',
     'role_repository',
     'template_repository',
-    'workspace_repository'
+    'workspace_repository',
+    'module_section_config_repository'
 ]

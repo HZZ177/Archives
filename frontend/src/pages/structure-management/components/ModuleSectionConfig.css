@@ -1,0 +1,118 @@
+.module-section-config {
+  padding: 0;
+  background: #fff;
+  border-radius: 4px;
+  max-width: 90%;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.config-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 16px 24px;
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.config-header h2 {
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.module-summary {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.module-summary .ant-tag {
+  padding: 4px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-right: 0;
+}
+
+.module-summary .ant-tag:hover {
+  opacity: 0.85;
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.drag-handle {
+  cursor: grab;
+  color: #999;
+}
+
+.drag-handle:hover {
+  color: #666;
+}
+
+.module-table {
+  margin-top: 16px;
+  width: 100%;
+}
+
+.module-icon {
+  font-size: 18px;
+}
+
+/* 交替行背景色 */
+.even-row {
+  background-color: #fafafa;
+}
+
+.odd-row {
+  background-color: #fff;
+}
+
+/* 拖拽时的样式 */
+.ant-table-row:hover {
+  background-color: #f0f7ff;
+}
+
+.ant-table-row.dragging {
+  background-color: #e6f7ff;
+  opacity: 0.8;
+}
+
+/* 表格样式 */
+.module-table .ant-table-thead > tr > th {
+  padding: 14px 12px;
+  font-size: 15px;
+}
+
+.module-table .ant-table-tbody > tr > td {
+  padding: 12px 12px;
+  font-size: 14px;
+}
+
+/* 表格列宽度调整 */
+.module-table .ant-table-cell {
+  white-space: nowrap;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .config-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .config-header > div:last-child {
+    margin-top: 12px;
+  }
+  
+  .module-section-config {
+    max-width: 100%;
+    padding: 0 8px;
+  }
+} 

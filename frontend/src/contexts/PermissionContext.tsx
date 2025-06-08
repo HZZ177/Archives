@@ -116,13 +116,18 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
         return true;
       }
       
-      // 前缀匹配（权限是路径的父级路径）
-      if (path.startsWith(`${permission}/`)) {
-        console.log(`PermissionContext: 前缀匹配成功 - 路径: ${path}, 父路径权限: ${permission}`);
-        return true;
-      }
+      // 前缀匹配（权限是路径的父级路径）- 只有当路径后面紧跟/时才匹配
+      // 例如：权限为/structure-management，路径为/structure-management/module-config
+      // 这种情况下，不应该自动授予子路径的访问权限
+      // 修改为：只有当permission明确包含了path，或者path就是permission本身时才允许访问
       
-      // 模块页面特殊处理
+      // 移除前缀匹配逻辑，避免父路径权限自动授予子路径访问权限
+      // if (path.startsWith(`${permission}/`)) {
+      //   console.log(`PermissionContext: 前缀匹配成功 - 路径: ${path}, 父路径权限: ${permission}`);
+      //   return true;
+      // }
+      
+      // 模块页面特殊处理 - 保留这部分逻辑，因为模块内容页面有特殊需求
       if (permission.includes('/module-content/') && path.includes('/module-content/')) {
         console.log(`PermissionContext: 模块内容页面匹配 - 路径: ${path}, 权限: ${permission}`);
         return true;
