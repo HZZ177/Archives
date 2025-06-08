@@ -104,4 +104,48 @@ async def get_diagram(
         raise
     except Exception as e:
         logger.error(f"获取流程图失败: {str(e)}")
-        return error_response(message=str(e) if hasattr(e, "detail") else f"获取流程图失败: {str(e)}") 
+        return error_response(message=str(e) if hasattr(e, "detail") else f"获取流程图失败: {str(e)}")
+
+@router.put("/{module_node_id}/table-relation-diagram", response_model=APIResponse[ModuleContentResponse])
+async def update_table_relation_diagram(
+    module_node_id: int,
+    diagram_data: DiagramData,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    创建或更新模块节点的表关联关系图数据
+    """
+    try:
+        # 使用业务层upsert，确保内容记录存在，但是更新表关联关系图字段
+        update_data = ModuleContentUpdate(table_relation_diagram=diagram_data.model_dump())
+        content, message = await module_content_service.upsert_module_content(
+            db, module_node_id, update_data, current_user
+        )
+        return success_response(data=content, message=message)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新表关联关系图失败: {str(e)}")
+        return error_response(message=str(e) if hasattr(e, "detail") else f"更新表关联关系图失败: {str(e)}")
+
+@router.get("/{module_node_id}/table-relation-diagram", response_model=APIResponse[Any])
+async def get_table_relation_diagram(
+    module_node_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)]
+):
+    """
+    获取模块节点的表关联关系图数据
+    """
+    try:
+        content = await module_content_service.get_module_content(db, module_node_id)
+        return success_response(data={
+            "diagram_data": content.table_relation_diagram,
+            "version": content.diagram_version  # 使用相同的版本号
+        })
+    except HTTPException:
+        # 如果内容不存在，可以返回空数据或404
+        raise
+    except Exception as e:
+        logger.error(f"获取表关联关系图失败: {str(e)}")
+        return error_response(message=str(e) if hasattr(e, "detail") else f"获取表关联关系图失败: {str(e)}") 

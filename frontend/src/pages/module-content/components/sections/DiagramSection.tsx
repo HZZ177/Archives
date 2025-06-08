@@ -4,11 +4,13 @@ import DiagramEditor, { DiagramEditorHandle } from '../../../../components/busin
 interface DiagramSectionProps {
   moduleNodeId: number;
   isEditable?: boolean;
-  }
+  diagramType?: 'business' | 'tableRelation';
+}
   
 const DiagramSection = forwardRef<DiagramEditorHandle, DiagramSectionProps>(({ 
   moduleNodeId, 
-  isEditable = true
+  isEditable = true,
+  diagramType = 'business'
 }, ref) => {
   return (
     <div className="section-content">
@@ -16,6 +18,7 @@ const DiagramSection = forwardRef<DiagramEditorHandle, DiagramSectionProps>(({
         ref={ref}
         moduleId={moduleNodeId}
         isEditable={isEditable}
+        diagramType={diagramType}
       />
     </div>
   );

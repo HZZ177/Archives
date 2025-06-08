@@ -185,6 +185,8 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
 
   // 引用 DiagramEditor，用于获取当前画布数据
   const diagramEditorRef = useRef<DiagramEditorHandle>(null);
+  // 添加表关联关系图的ref
+  const tableRelationDiagramRef = useRef<DiagramEditorHandle>(null);
 
   // 弹窗关闭时重置自动定位标记
   const handleGraphModalClose = () => {
@@ -739,15 +741,29 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
       const result = await saveModuleContent(moduleNodeId, contentData);
       if (result) {
         message.success('保存成功');
-        // 保存流程图数据
+        
+        // 保存业务流程图数据
         const diagramData = diagramEditorRef.current?.getDiagramData();
         if (diagramData) {
           try {
-            await updateDiagram(moduleNodeId, diagramData);
+            await updateDiagram(moduleNodeId, diagramData, 'business');
+            console.log('业务流程图保存成功');
           } catch (error) {
-            console.error('流程图保存失败:', error);
+            console.error('业务流程图保存失败:', error);
           }
         }
+        
+        // 保存表关联关系图数据
+        const tableRelationData = tableRelationDiagramRef.current?.getDiagramData();
+        if (tableRelationData) {
+          try {
+            await updateDiagram(moduleNodeId, tableRelationData, 'tableRelation');
+            console.log('表关联关系图保存成功');
+          } catch (error) {
+            console.error('表关联关系图保存失败:', error);
+          }
+        }
+        
         // 更新时间戳以触发图谱重新加载
         setGraphUpdateTime(Date.now());
         setSaving(false);
@@ -910,6 +926,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                         ref={diagramEditorRef}
                         moduleNodeId={moduleNodeId}
                         isEditable={isEditMode}
+                        diagramType="business"
                       />
                     </div>
                   );
@@ -1339,9 +1356,10 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                       <Title level={4} className="section-title">表关联关系图</Title>
                       <Divider className="section-divider" />
                       <DiagramSection
-                        ref={diagramEditorRef}
+                        ref={tableRelationDiagramRef}
                         moduleNodeId={moduleNodeId}
                         isEditable={isEditMode}
+                        diagramType="tableRelation"
                       />
                     </div>
                   );

@@ -9,6 +9,7 @@ import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 interface DiagramEditorProps {
   moduleId: number;
   isEditable?: boolean;
+  diagramType?: 'business' | 'tableRelation'; // 添加图表类型参数
 }
 
 // 定义父组件调用的接口
@@ -19,6 +20,7 @@ export interface DiagramEditorHandle {
 const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   moduleId,
   isEditable = true,
+  diagramType = 'business', // 默认为业务流程图
 }, ref) => {
   const [initialData, setInitialData] = useState<DiagramData | null>(null);
   const [diagramData, setDiagramData] = useState<DiagramData | null>(null);
@@ -32,7 +34,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   // 加载流程图数据
   useEffect(() => {
     loadDiagramData();
-  }, [moduleId]);
+  }, [moduleId, diagramType]); // 添加diagramType作为依赖项
 
   // 处理滚轮缩放（使用原生WheelEvent）
   const handleWheel = useCallback((event: WheelEvent) => {
@@ -73,7 +75,12 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
 
   const loadDiagramData = async () => {
     try {
-      const response = await getDiagram(moduleId);
+      // 根据图表类型选择不同的API端点
+      const endpoint = diagramType === 'tableRelation' 
+        ? `/module-contents/${moduleId}/table-relation-diagram` 
+        : `/module-contents/${moduleId}/diagram`;
+      
+      const response = await getDiagram(moduleId, diagramType);
       const diagramRes = response.data;
       if (diagramRes && diagramRes.diagram_data) {
         // 规范化 state.collaborators 为数组，避免内部组件 forEach 调用错误
@@ -204,7 +211,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           onClick={handlePreviewOpen}
         />
         <Excalidraw
-          key={initialData ? `diagram-${initialData.version}` : 'diagram-new'}
+          key={initialData ? `diagram-${initialData.version}-${diagramType}` : `diagram-new-${diagramType}`}
           excalidrawAPI={onExcalidrawAPI}
           initialData={initialData ? {
             elements: initialData.elements,

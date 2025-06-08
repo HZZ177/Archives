@@ -202,14 +202,22 @@ export const batchUpdateNodeOrder = async (updates: Array<{ node_id: number; ord
 }; 
 
 // 更新流程图数据
-export const updateDiagram = async (moduleId: number, diagramData: any) => {
-  const response = await request.put<APIResponse<void>>(`${API_MODULE_CONTENTS}/${moduleId}/diagram`, diagramData);
+export const updateDiagram = async (moduleId: number, diagramData: any, diagramType: 'business' | 'tableRelation' = 'business') => {
+  const endpoint = diagramType === 'tableRelation' 
+    ? `${API_MODULE_CONTENTS}/${moduleId}/table-relation-diagram` 
+    : `${API_MODULE_CONTENTS}/${moduleId}/diagram`;
+  
+  const response = await request.put<APIResponse<void>>(endpoint, diagramData);
   return response.data;
 };
 
 // 获取流程图数据
-export const getDiagram = async (moduleId: number) => {
-  const response = await request.get<APIResponse<any>>(`${API_MODULE_CONTENTS}/${moduleId}/diagram`);
+export const getDiagram = async (moduleId: number, diagramType: 'business' | 'tableRelation' = 'business') => {
+  const endpoint = diagramType === 'tableRelation' 
+    ? `${API_MODULE_CONTENTS}/${moduleId}/table-relation-diagram` 
+    : `${API_MODULE_CONTENTS}/${moduleId}/diagram`;
+  
+  const response = await request.get<APIResponse<any>>(endpoint);
   return response.data;
 };
 
