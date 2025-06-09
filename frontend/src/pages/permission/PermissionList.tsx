@@ -8,6 +8,12 @@ import { DEFAULT_PAGE_SIZE } from '../../config/constants';
 const { Search } = Input;
 const { Option } = Select;
 
+// 分页响应接口
+interface PaginatedResponse {
+  items: Permission[];
+  total: number;
+}
+
 // 权限类型选项
 const permissionTypes = [
   { label: '目录', value: 'directory' },
@@ -48,9 +54,9 @@ const PermissionList: React.FC = () => {
       if (Array.isArray(data)) {
         setPermissions(data);
         setTotal(data.length);
-      } else if (data.items) {
-        setPermissions(data.items);
-        setTotal(data.total);
+      } else if ((data as PaginatedResponse).items) {
+        setPermissions((data as PaginatedResponse).items);
+        setTotal((data as PaginatedResponse).total);
       } else {
         setPermissions([]);
         setTotal(0);

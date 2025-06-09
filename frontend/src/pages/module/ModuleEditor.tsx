@@ -230,9 +230,12 @@ const ModuleEditor: React.FC<ModuleEditorProps> = () => {
           >
             <FunctionOverview
               section={{ 
-                id: '1', 
+                id: 1,
+                document_id: Number(id),
+                section_type: 'overview',
                 title: '模块功能概述', 
-                content: moduleData?.overview || ''
+                content: moduleData?.overview || '',
+                display_order: 1
               }}
               onSave={updateOverview}
             />
@@ -249,10 +252,17 @@ const ModuleEditor: React.FC<ModuleEditorProps> = () => {
           >
             <DiagramUpload
               section={{ 
-                id: '2', 
+                id: 2,
+                document_id: Number(id),
+                section_type: 'diagram',
                 title: '逻辑图/数据流向图', 
-                images: moduleData?.diagrams || [],
-                content: ''
+                images: (moduleData?.diagrams || []).map(diagram => ({
+                  ...diagram,
+                  section_id: 0,
+                  uploaded_at: new Date().toISOString()
+                })),
+                content: '',
+                display_order: 2
               }}
               onUpload={handleUploadDiagram}
               onDelete={handleDeleteDiagram}
@@ -270,9 +280,12 @@ const ModuleEditor: React.FC<ModuleEditorProps> = () => {
           >
             <FunctionDetail
               section={{ 
-                id: '3', 
+                id: 3,
+                document_id: Number(id),
+                section_type: 'detail',
                 title: '功能详解', 
-                content: moduleData?.detail_content || ''
+                content: moduleData?.detail_content || '',
+                display_order: 3
               }}
               onSave={updateFunctionDetail}
             />
@@ -288,8 +301,23 @@ const ModuleEditor: React.FC<ModuleEditorProps> = () => {
             key="4"
           >
             <DatabaseTable
-              tables={moduleData?.database_tables || []}
-              onChange={updateDatabaseTables}
+              section={{
+                id: 4,
+                document_id: Number(id),
+                section_type: 'database',
+                title: '数据库表',
+                content: JSON.stringify(moduleData?.database_tables || []),
+                display_order: 4
+              }}
+              onSave={(content) => {
+                try {
+                  const tables = JSON.parse(content);
+                  updateDatabaseTables(tables);
+                } catch (error) {
+                  console.error('Failed to parse database tables:', error);
+                }
+              }}
+              isEditable={true}
             />
           </TabPane>
           
@@ -303,8 +331,24 @@ const ModuleEditor: React.FC<ModuleEditorProps> = () => {
             key="5"
           >
             <RelatedModules
-              relatedModules={moduleData?.related_modules || []}
-              onChange={updateRelatedModules}
+              section={{
+                id: 5,
+                document_id: Number(id),
+                section_type: 'relation',
+                title: '关联模块',
+                content: JSON.stringify(moduleData?.related_modules || []),
+                display_order: 5
+              }}
+              documentId={Number(id)}
+              onSave={(content) => {
+                try {
+                  const modules = JSON.parse(content);
+                  updateRelatedModules(modules);
+                } catch (error) {
+                  console.error('Failed to parse related modules:', error);
+                }
+              }}
+              isEditable={true}
             />
           </TabPane>
           
@@ -318,8 +362,23 @@ const ModuleEditor: React.FC<ModuleEditorProps> = () => {
             key="6"
           >
             <ApiInterface
-              interfaces={moduleData?.api_interfaces || []}
-              onChange={updateApiInterfaces}
+              section={{
+                id: 6,
+                document_id: Number(id),
+                section_type: 'api',
+                title: '涉及接口',
+                content: JSON.stringify(moduleData?.api_interfaces || []),
+                display_order: 6
+              }}
+              onSave={(content) => {
+                try {
+                  const apis = JSON.parse(content);
+                  updateApiInterfaces(apis);
+                } catch (error) {
+                  console.error('Failed to parse API interfaces:', error);
+                }
+              }}
+              isEditable={true}
             />
           </TabPane>
         </Tabs>

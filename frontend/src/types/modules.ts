@@ -82,6 +82,7 @@ export interface ApiParam {
   required: boolean;
   description?: string;
   children?: ApiParam[];
+  example?: string; // 添加example属性
 }
 
 // 常量定义
@@ -112,12 +113,13 @@ export interface ExampleItem {
 export interface ModuleContent {
   id: number;
   node_id: number;
+  overview_text?: string;
   content: {
     overview?: string;
     diagram?: DiagramData;
     key_tech?: KeyTechnology[];
     database_tables?: DatabaseTable[];
-    related_modules?: RelatedModule[];
+    related_modules?: number[];
     interface_definitions?: ApiInterfaceCard[];
     glossary?: GlossaryItem[];
   };
@@ -163,4 +165,24 @@ export interface GlossaryItem {
   id: string;
   term: string;
   explanation: string;
+}
+
+// 图表数据类型
+export interface DiagramData {
+  elements: any[];
+  state: any;
+}
+
+// 关键技术类型
+export interface KeyTechnology {
+  id: string;
+  name: string;
+  description: string;
+}
+
+// 相关模块类型
+export interface RelatedModule {
+  id: number;
+  name: string;
+  description?: string;
 } 

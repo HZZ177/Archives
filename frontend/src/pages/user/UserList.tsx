@@ -567,12 +567,9 @@ const UserList: React.FC = () => {
       width: 90,
       align: 'center' as 'center',
       render: (_: any, record: User) => {
-        // 优先使用is_active字段
-        const isActive = record.is_active !== undefined ? record.is_active : record.status === 1;
-        
         return (
           <Switch
-            checked={isActive}
+            checked={record.is_active}
             onChange={(checked) => handleUserStatusChange(record.id, checked)}
             checkedChildren="启用"
             unCheckedChildren="禁用"

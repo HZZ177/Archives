@@ -390,24 +390,19 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
           setDatabaseTables(newDbTables);
         } else {
           // 如果是旧格式，转换为新格式
-          const convertedTables = moduleContent.database_tables_json.map(table => ({
+          const convertedTables = moduleContent.database_tables_json.map((table: any) => ({
             table_name: table.table_name,
             schema_name: '',
             description: '',
-            columns: (table.columns || []).map(column => ({
+            columns: (table.columns || []).map((column: any) => ({
               field_name: column.field_name,
               field_type: column.field_type,
               length: undefined,
-              nullable: true,
-              default_value: undefined,
-              description: column.description || '',
-              remark: column.remark || '',
+              nullable: false,
               is_primary_key: false,
               is_unique: false,
-              is_index: false,
-              foreign_key: undefined
-            })),
-            relationships: []
+              is_index: false
+            }))
           }));
           newDbTables = convertedTables;
           setDatabaseTables(newDbTables);
@@ -498,12 +493,11 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         content: {
           overview: moduleContent.overview_text || '',
           diagram: moduleContent.content?.diagram || {},
-          terminology: glossaryItems,
+          glossary: glossaryItems,
           key_tech: [],
           database_tables: databaseTables,
-          table_relation: moduleContent.table_relation_diagram || moduleContent.content?.diagram || {},
           related_modules: relatedModuleIds,
-          interface_definitions: apiInterfaces as unknown as ApiInterface[]
+          interface_definitions: apiInterfaces
         },
         sections: contentSections,
         last_updated_at: moduleContent.last_updated_at || new Date().toISOString()
@@ -516,12 +510,11 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         content: {
           overview: moduleContent.overview_text || '',
           diagram: moduleContent.content?.diagram || {},
-          terminology: glossaryItems,
+          glossary: glossaryItems,
           key_tech: [],
           database_tables: databaseTables,
-          table_relation: moduleContent.table_relation_diagram || moduleContent.content?.diagram || {},
           related_modules: relatedModuleIds,
-          interface_definitions: apiInterfaces as unknown as ApiInterface[]
+          interface_definitions: apiInterfaces
         },
         sections: contentSections,
         last_updated_at: moduleContent.last_updated_at || new Date().toISOString()
@@ -820,7 +813,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
     if (!content) return null;
     return {
       ...content,
-      sections: content.sections.filter(section => enabledSections.includes(section.key))
+      sections: content.sections?.filter(section => enabledSections.includes(section.key)) || []
     };
   }, [content, enabledSections]);
 

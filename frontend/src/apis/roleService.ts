@@ -46,8 +46,9 @@ export const updateRole = async (
 };
 
 // 删除角色
-export const deleteRole = async (roleId: number): Promise<void> => {
+export const deleteRole = async (roleId: number): Promise<{ success: boolean; message?: string }> => {
   await request.post<APIResponse<void>>(`/roles/delete/${roleId}`);
+  return { success: true };
 };
 
 // 获取角色权限
@@ -83,10 +84,10 @@ export const updateUserRoles = async (userId: number, roleIds: number[]): Promis
 };
 
 // 添加新函数：更新角色状态
-export const updateRoleStatus = async (roleId: number, status: boolean): Promise<Role> => {
+export const updateRoleStatus = async (roleId: number, status: boolean): Promise<{ success: boolean; message?: string; data?: Role }> => {
   const response = await request.post<APIResponse<Role>>(
     `/roles/update/${roleId}`,
     { status }
   );
-  return unwrapResponse<Role>(response.data)!;
+  return { success: true, data: unwrapResponse<Role>(response.data)! };
 }; 

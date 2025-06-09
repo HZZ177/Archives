@@ -139,10 +139,10 @@ export const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ curre
     if (currentModuleId !== null) {
       try {
         const moduleContent = await fetchModuleContent(currentModuleId);
-        const relatedModuleIds = moduleContent.related_module_ids_json || [];
+        const relatedModuleIds = (moduleContent as any).related_module_ids_json || [];
         
         // 为每个关联模块添加连接
-        relatedModuleIds.forEach(relatedId => {
+        relatedModuleIds.forEach((relatedId: number) => {
           if (!processedIds.has(relatedId)) {
             // 如果关联模块不在当前树中，添加它
             nodes.push({

@@ -68,6 +68,14 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+    # 挂载前端构建文件
+    frontend_dist_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "dist")
+    if os.path.exists(frontend_dist_dir):
+        logger.info(f"挂载前端构建文件目录: {frontend_dist_dir}")
+        app.mount("/", StaticFiles(directory=frontend_dist_dir, html=True), name="frontend")
+    else:
+        logger.warning(f"前端构建文件目录不存在: {frontend_dist_dir}")
+
     return app
 
 

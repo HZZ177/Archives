@@ -5,6 +5,7 @@ import { ZoomInOutlined } from '@ant-design/icons';
 import { getDiagram } from '../../../apis/moduleService';
 import { DiagramData } from '../../../types/diagram';
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 
 interface DiagramEditorProps {
   moduleId: number;
@@ -144,7 +145,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
     if (previewApiRef.current) {
       const elements = previewApiRef.current.getSceneElementsIncludingDeleted();
       const state = previewApiRef.current.getAppState();
-      setDiagramData({ elements, state });
+      setDiagramData({ elements: elements as ExcalidrawElement[], state });
       setTimeout(syncMainData, 100);
     }
     setPreviewVisible(false);
