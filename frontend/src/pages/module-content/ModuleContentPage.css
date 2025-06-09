@@ -40,9 +40,9 @@
 /* 固定导航条的关键样式 */
 .nav-column > .side-navigation {
   position: fixed;
-  /* 修改垂直位置，使用50%定位到页面中间，然后使用transform向上偏移一半高度实现垂直居中 */
-  top: 50%;
-  transform: translateY(-50%);
+  /* 修改垂直位置，使用一个固定的top值，避免遮挡页面标题 */
+  top: 250px;
+  /* transform: translateY(-50%); */ /*不再需要*/
   width: 120px; /* 从150px减少为120px，减少20% */
   /* 移除max-height和overflow，避免双层滚动 */
   /* 隐藏滚动条样式也可以移除 */
