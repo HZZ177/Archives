@@ -21,7 +21,13 @@ import {
   PlusOutlined,
   MinusCircleOutlined,
   FileTextOutlined,
-  NodeIndexOutlined
+  ReadOutlined,
+  SolutionOutlined,
+  NodeIndexOutlined,
+  DeploymentUnitOutlined,
+  DatabaseOutlined,
+  ApiOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -52,11 +58,23 @@ import {
 } from './sections';
 import ApiInterfaceCardComponent from './sections/ApiInterfaceCard';
 import SideNavigation from './SideNavigation';
+import RelatedModuleCard from './RelatedModuleCard';
 import { API_BASE_URL } from '../../../config/constants';
 import './ModuleContentEditor.css';
 import ModuleGraph from '../../../components/ModuleGraph/ModuleGraph';
 
 const { Title } = Typography;
+
+const sectionConfig: { [key: string]: { title: string; icon: React.ReactNode } } = {
+  overview: { title: '功能概述', icon: <FileTextOutlined /> },
+  terminology: { title: '名称解释', icon: <ReadOutlined /> },
+  keyTech: { title: '功能详解', icon: <SolutionOutlined /> },
+  diagram: { title: '业务流程图', icon: <NodeIndexOutlined /> },
+  tableRelation: { title: '表关联关系图', icon: <DeploymentUnitOutlined /> },
+  database: { title: '数据库表', icon: <DatabaseOutlined /> },
+  related: { title: '关联模块', icon: <LinkOutlined /> },
+  interface: { title: '涉及接口', icon: <ApiOutlined /> },
+};
 
 // 处理图片URL，确保图片能正确显示
 const processImageUrl = (url: string) => {
@@ -873,12 +891,18 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
           <>
             {/* 根据enabledSections的顺序渲染各个模块 */}
             {enabledSections.map(sectionKey => {
+              const config = sectionConfig[sectionKey];
+              if (!config) return null;
+
               // 根据sectionKey渲染对应的模块内容
               switch(sectionKey) {
                 case 'overview':
                   return (
                     <div key={sectionKey} id="section-overview" className="content-section" ref={overviewRef}>
-                      <Title level={4} className="section-title">功能概述</Title>
+                      <Title level={4} className="section-title">
+                        <span className="section-title-icon">{config.icon}</span>
+                        {config.title}
+                      </Title>
                       <Divider className="section-divider" />
                       
                       {isEditMode ? (
@@ -913,7 +937,10 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                 case 'diagram':
                   return (
                     <div key={sectionKey} id="section-diagram" className="content-section" ref={diagramRef}>
-                      <Title level={4} className="section-title">业务流程图</Title>
+                      <Title level={4} className="section-title">
+                        <span className="section-title-icon">{config.icon}</span>
+                        {config.title}
+                      </Title>
                       <Divider className="section-divider" />
                       <DiagramSection
                         ref={diagramEditorRef}
@@ -927,7 +954,10 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                 case 'keyTech':
                   return (
                     <div key={sectionKey} id="section-keyTech" className="content-section" ref={keyTechRef}>
-                      <Title level={4} className="section-title">功能详解</Title>
+                      <Title level={4} className="section-title">
+                        <span className="section-title-icon">{config.icon}</span>
+                        {config.title}
+                      </Title>
                       <Divider className="section-divider" />
                       
                       {isEditMode ? (
@@ -964,7 +994,10 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                     <div key={sectionKey} id="section-database" className="content-section" ref={databaseRef}>
                       <div className="section-title-container api-section-header">
                         <div className="section-title-with-button">
-                          <Title level={4} className="section-title">数据库表</Title>
+                          <Title level={4} className="section-title">
+                            <span className="section-title-icon">{config.icon}</span>
+                            {config.title}
+                          </Title>
                           {databaseTables.length > 0 && (
                             <Button 
                               size="small" 
@@ -1211,7 +1244,10 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                     <div key={sectionKey} id="section-related" className="content-section" ref={relatedRef}>
                       <div className="section-title-container api-section-header">
                         <div className="section-title-with-button">
-                          <Title level={4} className="section-title">关联模块</Title>
+                          <Title level={4} className="section-title">
+                            <span className="section-title-icon">{config.icon}</span>
+                            {config.title}
+                          </Title>
                           <Button
                             type="primary"
                             className="graph-modal-button"
@@ -1232,58 +1268,17 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                         />
                       ) : (
                         <div className="section-content">
-                          {relatedModuleIds.length > 0 ? (
-                            <div className="related-modules-viewer">
-                              <div className="related-modules-group">
-                                <div className="related-modules-tags">
-                                  {relatedModules.map(module => (
-                                    <Tooltip
-                                      key={module.id}
-                                      title={
-                                        <div className="module-tooltip-content">
-                                          <div className="module-tooltip-title">{module.name}</div>
-                                          <div className="module-tooltip-path">
-                                            <span className="tooltip-label">导航路径：</span>
-                                            {modulePathMap[module.id] || '加载中...'}
-                                          </div>
-                                          <div className="module-tooltip-overview">
-                                            <span className="tooltip-label">功能概述：</span>
-                                            {loadingModuleInfo[module.id] ? (
-                                              <span>加载中...</span>
-                                            ) : (
-                                              <div className="overview-content">
-                                                {moduleOverviewMap[module.id] ? 
-                                                  moduleOverviewMap[module.id] : 
-                                                  '加载中...'}
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      }
-                                      color="#1f1f1f"
-                                      overlayClassName="module-detailed-tooltip"
-                                      onVisibleChange={(visible) => {
-                                        if (visible) {
-                                          handleModuleTagHover(module.id);
-                                        }
-                                      }}
-                                    >
-                                      <Tag 
-                                        key={module.id} 
-                                        color="blue"
-                                        className="module-tag module-tag-interactive"
-                                        icon={<FileTextOutlined />}
-                                        onClick={() => {
-                                          window.location.href = `/module-content/${module.id}`;
-                                        }}
-                                      >
-                                        <span className="module-tag-text">{module.name}</span>
-                                      </Tag>
-                                    </Tooltip>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
+                          {relatedModules.length > 0 ? (
+                            <Row gutter={[16, 16]}>
+                              {relatedModules.map(module => (
+                                <Col key={module.id} xs={24} sm={12} md={8} lg={8} xl={6}>
+                                  <RelatedModuleCard 
+                                    module={module}
+                                    overview={moduleOverviewMap[module.id]}
+                                  />
+                                </Col>
+                              ))}
+                            </Row>
                           ) : (
                             <div className="empty-content" onClick={handleEmptyContentClick}>暂无关联模块，点击"编辑"添加</div>
                           )}
@@ -1297,7 +1292,10 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                     <div key={sectionKey} id="section-interface" className="content-section" ref={interfaceRef}>
                       <div className="section-title-container api-section-header">
                         <div className="section-title-with-button">
-                          <Title level={4} className="section-title">涉及接口</Title>
+                          <Title level={4} className="section-title">
+                            <span className="section-title-icon">{config.icon}</span>
+                            {config.title}
+                          </Title>
                           {apiInterfaces.length > 0 && (
                             <Button 
                               size="small" 
@@ -1346,7 +1344,10 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                 case 'tableRelation':
                   return (
                     <div key={sectionKey} id="section-tableRelation" className="content-section" ref={tableRelationRef}>
-                      <Title level={4} className="section-title">表关联关系图</Title>
+                      <Title level={4} className="section-title">
+                        <span className="section-title-icon">{config.icon}</span>
+                        {config.title}
+                      </Title>
                       <Divider className="section-divider" />
                       <DiagramSection
                         ref={tableRelationDiagramRef}
@@ -1360,7 +1361,10 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                 case 'terminology':
                   return (
                     <div key={sectionKey} id="section-terminology" className="content-section" ref={terminologyRef}>
-                      <Title level={4} className="section-title">名称解释</Title>
+                      <Title level={4} className="section-title">
+                        <span className="section-title-icon">{config.icon}</span>
+                        {config.title}
+                      </Title>
                       <Divider className="section-divider" />
                       
                       {isEditMode ? (

@@ -62,6 +62,9 @@
 }
 
 .section-title {
+  display: flex;
+  align-items: center;
+  font-size: 18px !important; /* 统一标题字号 */
   margin-bottom: 0 !important;
   position: relative;
   background-color: #f0f5ff;
@@ -76,6 +79,12 @@
   width: 100%;
   max-width: 100%; /* 确保标题不会超出父容器 */
   box-sizing: border-box; /* 确保padding和border计入宽度 */
+}
+
+.section-title-icon {
+  margin-right: 10px;
+  font-size: 18px; /* 统一图标字号 */
+  color: #595959;
 }
 
 .section-divider {
@@ -564,7 +573,7 @@ div.markdown-content p:last-child {
 
 /* 单独设置关联模块的高度为其他模块的一半 */
 #section-related.content-section {
-  min-height: 20vh; /* 当前内容区块高度的一半 */
+  min-height: 250px;
 }
 
 #section-related .section-content {
