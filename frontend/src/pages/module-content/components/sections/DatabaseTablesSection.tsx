@@ -1,6 +1,6 @@
 import React, { ChangeEvent, useState } from 'react';
 import { Button, Input, Form, Table, Space, Select, Checkbox, Tooltip, Card, Tabs, Typography, Row, Col, message, Modal } from 'antd';
-import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined, LinkOutlined, KeyOutlined, ExclamationCircleOutlined, ImportOutlined, ExpandOutlined, CompressOutlined, DeleteOutlined } from '@ant-design/icons';
+import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined, LinkOutlined, KeyOutlined, ExclamationCircleOutlined, ImportOutlined, ExpandOutlined, CompressOutlined, DeleteOutlined, MinusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { DatabaseTable, DatabaseTableColumn } from '../../../../types/modules';
 import './SectionStyles.css';
@@ -51,6 +51,7 @@ const NULLABLE_WIDTH = '7%';
 const PK_WIDTH = '7%';
 const DEFAULT_VALUE_WIDTH = '12%';
 const OPTIONS_WIDTH = '18%';
+const DESCRIPTION_WIDTH = '10%';
 const ACTION_WIDTH = '8%';
 
 const formItemLayout = {
@@ -307,7 +308,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
   collapsedTables = new Set<string>(),
   setCollapsedTables = () => {},
 }) => {
-  const [activeTabKeys, setActiveTabKeys] = useState<Record<number, string>>({});
+  const [expandedRowKeys, setExpandedRowKeys] = useState<Record<number, React.Key[]>>({});
   const [tableErrors, setTableErrors] = useState<Record<number, string[]>>({});
   const [sqlInput, setSqlInput] = useState<string>('');
   const [importLoading, setImportLoading] = useState<boolean>(false);
@@ -334,8 +335,9 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
     onChange(updatedTables);
   };
 
-  const handleDeleteTable = (tableId: string) => {
-    const updatedTables = tables.filter(table => table.table_name !== tableId);
+  const handleDeleteTable = (tableIndex: number) => {
+    const updatedTables = [...tables];
+    updatedTables.splice(tableIndex, 1);
     onChange(updatedTables);
   };
 
@@ -385,7 +387,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
     );
   };
 
-  const renderTableActions = (table: DatabaseTable) => {
+  const renderTableActions = (table: DatabaseTable, tableIndex: number) => {
     const isCollapsed = collapsedTables.has(table.table_name);
 
     return (
@@ -402,7 +404,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
           type="text"
           danger
           icon={<DeleteOutlined />}
-          onClick={() => handleDeleteTable(table.table_name)}
+          onClick={() => handleDeleteTable(tableIndex)}
         >
           删除
         </Button>
@@ -484,17 +486,17 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
     return isValid;
   };
 
-  // 设置表格激活的Tab页
-  const setTableActiveTab = (tableIndex: number, activeKey: string) => {
-    setActiveTabKeys({
-      ...activeTabKeys,
-      [tableIndex]: activeKey
-    });
-  };
+  // 控制行展开
+  const handleRowExpand = (tableIndex: number, rowKey: React.Key) => {
+    const currentExpandedKeys = expandedRowKeys[tableIndex] || [];
+    const newExpandedKeys = currentExpandedKeys.includes(rowKey)
+      ? currentExpandedKeys.filter(key => key !== rowKey)
+      : [...currentExpandedKeys, rowKey];
 
-  // 获取表格激活的Tab页
-  const getTableActiveTab = (tableIndex: number) => {
-    return activeTabKeys[tableIndex] || 'columns';
+    setExpandedRowKeys({
+      ...expandedRowKeys,
+      [tableIndex]: newExpandedKeys,
+    });
   };
 
   // 添加新表
@@ -510,34 +512,68 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
     // 确保新添加的表默认展开
     setCollapsedTables(prev => {
       const newSet = new Set(prev);
-      newSet.add(newTable.table_name);
+      newSet.delete(newTable.table_name); // 使用delete确保展开
       return newSet;
     });
+
+    // 延迟滚动，确保DOM更新
+    setTimeout(() => {
+      newTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
-  // 更新外键信息
-  const updateForeignKey = (tableIndex: number, columnIndex: number, field: string, value: string) => {
+  // 更新列信息
+  const handleColumnChange = (tableIndex: number, columnIndex: number, field: keyof DatabaseTableColumn, value: any) => {
     const newTables = [...tables];
     const newColumns = [...newTables[tableIndex].columns];
-    
-    // 初始化外键对象（如果不存在）
-    if (!newColumns[columnIndex].foreign_key) {
-      newColumns[columnIndex].foreign_key = {
-        reference_table: '',
-        reference_column: ''
-      };
+    const columnToUpdate = { ...newColumns[columnIndex] };
+
+    // 根据字段类型处理值
+    if (field === 'nullable' || field === 'is_primary_key' || field === 'is_unique' || field === 'is_index') {
+      columnToUpdate[field] = Boolean(value);
+    } else if (field === 'length') {
+      columnToUpdate[field] = value === '' ? undefined : Number(value);
+    } else {
+      (columnToUpdate as any)[field] = value;
     }
+
+    newColumns[columnIndex] = columnToUpdate;
     
-    // 更新外键字段
-    newColumns[columnIndex].foreign_key = {
-      ...newColumns[columnIndex].foreign_key!,
-      [field]: value
-    };
-    
+    // 如果设置为主键，则自动设为不可为空和唯一
+    if (field === 'is_primary_key' && value === true) {
+      newColumns[columnIndex].nullable = false;
+      newColumns[columnIndex].is_unique = true;
+    }
+
     newTables[tableIndex] = {
       ...newTables[tableIndex],
-      columns: newColumns
+      columns: newColumns,
     };
+    onChange(newTables);
+  };
+
+  // 添加新列
+  const addColumn = (tableIndex: number) => {
+    const newTables = [...tables];
+    const newColumn: DatabaseTableColumn = {
+      field_name: '',
+      field_type: 'varchar',
+      length: 255,
+      nullable: true,
+      default_value: '',
+      description: '',
+      is_primary_key: false,
+      is_unique: false,
+      is_index: false,
+    };
+    newTables[tableIndex].columns.push(newColumn);
+    onChange(newTables);
+  };
+  
+  // 删除列
+  const deleteColumn = (tableIndex: number, columnIndex: number) => {
+    const newTables = [...tables];
+    newTables[tableIndex].columns.splice(columnIndex, 1);
     onChange(newTables);
   };
 
@@ -612,7 +648,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         render: (text: string, record: DatabaseTableColumn, index: number) => (
           <Input
             value={text}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => updateForeignKey(tableIndex, index, 'field_name', e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => handleColumnChange(tableIndex, index, 'field_name', e.target.value)}
             placeholder="输入字段名"
           />
         )
@@ -625,7 +661,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         render: (text: string, record: DatabaseTableColumn, index: number) => (
           <Select
             value={text}
-            onChange={(value: string) => updateForeignKey(tableIndex, index, 'field_type', value)}
+            onChange={(value: string) => handleColumnChange(tableIndex, index, 'field_type', value)}
             style={{ width: '100%' }}
           >
             {FIELD_TYPE_OPTIONS.map(option => (
@@ -644,7 +680,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
             type="number"
             value={text}
             onChange={(e: ChangeEvent<HTMLInputElement>) => 
-              updateForeignKey(tableIndex, index, 'length', e.target.value ? e.target.value : '')
+              handleColumnChange(tableIndex, index, 'length', e.target.value)
             }
             placeholder="长度"
           />
@@ -658,7 +694,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         render: (nullable: boolean, record: DatabaseTableColumn, index: number) => (
           <Checkbox
             checked={nullable}
-            onChange={(e) => updateForeignKey(tableIndex, index, 'nullable', e.target.checked ? 'YES' : 'NO')}
+            onChange={(e) => handleColumnChange(tableIndex, index, 'nullable', e.target.checked)}
             disabled={record.is_primary_key} // 主键不能为空
           />
         )
@@ -671,7 +707,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         render: (isPrimaryKey: boolean, record: DatabaseTableColumn, index: number) => (
           <Checkbox
             checked={isPrimaryKey}
-            onChange={(e) => updateForeignKey(tableIndex, index, 'is_primary_key', e.target.checked ? 'YES' : 'NO')}
+            onChange={(e) => handleColumnChange(tableIndex, index, 'is_primary_key', e.target.checked)}
           />
         )
       },
@@ -683,7 +719,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         render: (text: string | undefined, record: DatabaseTableColumn, index: number) => (
           <Input
             value={text}
-            onChange={(e) => updateForeignKey(tableIndex, index, 'default_value', e.target.value)}
+            onChange={(e) => handleColumnChange(tableIndex, index, 'default_value', e.target.value)}
             placeholder="默认值"
           />
         )
@@ -697,7 +733,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
             <Tooltip title="唯一约束">
               <Checkbox
                 checked={record.is_unique}
-                onChange={(e) => updateForeignKey(tableIndex, index, 'is_unique', e.target.checked ? 'YES' : 'NO')}
+                onChange={(e) => handleColumnChange(tableIndex, index, 'is_unique', e.target.checked)}
                 disabled={record.is_primary_key} // 主键已经是唯一的
               >
                 唯一
@@ -706,13 +742,41 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
             <Tooltip title="索引">
               <Checkbox
                 checked={record.is_index}
-                onChange={(e) => updateForeignKey(tableIndex, index, 'is_index', e.target.checked ? 'YES' : 'NO')}
+                onChange={(e) => handleColumnChange(tableIndex, index, 'is_index', e.target.checked)}
               >
                 索引
               </Checkbox>
             </Tooltip>
           </Space>
         )
+      },
+      {
+        title: '字段描述',
+        key: 'description',
+        width: DESCRIPTION_WIDTH,
+        render: (text: any, record: DatabaseTableColumn, index: number) => {
+          const rowKey = `${tableIndex}_column_${index}`;
+          const isExpanded = (expandedRowKeys[tableIndex] || []).includes(rowKey);
+          const preview = record.description
+            ? record.description.length > 6
+              ? record.description.substring(0, 6) + '...'
+              : record.description
+            : '-';
+
+          return (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {preview}
+              </span>
+              <Button
+                type="text"
+                size="small"
+                icon={isExpanded ? <MinusOutlined /> : <PlusOutlined />}
+                onClick={() => handleRowExpand(tableIndex, rowKey)}
+              />
+            </div>
+          );
+        },
       },
       {
         title: '操作',
@@ -723,7 +787,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
             type="text"
             danger
             icon={<MinusCircleOutlined />}
-            onClick={() => updateForeignKey(tableIndex, index, 'field_name', '')}
+            onClick={() => deleteColumn(tableIndex, index)}
             size="small"
           >
             删除
@@ -731,46 +795,6 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         )
       }
     ];
-  };
-
-  // 渲染字段详情tab
-  const renderFieldDetailsTab = (tableIndex: number) => {
-    const table = tables[tableIndex];
-    
-    return (
-      <div className="field-details">
-        {table.columns.map((column, columnIndex) => (
-          <Card 
-            key={`${tableIndex}_column_detail_${columnIndex}`}
-            title={
-              <div className="column-detail-header">
-                <span>
-                  {column.field_name || '未命名字段'} 
-                  {column.is_primary_key && <KeyOutlined style={{ marginLeft: 8 }} />}
-                </span>
-                <Text type="secondary">{column.field_type}{column.length ? `(${column.length})` : ''}</Text>
-              </div>
-            }
-            className="column-detail-card"
-            style={{ marginBottom: 16 }}
-            size="small"
-          >
-            <Form.Item label="描述">
-              <TextArea
-                value={column.description || ''}
-                onChange={(e) => updateForeignKey(tableIndex, columnIndex, 'description', e.target.value)}
-                placeholder="输入字段描述"
-                autoSize={{ minRows: 3, maxRows: 6 }}
-              />
-            </Form.Item>
-          </Card>
-        ))}
-        
-        {table.columns.length === 0 && (
-          <div className="empty-columns">尚未定义字段，请在「字段列表」标签页添加字段</div>
-        )}
-      </div>
-    );
   };
 
   // 处理SQL导入
@@ -860,7 +884,7 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
         >
           <Card 
             title={renderTableHeader(table)}
-            extra={renderTableActions(table)}
+            extra={renderTableActions(table, tableIndex)}
           >
             <CSSTransition
               in={collapsedTables.has(table.table_name)}
@@ -889,42 +913,48 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
               unmountOnExit
             >
               <div>
-                <Tabs 
-                  activeKey={getTableActiveTab(tableIndex)}
-                  onChange={(activeKey) => setTableActiveTab(tableIndex, activeKey)}
-                  style={{ paddingLeft: '8px', paddingRight: '8px' }}
+                <Table
+                  dataSource={table.columns}
+                  columns={getColumnsDefinition(tableIndex)}
+                  pagination={false}
+                  rowKey={(record, index) => `${tableIndex}_column_${index}`}
+                  size="small"
+                  style={{ marginBottom: 16 }}
+                  rowClassName={(record, index) => {
+                    if (!record.field_name || record.field_name.trim() === '') {
+                      return 'error-row';
+                    }
+                    return '';
+                  }}
+                  expandedRowKeys={expandedRowKeys[tableIndex] || []}
+                  expandable={{
+                    expandedRowRender: (record, index) => (
+                      <div style={{ padding: '8px 16px', backgroundColor: '#fafafa' }}>
+                        <Form.Item label="字段描述" style={{ marginBottom: 0 }}>
+                          <TextArea
+                            value={record.description || ''}
+                            onChange={(e) => handleColumnChange(tableIndex, index, 'description', e.target.value)}
+                            placeholder="输入字段描述"
+                            autoSize={{ minRows: 2, maxRows: 4 }}
+                          />
+                        </Form.Item>
+                      </div>
+                    ),
+                    rowExpandable: record => true,
+                    expandIcon: () => null,
+                    showExpandColumn: false,
+                  }}
+                />
+                
+                <Button
+                  type="dashed"
+                  onClick={() => addColumn(tableIndex)}
+                  block
+                  icon={<PlusOutlined />}
+                  style={{ marginTop: 8, marginBottom: 8 }}
                 >
-                  <TabPane tab="字段列表" key="columns">
-                    <Table
-                      dataSource={table.columns}
-                      columns={getColumnsDefinition(tableIndex)}
-                      pagination={false}
-                      rowKey={(record, index) => `${tableIndex}_column_${index}`}
-                      size="small"
-                      style={{ marginBottom: 16 }}
-                      rowClassName={(record, index) => {
-                        if (!record.field_name || record.field_name.trim() === '') {
-                          return 'error-row';
-                        }
-                        return '';
-                      }}
-                    />
-                    
-                    <Button
-                      type="dashed"
-                      onClick={() => updateForeignKey(tableIndex, table.columns.length, 'field_name', '')}
-                      block
-                      icon={<PlusOutlined />}
-                      style={{ marginTop: 8, marginBottom: 8 }}
-                    >
-                      添加字段
-                    </Button>
-                  </TabPane>
-                  
-                  <TabPane tab="字段详情" key="details">
-                    {renderFieldDetailsTab(tableIndex)}
-                  </TabPane>
-                </Tabs>
+                  添加字段
+                </Button>
               </div>
             </CSSTransition>
           </Card>

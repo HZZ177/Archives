@@ -1,6 +1,16 @@
-import React, { useState } from 'react';
-import { Card, Typography, List, Button, Tooltip, Tag } from 'antd';
-import { MenuFoldOutlined, MenuUnfoldOutlined, DatabaseOutlined, LockOutlined } from '@ant-design/icons';
+import React from 'react';
+import { Card, Typography, List, Button, Tooltip, Tag, Badge } from 'antd';
+import { 
+  MenuFoldOutlined, 
+  MenuUnfoldOutlined, 
+  DatabaseOutlined, 
+  LockOutlined,
+  FieldNumberOutlined,
+  InboxOutlined,
+  TableOutlined,
+  DragOutlined,
+  ReloadOutlined
+} from '@ant-design/icons';
 import { DatabaseTable } from '../../../types/modules';
 import styles from './DatabaseTablePanel.module.css';
 
@@ -12,6 +22,7 @@ interface DatabaseTablePanelProps {
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   isEditable?: boolean;
+  onRefresh?: () => void;
 }
 
 const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
@@ -20,6 +31,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
   collapsed,
   onCollapsedChange,
   isEditable = true,
+  onRefresh
 }) => {
   console.log('DatabaseTablePanel 渲染:', {
     tablesCount: databaseTables.length,
@@ -28,30 +40,92 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
     isEditable
   });
 
+  const handleCollapsedPanelClick = () => {
+    if (collapsed) {
+      onCollapsedChange(false);
+    }
+  };
+
+  const handleRefresh = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onRefresh) {
+      onRefresh();
+    }
+  };
+
   return (
-    <div className={`${styles.databaseTablePanel} ${collapsed ? styles.collapsed : ''}`}>
+    <div 
+      className={`${styles.databaseTablePanel} ${collapsed ? styles.collapsed : ''}`}
+      onClick={collapsed ? handleCollapsedPanelClick : undefined}
+    >
       <div className={styles.header}>
         <Title level={5} className={styles.title}>
           {!collapsed && (
             <>
-              <DatabaseOutlined /> 数据库表 ({databaseTables.length})
-              {!isEditable && <Tag color="default" style={{ marginLeft: 8 }}><LockOutlined /> 阅读模式</Tag>}
+              <DatabaseOutlined /> 数据库表 
+              <Badge 
+                count={databaseTables.length} 
+                style={{ 
+                  backgroundColor: isEditable ? '#8e7cc3' : '#d9d9d9',
+                  boxShadow: 'none'
+                }}
+              />
+              {!isEditable && <Tag color="default" style={{ marginLeft: 4 }}><LockOutlined /> 阅读模式</Tag>}
             </>
           )}
         </Title>
-        <Button
-          type="text"
-          icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-          onClick={() => onCollapsedChange(!collapsed)}
-          className={styles.collapseButton}
-        />
+        {collapsed && (
+          <div className={styles.collapsedContentContainer}>
+            <div className={styles.verticalIcon}>
+              <DatabaseOutlined />
+            </div>
+            <div className={styles.verticalText}>数据库表</div>
+            {databaseTables.length > 0 && (
+              <div className={styles.verticalBadge}>
+                {databaseTables.length}
+              </div>
+            )}
+            {!isEditable && (
+              <div className={styles.readOnlyIndicator}>
+                <LockOutlined />
+              </div>
+            )}
+          </div>
+        )}
+        {!collapsed && (
+          <>
+            {isEditable && onRefresh && (
+              <Tooltip title="刷新数据库表" placement="right">
+                <Button
+                  type="text"
+                  icon={<ReloadOutlined />}
+                  onClick={handleRefresh}
+                  className={styles.refreshButton}
+                />
+              </Tooltip>
+            )}
+            <Tooltip title="收起面板" placement="right">
+              <Button
+                type="text"
+                icon={<MenuFoldOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCollapsedChange(true);
+                }}
+                className={styles.collapseButton}
+              />
+            </Tooltip>
+          </>
+        )}
       </div>
       
       {!collapsed && (
         <div className={styles.content}>
           {databaseTables.length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-              暂无数据库表
+            <div className={styles.emptyState}>
+              <InboxOutlined className={styles.emptyIcon} />
+              <p>暂无数据库表</p>
+              {isEditable && <p style={{ fontSize: '12px' }}>请先在数据库表模块中添加表结构</p>}
             </div>
           ) : (
             <List
@@ -61,16 +135,29 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
                   className={`${styles.tableCard} ${!isEditable ? styles.readOnly : ''}`}
                   draggable={isEditable}
                   onDragStart={(e) => onDragStart(table, e)}
+                  bodyStyle={{ padding: '12px' }}
+                  bordered={false}
                 >
-                  <Title level={5} className={styles.tableName}>{table.table_name}</Title>
+                  <Title level={5} className={styles.tableName}>
+                    {table.table_name}
+                    {isEditable && (
+                      <Tooltip title="可拖拽到画布">
+                        <DragOutlined style={{ fontSize: '14px', marginLeft: 'auto', color: '#8e7cc3' }} />
+                      </Tooltip>
+                    )}
+                  </Title>
                   {table.description && (
                     <Paragraph ellipsis={{ rows: 2 }} className={styles.tableDescription}>
                       {table.description}
                     </Paragraph>
                   )}
                   <div className={styles.tableInfo}>
-                    <span>{table.columns?.length || 0} 个字段</span>
-                    {!isEditable && <LockOutlined style={{ marginLeft: 8, fontSize: 12 }} />}
+                    <span className={styles.fieldCount}>
+                      <FieldNumberOutlined /> {table.columns?.length || 0} 个字段
+                    </span>
+                    {!isEditable && (
+                      <Tag color="default"><LockOutlined /> 只读</Tag>
+                    )}
                   </div>
                 </Card>
               )}

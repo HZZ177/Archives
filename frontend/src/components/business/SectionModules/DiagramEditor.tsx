@@ -44,7 +44,6 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   const [previewVisible, setPreviewVisible] = useState(false);
   const [databaseTables, setDatabaseTables] = useState<DatabaseTable[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [hoveredTable, setHoveredTable] = useState<DatabaseTable | null>(null);
   const [selectedTable, setSelectedTable] = useState<DatabaseTable | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const excalApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
@@ -112,8 +111,58 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
     }
   };
 
+  // 刷新数据库表数据
+  const refreshDatabaseTables = useCallback(async () => {
+    console.log('刷新数据库表数据');
+    message.loading({ content: '正在刷新数据库表...', key: 'refreshTables' });
+    try {
+      await loadDatabaseTables();
+      message.success({ content: '数据库表已刷新', key: 'refreshTables' });
+    } catch (error) {
+      console.error('刷新数据库表失败:', error);
+      message.error({ content: '刷新数据库表失败', key: 'refreshTables' });
+    }
+  }, [moduleId]);
+
+  // 监听编辑模式变化，在进入编辑模式时自动刷新数据库表
+  useEffect(() => {
+    // 仅当进入编辑模式且为表关系图类型时自动刷新数据库表
+    if (isEditable && diagramType === 'tableRelation') {
+      console.log('进入编辑模式，自动刷新数据库表');
+      refreshDatabaseTables();
+    }
+  }, [isEditable, diagramType, refreshDatabaseTables]); // 依赖于isEditable、diagramType和refreshDatabaseTables
+
   // 处理滚轮缩放（使用原生WheelEvent）
   const handleWheel = useCallback((event: WheelEvent) => {
+    // 检查事件目标是否在属性面板内
+    const target = event.target as HTMLElement;
+    
+    // Excalidraw 的属性面板通常有这些类名或属性
+    // 使用多种可能的选择器来增加匹配的可能性
+    const isInPropertyPanel = 
+      target.closest('.excalidraw-sidebar') || 
+      target.closest('.excalidraw-panel') || 
+      target.closest('.App-menu-left') || 
+      target.closest('.App-menu__left') || 
+      target.closest('[data-sidebar="true"]') || 
+      target.closest('[data-testid="sidebar"]') || 
+      target.closest('[data-testid="panel"]') ||
+      // 颜色选择器和属性面板
+      target.closest('.App-toolbar') ||
+      target.closest('.color-picker') ||
+      target.closest('.popover') ||
+      // 通用选择器，匹配可能的属性面板
+      target.closest('[class*="sidebar"]') ||
+      target.closest('[class*="panel"]') ||
+      target.closest('[class*="property"]');
+    
+    // 如果在属性面板内，不阻止默认行为，让浏览器自己处理滚动
+    if (isInPropertyPanel) {
+      return;
+    }
+    
+    // 原有的缩放逻辑
     event.preventDefault();
     // 根据事件来源选择正确的 API ref
     const api = event.currentTarget === previewContainerRef.current ? previewApiRef.current : excalApiRef.current;
@@ -190,40 +239,31 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   // 同步预览画布数据
   const syncPreviewData = useCallback(() => {
     if (previewApiRef.current && diagramData) {
-      // 确保在阅读模式下强制设置视图模式
+      // 获取主画布的当前状态
+      const currentMainState = excalApiRef.current?.getAppState() || diagramData.state;
+      
+      // 确保在阅读模式下强制设置视图模式，同时保留主画布的其他状态（如缩放级别、滚动位置等）
       const appState = {
-        ...diagramData.state,
+        ...currentMainState, // 保留所有原始状态，包括缩放级别、滚动位置等
         // 在阅读模式下强制启用视图模式和禅模式
-        viewModeEnabled: !isEditable ? true : diagramData.state.viewModeEnabled,
-        zenModeEnabled: !isEditable ? true : diagramData.state.zenModeEnabled
+        viewModeEnabled: !isEditable ? true : currentMainState.viewModeEnabled,
+        zenModeEnabled: !isEditable ? true : currentMainState.zenModeEnabled,
+        editingTextElement: null, // 确保没有处于编辑状态的文本元素
       };
+      
+      console.log('同步预览画布数据，状态:', { 
+        zoom: appState.zoom?.value, 
+        scrollX: appState.scrollX, 
+        scrollY: appState.scrollY,
+        viewModeEnabled: appState.viewModeEnabled
+      });
       
       previewApiRef.current.updateScene({
         elements: diagramData.elements,
         appState: appState
       });
-      
-      // 额外确认视图模式设置
-      if (!isEditable) {
-        console.log('强制设置预览画布为阅读模式');
-        setTimeout(() => {
-          if (previewApiRef.current) {
-            const currentState = previewApiRef.current.getAppState();
-            if (!currentState.viewModeEnabled) {
-              previewApiRef.current.updateScene({
-                appState: {
-                  ...currentState,
-                  viewModeEnabled: true,
-                  zenModeEnabled: true,
-                  editingTextElement: null
-                }
-              });
-            }
-          }
-        }, 200);
-      }
     }
-  }, [diagramData, isEditable]);
+  }, [diagramData, isEditable, excalApiRef]);
 
   // 同步主画布数据
   const syncMainData = useCallback(() => {
@@ -243,20 +283,6 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
     // 在弹窗打开时同步数据到预览画布
     setTimeout(() => {
       syncPreviewData();
-      
-      // 额外确认预览画布的视图模式设置
-      if (!isEditable && previewApiRef.current) {
-        console.log('强制确认预览画布为阅读模式');
-        const currentState = previewApiRef.current.getAppState();
-        previewApiRef.current.updateScene({
-          appState: {
-            ...currentState,
-            viewModeEnabled: true,
-            zenModeEnabled: true,
-            editingTextElement: null
-          }
-        });
-      }
     }, 100);
   }, [syncPreviewData, isEditable]);
 
@@ -290,43 +316,10 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   // 处理画布指针更新事件（用于悬停检测）
   const handlePointerUpdate = useCallback(
     (payload: { pointer: { x: number; y: number }; button: "down" | "up"; pointersMap: Map<number, { x: number; y: number }> }) => {
-      if (!excalApiRef.current || payload.button !== "up") return;
-      
-      const { x, y } = payload.pointer;
-      const elements = excalApiRef.current.getSceneElements();
-      
-      // 检查鼠标是否悬停在数据库表卡片上
-      const hoveredElement = elements.find(element => {
-        if (element.customData?.tableName || element.customData?.tableData) {
-          const { x: elementX, y: elementY, width, height } = element;
-          return (
-            x >= elementX &&
-            x <= elementX + width &&
-            y >= elementY &&
-            y <= elementY + height
-          );
-        }
-        return false;
-      });
-      
-      if (hoveredElement) {
-        if (hoveredElement.customData?.tableData) {
-          // 兼容旧版本
-          const tableData = JSON.parse(hoveredElement.customData.tableData);
-          setHoveredTable(tableData);
-        } else if (hoveredElement.customData?.tableName) {
-          // 新版本，从数据库表列表中查找匹配的表
-          const tableName = hoveredElement.customData.tableName;
-          const table = databaseTables.find(t => t.table_name === tableName);
-          if (table) {
-            setHoveredTable(table);
-          }
-        }
-      } else {
-        setHoveredTable(null);
-      }
+      // 移除了悬停检测逻辑
+      // 保留函数框架以便将来可能的扩展
     },
-    [databaseTables]
+    []
   );
 
   // 处理画布点击事件
@@ -485,104 +478,106 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
 
   // 处理数据库表拖放到画布上
   const handleDrop = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
+    (event: React.DragEvent<HTMLDivElement>, isPreview: boolean = false) => {
       event.preventDefault();
-      debug('开始处理拖放事件');
+      debug(`开始处理${isPreview ? '预览' : '主'}画布拖放事件`);
       
-      if (!excalApiRef.current) {
-        console.error('Excalidraw API 引用不可用');
-        debug('Excalidraw API 引用不可用');
+      // 根据是否为预览模式选择正确的API引用和容器引用
+      const api = isPreview ? previewApiRef : excalApiRef;
+      const container = isPreview ? previewContainerRef : containerRef;
+      
+      if (!api.current) {
+        console.error(`${isPreview ? '预览' : '主'}画布 API 引用不可用`);
+        debug(`${isPreview ? '预览' : '主'}画布 API 引用不可用`);
         return;
       }
       
       try {
-        console.log('处理拖放开始');
+        console.log(`处理${isPreview ? '预览' : '主'}画布拖放开始`);
         const tableData = JSON.parse(event.dataTransfer.getData('application/json'));
         debug('解析的表数据', tableData);
         
         // 获取画布坐标系中的放置位置
         const { clientX, clientY } = event;
-        const rect = containerRef.current?.getBoundingClientRect();
+        const rect = container.current?.getBoundingClientRect();
         if (!rect) {
           console.error('无法获取容器边界矩形');
           debug('无法获取容器边界矩形');
           return;
         }
         
-        const appState = excalApiRef.current.getAppState();
+        const appState = api.current.getAppState();
         const scrollX = appState.scrollX;
         const scrollY = appState.scrollY;
         const zoom = appState.zoom.value;
         
-        // 转换为画布坐标
-        const x = (clientX - rect.left - scrollX) / zoom;
-        const y = (clientY - rect.top - scrollY) / zoom;
+        // 转换为画布坐标，并以鼠标位置为中心
+        const sceneX = (clientX - rect.left) / zoom - scrollX;
+        const sceneY = (clientY - rect.top) / zoom - scrollY;
+        
+        const elementWidth = 200;
+        const elementHeight = 120;
+
+        const x = sceneX - elementWidth / 2;
+        const y = sceneY - elementHeight / 2;
+        
         debug('计算的画布坐标', { x, y, zoom, scrollX, scrollY });
         
-        // 生成唯一ID
-        const elementId = Math.random().toString(36).substring(2, 10);
-        debug('生成的ID', { elementId });
-        
-        // 创建表示数据库表的矩形元素
-        const tableElement = {
-          id: elementId,
-          type: "rectangle" as const,
-          x,
-          y,
-          width: 200,
-          height: 120,
-          backgroundColor: "#f0f9ff",
-          strokeColor: "#1890ff",
-          strokeWidth: 1,
-          fillStyle: "solid" as const,
-          strokeStyle: "solid" as const,
-          roughness: 0,
-          opacity: 100,
-          angle: 0,
-          seed: Math.floor(Math.random() * 1000000),
-          groupIds: [],
-          boundElements: [],
-          link: null,
-          locked: false,
-          isDeleted: false,
-          version: 1,
-          versionNonce: Math.floor(Math.random() * 1000000),
-          updated: Date.now(),
-          roundness: { type: 3 as const, value: 10 },
-          // 添加文本
-          text: `${tableData.table_name}\n\n${tableData.description || '无描述'}\n\n字段数量: ${tableData.columns?.length || 0}`,
-          fontSize: 16,
-          fontFamily: 1,
-          textAlign: "center" as const,
-          verticalAlign: "middle" as const,
-          baseline: 18,
-          originalText: `${tableData.table_name}\n\n${tableData.description || '无描述'}\n\n字段数量: ${tableData.columns?.length || 0}`,
-          // 自定义数据
-          customData: {
-            tableName: tableData.table_name,
-            columnsCount: tableData.columns?.length || 0
+        // 使用 Excalidraw 的元素骨架 API 创建元素
+        const elementSkeletons = [
+          {
+            type: "rectangle" as const,
+            x: x,
+            y: y,
+            width: elementWidth,
+            height: elementHeight,
+            backgroundColor: "#fff9c4", // 便利贴黄色
+            strokeColor: "#000000", // 黑色描边
+            strokeWidth: 1,
+            fillStyle: "solid" as const, // 实心填充
+            strokeStyle: "solid" as const, // 朴素线条
+            label: {
+              text: `${tableData.table_name}\n\n${tableData.description || '无描述'}\n\n字段数量: ${tableData.columns?.length || 0}`,
+              fontSize: 16,
+            },
+            customData: {
+              tableName: tableData.table_name,
+              columnsCount: tableData.columns?.length || 0,
+              tableData: JSON.stringify(tableData) // 保留完整数据以备后用
+            }
           }
-        } as unknown as ExcalidrawElement;
+        ];
         
-        debug('元素创建完成');
+        debug('元素骨架创建完成');
+        
+        // 将元素骨架转换为完整的 Excalidraw 元素
+        const newElements = convertToExcalidrawElements(elementSkeletons as any);
+        debug('元素转换完成', { elementsCount: newElements.length });
         
         // 将元素添加到画布
         try {
-          const elements = excalApiRef.current.getSceneElements();
+          const elements = api.current.getSceneElements();
           debug('当前画布元素数量', elements.length);
           
-          const newElements = [...elements, tableElement];
+          const updatedElements = [...elements, ...newElements];
           debug('准备添加新元素', { 
             currentCount: elements.length, 
-            newCount: newElements.length 
+            newCount: updatedElements.length 
           });
           
-          excalApiRef.current.updateScene({
-            elements: newElements as ExcalidrawElement[]
+          api.current.updateScene({
+            elements: updatedElements
           });
           
-          debug('元素已添加到画布', { elementId });
+          debug('元素已添加到画布');
           message.success('表已添加到画布');
+          
+          // 如果是在预览模式下添加的元素，同步到主数据
+          if (isPreview && isEditable) {
+            const allElements = api.current.getSceneElementsIncludingDeleted();
+            const state = api.current.getAppState();
+            setDiagramData({ elements: allElements as ExcalidrawElement[], state });
+          }
         } catch (updateError) {
           console.error('更新场景失败:', updateError);
           debug('更新场景失败', { error: updateError });
@@ -594,7 +589,15 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
         message.error('处理拖放失败');
       }
     },
-    []
+    [isEditable]
+  );
+
+  // 处理预览画布的拖拽事件
+  const handlePreviewDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      handleDrop(event, true);
+    },
+    [handleDrop]
   );
 
   // 处理拖拽进入画布
@@ -664,6 +667,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
           isEditable={isEditable}
+          onRefresh={refreshDatabaseTables}
         />
       )}
       
@@ -686,9 +690,9 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           style={{
             position: 'absolute',
             top: 17,
-            left: 60,
+            left: diagramType === 'tableRelation' && isEditable && !sidebarCollapsed ? 60 : 60,
             zIndex: 1000,
-            width: 64,
+            width: diagramType === 'tableRelation' && isEditable && !sidebarCollapsed ? 36 : 64,
             height: 36,
             padding: 0,
             borderRadius: 4,
@@ -701,16 +705,6 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           }}
           onClick={handlePreviewOpen}
         />
-        
-        {/* 悬停预览 Popover */}
-        <Popover
-          open={!!hoveredTable}
-          title={null}
-          content={hoveredTable && <DatabaseTableDetail table={hoveredTable} simple={true} />}
-          placement="right"
-        >
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }} />
-        </Popover>
         
         <Excalidraw
           key={initialData ? `diagram-${initialData.version}-${diagramType}` : `diagram-new-${diagramType}`}
@@ -743,40 +737,67 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
         style={{ top: 20 }}
         title={`${!isEditable ? "[阅读模式]" : "[编辑模式]"} 图表预览`}
       >
-        <div ref={previewContainerRef} style={{ width: '100%', height: '85vh' }}>
-          <Excalidraw
-            excalidrawAPI={onPreviewExcalidrawAPI}
-            initialData={initialData ? { 
-              elements: initialData.elements,
-              appState: {
-                ...initialData.state,
-                viewModeEnabled: !isEditable,
-                zenModeEnabled: !isEditable
-              }
-            } : undefined}
-            viewModeEnabled={!isEditable}
-            zenModeEnabled={!isEditable}
-            gridModeEnabled={true}
-            theme="light"
-            langCode="zh-CN"
-            UIOptions={{
-              ...uiOptions,
-              canvasActions: {
-                ...uiOptions.canvasActions,
-                // 在阅读模式下禁用所有画布操作
-                export: isEditable ? { saveFileToDisk: true } : { saveFileToDisk: true },
-                loadScene: false,
-                clearCanvas: isEditable,
-                changeViewBackgroundColor: isEditable,
-                toggleTheme: false,
-              }
+        <div style={{ position: 'relative', width: '100%', height: '85vh', display: 'flex' }}>
+          {/* 在弹窗中添加数据库表侧边面板 - 仅在表关系图类型和编辑模式下显示 */}
+          {diagramType === 'tableRelation' && isEditable && (
+            <DatabaseTablePanel
+              databaseTables={databaseTables}
+              onDragStart={handleTableDragStart}
+              collapsed={sidebarCollapsed}
+              onCollapsedChange={setSidebarCollapsed}
+              isEditable={isEditable}
+              onRefresh={refreshDatabaseTables}
+            />
+          )}
+          
+          <div 
+            ref={previewContainerRef} 
+            style={{ 
+              position: 'relative', 
+              flex: 1,
+              height: '100%',
+              marginLeft: diagramType === 'tableRelation' && isEditable ? 
+                (sidebarCollapsed ? '40px' : '250px') : '0',
+              transition: 'margin-left 0.3s'
             }}
-            onChange={isEditable ? handleChange : undefined}
-            onPointerUpdate={isEditable ? handlePointerUpdate : undefined}
-            onPointerDown={isEditable ? handlePointerDown : undefined}
+            onDrop={isEditable ? handlePreviewDrop : undefined}
+            onDragOver={isEditable ? handleDragOver : undefined}
           >
-            {mainMenu}
-          </Excalidraw>
+            <Excalidraw
+              excalidrawAPI={onPreviewExcalidrawAPI}
+              initialData={diagramData ? { 
+                elements: diagramData.elements,
+                appState: {
+                  ...diagramData.state,
+                  viewModeEnabled: !isEditable,
+                  zenModeEnabled: !isEditable
+                },
+                scrollToContent: true
+              } : undefined}
+              viewModeEnabled={!isEditable}
+              zenModeEnabled={!isEditable}
+              gridModeEnabled={true}
+              theme="light"
+              langCode="zh-CN"
+              UIOptions={{
+                ...uiOptions,
+                canvasActions: {
+                  ...uiOptions.canvasActions,
+                  // 在阅读模式下禁用所有画布操作
+                  export: isEditable ? { saveFileToDisk: true } : { saveFileToDisk: true },
+                  loadScene: false,
+                  clearCanvas: isEditable,
+                  changeViewBackgroundColor: isEditable,
+                  toggleTheme: false,
+                }
+              }}
+              onChange={isEditable ? handleChange : undefined}
+              onPointerUpdate={isEditable ? handlePointerUpdate : undefined}
+              onPointerDown={isEditable ? handlePointerDown : undefined}
+            >
+              {mainMenu}
+            </Excalidraw>
+          </div>
         </div>
       </Modal>
       

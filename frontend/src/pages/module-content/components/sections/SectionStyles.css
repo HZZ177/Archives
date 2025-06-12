@@ -626,253 +626,290 @@
 
 /* 数据库表模块样式 */
 .database-tables-section {
-  width: 100%;
+  padding: 16px 0;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .database-table-container {
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+  transition: all 0.3s;
 }
 
 .database-table-container .ant-card {
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s;
+  border: 1px solid #f0f0f0;
+  overflow: hidden;
+}
+
+.database-table-container .ant-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-color: #e6f7ff;
 }
 
 .database-table-container .ant-card-head {
-  padding: 16px 24px;
+  background-color: #f8f9fa;
   border-bottom: 1px solid #f0f0f0;
+  padding: 12px 16px;
+  min-height: auto;
 }
 
 .database-table-container .ant-card-body {
-  padding: 16px 24px;
+  padding: 16px;
+  background-color: #ffffff;
 }
 
 .table-header {
-  width: 100%;
+  margin-bottom: 16px;
 }
 
 .table-header .ant-form-item {
-  margin-bottom: 0;
+  margin-bottom: 12px;
 }
 
 .table-header .ant-input,
-.table-header .ant-input-textarea {
-  border-radius: 4px;
+.table-header .ant-select-selector {
+  border-radius: 6px;
+  border-color: #d9d9d9;
 }
 
 .table-header .ant-input-textarea {
-  resize: none;
+  border-radius: 6px;
 }
 
 .table-collapsed-summary {
-  margin-top: 4px;
-  margin-bottom: 4px;
-  padding: 2px 12px;
-  background-color: #f9f9f9;
-  border-radius: 4px;
-  border: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  font-size: 14px;
+  color: #595959;
 }
 
 .table-collapsed-summary .summary-content {
   display: flex;
-  gap: 16px;
-  color: #666;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: #8c8c8c;
   font-size: 13px;
-  line-height: 1.2;
-  white-space: nowrap;
 }
 
 .table-collapse-button {
-  padding: 4px 8px;
+  color: #1890ff;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .table-collapse-button:hover {
-  background-color: #f5f5f5;
+  color: #40a9ff;
 }
 
-.ant-btn-text {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.ant-btn-text .anticon {
-  font-size: 16px;
-}
-
-/* 表格操作按钮样式 */
 .database-table-container .ant-card-extra {
-  padding: 0;
-  border-bottom: none;
+  display: flex;
+  gap: 8px;
 }
 
 .database-table-container .ant-space {
   gap: 8px !important;
-  align-items: center;
 }
 
 .database-table-container .ant-btn {
-  height: 32px;
-  padding: 0 12px;
-}
-
-/* 表格验证错误样式 */
-.table-validation-errors {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  background-color: #fff2f0;
-  border: 1px solid #ffccc7;
-  border-radius: 4px;
-}
-
-.error-indicator {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: #ff4d4f;
-  font-size: 13px;
-}
-
-.error-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.error-list li {
-  margin-bottom: 4px;
-  color: #ff4d4f;
-}
-
-.error-list li:last-child {
-  margin-bottom: 0;
-}
-
-/* SQL导入样式 */
-.sql-import {
-  padding: 12px 8px;
-}
-
-.sql-import-textarea {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  border-radius: 4px !important;
-  background-color: #f9f9f9 !important;
-  padding: 12px !important;
-}
-
-.sql-import-textarea:focus {
-  background-color: #ffffff !important;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1) !important;
-}
-
-.sql-import .ant-form-item-label > label {
-  font-weight: 500;
-  color: #333;
-}
-
-.sql-import .ant-form {
-  max-width: 100%;
-}
-
-/* SQL预览样式补充 */
-.sql-preview {
-  margin: 10px 0;
-  padding: 16px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
-  overflow: auto;
-}
-
-.sql-code {
-  margin: 0;
-  white-space: pre-wrap;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-/* API接口卡片动画效果 */
-.api-card-container {
-  width: 100%;
-  position: relative;
-}
-
-/* 展开/收起动画 */
-.api-expand-enter {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transform: translateY(-10px);
-}
-
-.api-expand-enter-active {
-  max-height: 2000px; /* 设置一个足够大的高度以适应内容 */
-  opacity: 1;
-  overflow: hidden;
-  transform: translateY(0);
-  transition: all 300ms ease-in-out;
-}
-
-.api-expand-exit {
-  max-height: 2000px;
-  opacity: 1;
-  overflow: hidden;
-  transform: translateY(0);
-}
-
-.api-expand-exit-active {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transform: translateY(-10px);
-  transition: all 300ms ease-in-out;
-}
-
-.api-card-details-container {
-  padding-top: 16px;
-}
-
-/* 图标按钮样式 */
-.api-card-icon-buttons {
-  display: flex;
-  align-items: center;
-  margin-left: 8px;
-}
-
-/* 图标按钮基础样式 */
-.api-card-icon-button {
-  width: 28px;
-  height: 28px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  margin-left: 4px;
-  transition: all 0.3s;
-  padding: 0; /* 移除内边距，确保图标居中 */
+  height: 32px;
 }
 
-/* 编辑按钮样式 */
-.api-card-icon-button.edit-button {
+/* 表格字段编辑器样式 */
+.table-fields-editor {
+  margin-top: 16px;
+}
+
+.table-fields-editor .ant-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table-fields-editor .ant-table-thead > tr > th {
+  background-color: #f8f9fa;
+  color: #262626;
+  font-weight: 500;
+  padding: 10px 16px;
+}
+
+.table-fields-editor .ant-table-tbody > tr > td {
+  padding: 8px 16px;
+}
+
+.table-fields-editor .ant-input,
+.table-fields-editor .ant-select-selector,
+.table-fields-editor .ant-input-number {
+  border-radius: 4px;
+  height: 32px;
+}
+
+.table-fields-editor .ant-checkbox-wrapper {
+  margin-left: 8px;
+}
+
+.table-fields-editor .ant-btn {
+  border-radius: 4px;
+  height: 32px;
+}
+
+.table-fields-editor .ant-btn-dashed {
   color: #1890ff;
-  background-color: rgba(24, 144, 255, 0.1);
+  border-color: #1890ff;
+  background-color: #f0f7ff;
+  width: 100%;
+  margin-top: 12px;
 }
 
-.api-card-icon-button.edit-button:hover {
-  background-color: rgba(24, 144, 255, 0.2);
+.table-fields-editor .ant-btn-dashed:hover {
+  color: #40a9ff;
+  border-color: #40a9ff;
+  background-color: #e6f7ff;
 }
 
-/* 删除按钮样式 */
-.api-card-icon-button.delete-button {
+.table-fields-editor .ant-form-item-has-error .ant-input,
+.table-fields-editor .ant-form-item-has-error .ant-select-selector {
+  border-color: #ff4d4f;
+}
+
+.table-fields-editor .ant-form-item-explain-error {
   color: #ff4d4f;
-  background-color: rgba(255, 77, 79, 0.1);
+  font-size: 12px;
+  margin-top: 2px;
+  line-height: 1.2;
 }
 
-.api-card-icon-button.delete-button:hover {
-  background-color: rgba(255, 77, 79, 0.2);
+.table-fields-editor .ant-table-tbody > tr:hover > td {
+  background-color: #f0f7ff;
+}
+
+.table-fields-editor .ant-table-tbody > tr.ant-table-row-selected > td {
+  background-color: #e6f7ff;
+}
+
+.table-fields-editor .ant-table-cell .ant-btn {
+  padding: 0 8px;
+}
+
+.table-fields-editor .ant-table-cell .ant-btn-dangerous {
+  color: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
+.table-fields-editor .ant-table-cell .ant-btn-dangerous:hover {
+  color: #fff;
+  border-color: #ff4d4f;
+  background-color: #ff4d4f;
+}
+
+/* 表格描述字段样式 */
+.table-fields-editor .ant-input-textarea {
+  resize: none;
+}
+
+.table-fields-editor .ant-input-textarea textarea {
+  padding: 8px 12px;
+  line-height: 1.5;
+}
+
+/* 表格类型选择器样式 */
+.table-fields-editor .ant-select-selector {
+  padding: 4px 11px;
+}
+
+.table-fields-editor .ant-select-selection-item {
+  line-height: 24px;
+}
+
+/* 表格复选框样式 */
+.table-fields-editor .ant-checkbox-wrapper {
+  display: inline-flex;
+  align-items: center;
+}
+
+.table-fields-editor .ant-checkbox {
+  top: 0;
+}
+
+/* 表格长度输入框样式 */
+.table-fields-editor .ant-input-number {
+  width: 100%;
+}
+
+.table-fields-editor .ant-input-number-input {
+  height: 32px;
+  padding: 4px 11px;
+}
+
+/* 表格添加按钮样式 */
+.table-fields-editor .ant-btn-dashed {
+  height: 40px;
+  font-size: 14px;
+}
+
+.table-fields-editor .ant-btn-dashed .anticon {
+  margin-right: 8px;
+}
+
+.form-label-required {
+  position: relative;
+  display: inline-block;
+  padding-right: 10px;
+}
+.form-label-star {
+  color: #ff4d4f;
+  position: absolute;
+  top: -2px;
+  right: 2px;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.database-table-container.collapsed .ant-card-head {
+  padding: 16px 24px;
+}
+
+.database-table-container.collapsed .ant-card-body {  
+  padding: 4px 24px;
+}
+
+.database-table-container.collapsed .table-header .ant-form-item {
+  margin-bottom: 0;
+}
+
+.database-table-container.collapsed .table-header .ant-row {
+  row-gap: 8px !important;
+}
+
+.table-fade-enter {
+  opacity: 0;
+  max-height: 0;
+  transform: scaleY(0.95);
+}
+.table-fade-enter-active {
+  opacity: 1;
+  max-height: 500px;
+  transform: scaleY(1);
+  transition: opacity 300ms, max-height 300ms, transform 300ms;
+}
+.table-fade-exit {
+  opacity: 1;
+  max-height: 500px;
+  transform: scaleY(1);
+}
+.table-fade-exit-active {
+  opacity: 0;
+  max-height: 0;
+  transform: scaleY(0.95);
+  transition: opacity 300ms, max-height 300ms, transform 300ms;
 }
 
 /* 接口模块特定样式 */
@@ -1050,51 +1087,6 @@
 
 .custom-tree-icon.folder-icon {
   color: #fa8c16;
-}
-
-/* 数据库表字段编辑器样式 */
-.table-fields-editor {
-  padding: 16px;
-}
-
-.table-fields-editor .ant-table {
-  background: #fff;
-}
-
-.table-fields-editor .ant-table-thead > tr > th {
-  background: #fafafa;
-  font-weight: 500;
-  color: #262626;
-}
-
-.table-fields-editor .ant-table-tbody > tr > td {
-  padding: 12px 16px;
-}
-
-.table-fields-editor .ant-input,
-.table-fields-editor .ant-select,
-.table-fields-editor .ant-input-textarea {
-  width: 100%;
-}
-
-.table-fields-editor .ant-checkbox-wrapper {
-  margin-right: 0;
-}
-
-.table-fields-editor .ant-btn {
-  height: 32px;
-  padding: 0 12px;
-}
-
-.table-fields-editor .ant-btn-dashed {
-  border-style: dashed;
-  border-color: #d9d9d9;
-  color: #666;
-}
-
-.table-fields-editor .ant-btn-dashed:hover {
-  border-color: #1890ff;
-  color: #1890ff;
 }
 
 /* 表格验证错误样式 */

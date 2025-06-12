@@ -1,31 +1,95 @@
 .tableDetail {
-  padding: 12px;
+  padding: 16px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .tableName {
   margin-top: 0 !important;
-  margin-bottom: 8px !important;
+  margin-bottom: 12px !important;
+  font-size: 18px !important;
+  color: #262626;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tableName::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  background-color: #8e7cc3;
+  border-radius: 50%;
 }
 
 .tableDescription {
   margin-bottom: 16px !important;
+  color: #595959;
+  font-size: 14px;
+  line-height: 1.6;
+  padding-left: 12px;
+  border-left: 3px solid #f0f0f0;
 }
 
 .fieldsTable {
-  margin-top: 12px;
+  margin-top: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.fieldsTable :global(.ant-table-thead > tr > th) {
+  background-color: #f8f9fa;
+  color: #262626;
+  font-weight: 500;
+}
+
+.fieldsTable :global(.ant-table-tbody > tr > td) {
+  padding: 10px 16px;
+}
+
+.fieldsTable :global(.ant-table-tbody > tr:hover > td) {
+  background-color: #f0f7ff;
+}
+
+.fieldsTable :global(.ant-tag) {
+  margin-right: 4px;
+  border-radius: 4px;
 }
 
 /* 悬停预览时的样式 */
 :global(.ant-popover-inner-content) .tableDetail {
-  max-width: 400px;
-  max-height: 300px;
-  padding: 0;
+  max-width: 450px;
+  max-height: 350px;
+  padding: 12px;
+  overflow: hidden;
 }
 
 :global(.ant-popover-inner-content) .tableName {
   font-size: 16px !important;
+  margin-bottom: 8px !important;
+}
+
+:global(.ant-popover-inner-content) .tableDescription {
+  margin-bottom: 12px !important;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 :global(.ant-popover-inner-content) .fieldsTable {
   margin-top: 8px;
+  box-shadow: none;
+  border: 1px solid #f0f0f0;
+}
+
+:global(.ant-popover-inner-content) .fieldsTable :global(.ant-table-thead > tr > th) {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+:global(.ant-popover-inner-content) .fieldsTable :global(.ant-table-tbody > tr > td) {
+  padding: 6px 12px;
+  font-size: 13px;
 } 
