@@ -302,7 +302,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
   
   // 添加获取模块功能概述的函数
   const fetchModuleOverview = async (moduleId: number) => {
-    if (moduleOverviewMap[moduleId] !== undefined && modulePathMap[moduleId]) return; // 已经获取过
+    if (moduleOverviewMap[moduleId] !== undefined) return; // 已经获取过，不再重复获取
     
     try {
       setLoadingModuleInfo(prev => ({ ...prev, [moduleId]: true }));
@@ -340,15 +340,6 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
       }));
     } finally {
       setLoadingModuleInfo(prev => ({ ...prev, [moduleId]: false }));
-    }
-  };
-  
-  // 处理模块标签的悬停事件
-  const handleModuleTagHover = (moduleId: number) => {
-    // 不再在这里设置路径，而是在fetchModuleOverview中一并处理
-    if (moduleOverviewMap[moduleId] === undefined || !modulePathMap[moduleId]) {
-      // 异步获取模块功能概述和路径
-      fetchModuleOverview(moduleId);
     }
   };
 
@@ -602,6 +593,15 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         });
         
         setRelatedModules(relatedModuleDetails);
+
+        // 为所有关联模块获取功能概述
+        if (relatedModuleDetails.length > 0) {
+          const overviewPromises = relatedModuleDetails.map(module => 
+            fetchModuleOverview(module.id)
+          );
+          await Promise.all(overviewPromises);
+        }
+
       } catch (error) {
         console.error('获取关联模块信息失败:', error);
         // 如果获取失败，使用ID创建符合ModuleStructureNode类型的对象
@@ -1270,7 +1270,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                         <div className="section-content">
                           {relatedModules.length > 0 ? (
                             <Row gutter={[16, 16]}>
-                              {relatedModules.map(module => (
+                                  {relatedModules.map(module => (
                                 <Col key={module.id} xs={24} sm={12} md={8} lg={8} xl={6}>
                                   <RelatedModuleCard 
                                     module={module}

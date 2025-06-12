@@ -1,0 +1,31 @@
+.tableDetail {
+  padding: 12px;
+}
+
+.tableName {
+  margin-top: 0 !important;
+  margin-bottom: 8px !important;
+}
+
+.tableDescription {
+  margin-bottom: 16px !important;
+}
+
+.fieldsTable {
+  margin-top: 12px;
+}
+
+/* 悬停预览时的样式 */
+:global(.ant-popover-inner-content) .tableDetail {
+  max-width: 400px;
+  max-height: 300px;
+  padding: 0;
+}
+
+:global(.ant-popover-inner-content) .tableName {
+  font-size: 16px !important;
+}
+
+:global(.ant-popover-inner-content) .fieldsTable {
+  margin-top: 8px;
+} 
