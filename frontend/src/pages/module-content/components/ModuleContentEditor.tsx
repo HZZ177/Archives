@@ -176,14 +176,8 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
   const relatedRef = useRef<HTMLDivElement>(null);
   const interfaceRef = useRef<HTMLDivElement>(null);
 
-  // 修改为使用Set形式的折叠状态，以便与DatabaseTablesSection组件兼容
-  const [collapsedTableNames, setCollapsedTableNames] = useState<Set<string>>(new Set());
+  const [collapsedTables, setCollapsedTables] = useState<Set<number>>(new Set());
   
-  // 计算所有表格是否都已折叠或展开
-  const allTablesCollapsed = databaseTables.length > 0 && 
-    databaseTables.every(table => collapsedTableNames.has(table.table_name));
-  const allTablesExpanded = databaseTables.length > 0 && collapsedTableNames.size === 0;
-    
   // 计算所有API卡片是否都已折叠或展开
   const apiCardsCollapsed = apiInterfaces.length > 0 && expandedApiCards.length === 0;
   const apiCardsExpanded = apiInterfaces.length > 0 && 
@@ -218,47 +212,6 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
       setGraphUpdateTime(Date.now());
     }
   }, [graphModalVisible]);
-
-  // 切换表格折叠状态
-  const toggleTableCollapse = (tableIndex: number) => {
-    const tableName = databaseTables[tableIndex]?.table_name;
-    if (!tableName) return;
-    
-    setCollapsedTableNames(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(tableName)) {
-        newSet.delete(tableName);
-      } else {
-        newSet.add(tableName);
-      }
-      return newSet;
-    });
-  };
-
-  // 检查表格是否折叠
-  const isTableCollapsed = (tableIndex: number): boolean => {
-    const tableName = databaseTables[tableIndex]?.table_name;
-    return tableName ? collapsedTableNames.has(tableName) : false;
-  };
-
-  // 全部展开
-  const expandAllTables = () => {
-    setCollapsedTableNames(new Set());
-  };
-
-  // 全部折叠
-  const collapseAllTables = () => {
-    setCollapsedTableNames(new Set(databaseTables.map(table => table.table_name)));
-  };
-
-  // 切换所有表格的展开/收起状态
-  const toggleAllTables = () => {
-    if (allTablesCollapsed) {
-      expandAllTables();
-    } else {
-      collapseAllTables();
-    }
-  };
 
   // 切换所有API卡片的展开/收起状态
   const toggleAllApiCards = () => {
@@ -417,18 +370,18 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
           setDatabaseTables(newDbTables);
         }
 
-        // 智能初始化 collapsedTables
-        // 只有当 collapsedTables 为空对象，或者其键的数量与新加载的 databaseTables 数量不一致时，才将所有表初始化为收起状态。
-        // 否则，保持 collapsedTables 的现有状态不变。
-        if (collapsedTableNames.size === 0 || collapsedTableNames.size !== newDbTables.length) {
-          // 使用表名作为标识符，而不是索引
-          setCollapsedTableNames(new Set(newDbTables.map(table => table.table_name)));
+        // 根据是否为编辑模式，设置数据库表的初始折叠状态
+        if (!isEditMode) {
+          // 阅读模式下，默认全部折叠
+          setCollapsedTables(new Set(newDbTables.map((_, index) => index)));
+        } else {
+          // 编辑模式下，默认全部展开
+          setCollapsedTables(new Set());
         }
-        // 如果表数量一致，则不改变现有的 collapsedTables 状态
       } else {
         setDatabaseTables([]);
         // 清空折叠表格索引
-        setCollapsedTableNames(new Set());
+        setCollapsedTables(new Set());
       }
       
       setRelatedModuleIds(moduleContent.related_module_ids_json || []);
@@ -859,6 +812,18 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
     setFilledSections(newFilledSections);
   };
 
+  const handleValidationChange = (tableIndex: number, errors: string[]) => {
+    // 可以在这里处理验证状态，例如显示一个全局的错误指示器
+  };
+
+  React.useEffect(() => {
+    // 当从编辑模式切换到阅读模式时，折叠所有表格
+    if (!propIsEditMode) {
+      const allTableIndexes = new Set(databaseTables.map((_, index) => index));
+      setCollapsedTables(allTableIndexes);
+    }
+  }, [propIsEditMode, databaseTables]);
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '24px 0' }}>
@@ -992,250 +957,21 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                 case 'database':
                   return (
                     <div key={sectionKey} id="section-database" className="content-section" ref={databaseRef}>
-                      <div className="section-title-container api-section-header">
-                        <div className="section-title-with-button">
-                          <Title level={4} className="section-title">
-                            <span className="section-title-icon">{config.icon}</span>
-                            {config.title}
-                          </Title>
-                          {databaseTables.length > 0 && (
-                            <Button 
-                              size="small" 
-                              onClick={toggleAllTables}
-                              className="collapse-all-button"
-                            >
-                              {allTablesCollapsed ? '全部展开' : '全部收起'}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
+                      <Title level={4} className="section-title">
+                        <span className="section-title-icon">{config.icon}</span>
+                        {config.title}
+                      </Title>
                       <Divider className="section-divider" />
-                      
-                      {isEditMode ? (
+                      <div className="section-content">
                         <DatabaseTablesSection 
                           tables={databaseTables} 
-                          onChange={setDatabaseTables} 
-                          onValidationChange={(tableId, errors) => {
-                            // 处理验证错误
-                          }}
-                          collapsedTables={collapsedTableNames}
-                          setCollapsedTables={setCollapsedTableNames}
+                          onChange={setDatabaseTables}
+                          onValidationChange={handleValidationChange}
+                          isEditMode={isEditMode}
+                          collapsedTables={collapsedTables}
+                          setCollapsedTables={setCollapsedTables}
                         />
-                      ) : (
-                        <div className="section-content">
-                          {databaseTables.length > 0 ? (
-                            <>
-                              {databaseTables.map((table, index) => (
-                                <div key={index} className={`database-table-item ${isTableCollapsed(index) ? 'collapsed' : ''}`}>
-                                  <div className="database-table-header">
-                                    <h4 className="table-name">
-                                      {table.schema_name && <span className="table-schema">{table.schema_name}.</span>}
-                                      {table.table_name}
-                                    </h4>
-                                    <Button 
-                                      type="text"
-                                      className="table-collapse-button"
-                                      icon={isTableCollapsed(index) ? <PlusOutlined /> : <MinusCircleOutlined />}
-                                      onClick={() => toggleTableCollapse(index)}
-                                      size="small"
-                                    >
-                                      {isTableCollapsed(index) ? '展开' : '折叠'}
-                                    </Button>
-                                  </div>
-                                  
-                                  {table.description && (
-                                    <div className="table-description">{table.description}</div>
-                                  )}
-                                  
-                                  <div className="table-content">
-                                    <Table
-                                      dataSource={table.columns}
-                                      pagination={false}
-                                      size="small"
-                                      className="table-columns"
-                                      rowKey={(record, colIndex) => `${index}_${colIndex}`}
-                                      columns={[
-                                        {
-                                          title: '字段名',
-                                          dataIndex: 'field_name',
-                                          key: 'field_name',
-                                          width: '15%',
-                                          render: (text, record) => (
-                                            <div className="field-name">
-                                              {text}
-                                              {record.is_primary_key && <span className="field-tag primary-key">主键</span>}
-                                              {record.is_unique && !record.is_primary_key && <span className="field-tag unique">唯一</span>}
-                                              {record.is_index && !record.is_primary_key && !record.is_unique && <span className="field-tag index">索引</span>}
-                                            </div>
-                                          )
-                                        },
-                                        {
-                                          title: '类型',
-                                          dataIndex: 'field_type',
-                                          key: 'field_type',
-                                          width: '15%',
-                                          render: (text, record) => (
-                                            <span>
-                                              {text.toUpperCase()}
-                                              {record.length && `(${record.length})`}
-                                            </span>
-                                          )
-                                        },
-                                        {
-                                          title: '允许为空',
-                                          dataIndex: 'nullable',
-                                          key: 'nullable',
-                                          width: '10%',
-                                          render: (nullable) => (
-                                            <span className={`nullable-status ${nullable ? 'nullable' : 'not-nullable'}`}>
-                                              {nullable ? '是' : '否'}
-                                            </span>
-                                          )
-                                        },
-                                        {
-                                          title: '默认值',
-                                          dataIndex: 'default_value',
-                                          key: 'default_value',
-                                          width: '10%',
-                                          render: (text) => text || '-'
-                                        },
-                                        {
-                                          title: '外键',
-                                          dataIndex: 'foreign_key',
-                                          key: 'foreign_key',
-                                          width: '15%',
-                                          render: (foreignKey) => (
-                                            foreignKey ? (
-                                              <span className="foreign-key-reference">
-                                                {foreignKey.reference_table}.{foreignKey.reference_column}
-                                              </span>
-                                            ) : '-'
-                                          )
-                                        },
-                                        {
-                                          title: '描述',
-                                          dataIndex: 'description',
-                                          key: 'description',
-                                          width: '35%',
-                                          render: (text, record, i) => (
-                                            text ? (
-                                              <MdPreview
-                                                modelValue={text}
-                                                previewTheme="github"
-                                                style={{ background: 'transparent' }}
-                                                id={getViewerId('field', `${index}_${i}`)}
-                                              />
-                                            ) : '-'
-                                          )
-                                        }
-                                      ]}
-                                    />
-                                    
-                                    {/* 表关系展示 */}
-                                    {table.relationships && table.relationships.length > 0 && (
-                                      <div className="table-relationships">
-                                        <h5>表关系</h5>
-                                        <ul className="relationship-list">
-                                          {table.relationships.map((rel, relIndex) => (
-                                            <li key={relIndex} className="relationship-item">
-                                              <span className="relationship-type">
-                                                {rel.type === 'one-to-one' && '一对一'}
-                                                {rel.type === 'one-to-many' && '一对多'}
-                                                {rel.type === 'many-to-many' && '多对多'}
-                                              </span>
-                                              <span className="relationship-table">{rel.to_table}</span>
-                                              {rel.description && (
-                                                <span className="relationship-description">({rel.description})</span>
-                                              )}
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
-                                  </div>
-                                  
-                                  {/* 字段标签展示区域（折叠状态下显示） */}
-                                  <div className="table-fields-tags">
-                                    {table.columns.slice(0, 15).map((column, colIndex) => {
-                                      // 确定字段标签类型
-                                      let tagClassName = "field-tag-item";
-                                      if (column.is_primary_key) {
-                                        tagClassName += " primary";
-                                      } else if (column.foreign_key) {
-                                        tagClassName += " foreign";
-                                      } else if (column.is_unique) {
-                                        tagClassName += " unique";
-                                      } else if (column.is_index) {
-                                        tagClassName += " index";
-                                      }
-                                      
-                                      // 构建完整的字段信息提示
-                                      const tooltipTitle = (
-                                        <>
-                                          <div><strong>名称:</strong> {column.field_name}</div>
-                                          <div><strong>类型:</strong> {column.field_type.toUpperCase()}{column.length ? `(${column.length})` : ''}</div>
-                                          <div><strong>可空:</strong> {column.nullable ? '是' : '否'}</div>
-                                          {column.default_value && <div><strong>默认值:</strong> {column.default_value}</div>}
-                                          {column.is_primary_key && <div><strong>主键</strong></div>}
-                                          {column.is_unique && <div><strong>唯一键</strong></div>}
-                                          {column.is_index && <div><strong>索引</strong></div>}
-                                          {column.foreign_key && (
-                                            <div><strong>外键:</strong> {column.foreign_key.reference_table}.{column.foreign_key.reference_column}</div>
-                                          )}
-                                          {column.description && <div><strong>描述:</strong> {column.description}</div>}
-                                        </>
-                                      );
-                                      
-                                      return (
-                                        <Tooltip 
-                                          key={`tag-${colIndex}`}
-                                          title={tooltipTitle}
-                                          placement="top"
-                                        >
-                                          <span className={tagClassName}>
-                                            {column.field_name}
-                                          </span>
-                                        </Tooltip>
-                                      );
-                                    })}
-                                    
-                                    {table.columns.length > 15 && (
-                                      <Tooltip 
-                                        title={`还有${table.columns.length - 15}个字段未显示，点击展开查看全部`}
-                                        placement="top"
-                                      >
-                                        <span 
-                                          className="field-tag-item more-tag"
-                                          onClick={() => isTableCollapsed(index) && toggleTableCollapse(index)}
-                                          style={{ cursor: 'pointer' }}
-                                        >
-                                          +{table.columns.length - 15}
-                                        </span>
-                                      </Tooltip>
-                                    )}
-                                  </div>
-                                  
-                                  {isTableCollapsed(index) && table.columns.length > 0 && (
-                                    <div className="table-collapsed-summary">
-                                      共{table.columns.length}个字段
-                                      {table.columns.filter(col => col.is_primary_key).length > 0 && 
-                                        `，${table.columns.filter(col => col.is_primary_key).length}个主键`}
-                                      {table.columns.filter(col => col.foreign_key).length > 0 && 
-                                        `，${table.columns.filter(col => col.foreign_key).length}个外键`}
-                                      {table.columns.filter(col => col.is_unique && !col.is_primary_key).length > 0 && 
-                                        `，${table.columns.filter(col => col.is_unique && !col.is_primary_key).length}个唯一键`}
-                                      {table.columns.filter(col => col.is_index && !col.is_unique && !col.is_primary_key).length > 0 && 
-                                        `，${table.columns.filter(col => col.is_index && !col.is_unique && !col.is_primary_key).length}个索引`}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </>
-                          ) : (
-                            <div className="empty-content" onClick={handleEmptyContentClick}>点击"编辑"添加数据库表结构</div>
-                          )}
-                        </div>
-                      )}
+                      </div>
                     </div>
                   );
                 

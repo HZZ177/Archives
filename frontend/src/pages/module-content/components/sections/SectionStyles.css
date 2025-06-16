@@ -624,292 +624,456 @@
   border: 1px solid #f0f0f0;
 } 
 
-/* 数据库表模块样式 */
+/* 数据库表模块样式 - 新版 */
 .database-tables-section {
   padding: 16px 0;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-.database-table-container {
-  margin-bottom: 24px;
-  transition: all 0.3s;
-}
-
-.database-table-container .ant-card {
+/* 数据库表头部样式 */
+.database-tables-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 0 8px;
+  background-color: #f9f9f9;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s;
-  border: 1px solid #f0f0f0;
-  overflow: hidden;
-}
-
-.database-table-container .ant-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  border-color: #e6f7ff;
-}
-
-.database-table-container .ant-card-head {
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #f0f0f0;
   padding: 12px 16px;
-  min-height: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.database-table-container .ant-card-body {
-  padding: 16px;
-  background-color: #ffffff;
+.database-tables-count {
+  font-size: 14px;
+  color: #555;
+  font-weight: 500;
 }
 
-.table-header {
-  margin-bottom: 16px;
+.database-tables-actions {
+  display: flex;
+  gap: 10px;
 }
 
-.table-header .ant-form-item {
-  margin-bottom: 12px;
+.expand-all-button,
+.collapse-all-button {
+  font-size: 13px;
+  padding: 0 14px;
+  height: 30px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-weight: 500;
 }
 
-.table-header .ant-input,
-.table-header .ant-select-selector {
-  border-radius: 6px;
-  border-color: #d9d9d9;
+.expand-all-button .anticon,
+.collapse-all-button .anticon {
+  margin-right: 6px;
 }
 
-.table-header .ant-input-textarea {
-  border-radius: 6px;
+/* 数据库表容器样式 */
+.database-table-container {
+  margin-bottom: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
 }
 
-.table-collapsed-summary {
+.database-table-container:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* 数据库表头部样式 */
+.database-table-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px 0;
-  font-size: 14px;
-  color: #595959;
+  padding: 14px 18px;
+  background: linear-gradient(to right, #f7f7f7, #f0f0f0);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+  border-bottom: 1px solid #e8e8e8;
+  min-height: 70px; /* 添加最小高度 */
 }
 
-.table-collapsed-summary .summary-content {
+.database-table-header:hover {
+  background: linear-gradient(to right, #f0f0f0, #e8e8e8);
+}
+
+.database-table-icon {
+  margin-right: 14px;
+  color: #1890ff;
+  font-size: 18px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  color: #8c8c8c;
+  align-items: center;
+}
+
+.database-table-title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* 确保内容垂直居中 */
+  min-height: 42px; /* 确保标题区域有最小高度 */
+}
+
+.database-table-title .table-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0; /* 默认没有底部边距 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.2s;
+}
+
+/* 当描述不为空时，给表名添加底部边距 */
+.database-table-title .table-description:not(:empty) {
+  margin-top: 2px; /* 在描述不为空时，添加顶部边距 */
+}
+
+.database-table-title .table-description {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 0; /* 当描述为空时，不保留空间 */
+}
+
+/* 表格摘要信息 */
+.table-summary {
+  display: flex;
+  align-items: center;
+  margin-right: 16px;
+  gap: 16px;
+  color: #666;
   font-size: 13px;
 }
 
-.table-collapse-button {
-  color: #1890ff;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.table-collapse-button:hover {
-  color: #40a9ff;
-}
-
-.database-table-container .ant-card-extra {
+.primary-key-info {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  color: #1890ff;
+  font-weight: 500;
+  background-color: rgba(24, 144, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
-.database-table-container .ant-space {
-  gap: 8px !important;
-}
-
-.database-table-container .ant-btn {
-  border-radius: 6px;
+.database-table-toggle {
+  color: #1890ff;
+  font-size: 14px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 32px;
+  background-color: rgba(24, 144, 255, 0.1);
+  border-radius: 50%;
 }
 
-/* 表格字段编辑器样式 */
-.table-fields-editor {
-  margin-top: 16px;
+/* 字段名称单元格样式 */
+.field-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.table-fields-editor .ant-table {
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.table-fields-editor .ant-table-thead > tr > th {
-  background-color: #f8f9fa;
-  color: #262626;
+.field-name-text {
   font-weight: 500;
-  padding: 10px 16px;
 }
 
-.table-fields-editor .ant-table-tbody > tr > td {
-  padding: 8px 16px;
-}
-
-.table-fields-editor .ant-input,
-.table-fields-editor .ant-select-selector,
-.table-fields-editor .ant-input-number {
-  border-radius: 4px;
-  height: 32px;
-}
-
-.table-fields-editor .ant-checkbox-wrapper {
-  margin-left: 8px;
-}
-
-.table-fields-editor .ant-btn {
-  border-radius: 4px;
-  height: 32px;
-}
-
-.table-fields-editor .ant-btn-dashed {
+.field-primary-icon {
   color: #1890ff;
-  border-color: #1890ff;
-  background-color: #f0f7ff;
-  width: 100%;
-  margin-top: 12px;
+  font-size: 14px;
 }
 
-.table-fields-editor .ant-btn-dashed:hover {
-  color: #40a9ff;
-  border-color: #40a9ff;
-  background-color: #e6f7ff;
-}
-
-.table-fields-editor .ant-form-item-has-error .ant-input,
-.table-fields-editor .ant-form-item-has-error .ant-select-selector {
-  border-color: #ff4d4f;
-}
-
-.table-fields-editor .ant-form-item-explain-error {
-  color: #ff4d4f;
-  font-size: 12px;
-  margin-top: 2px;
-  line-height: 1.2;
-}
-
-.table-fields-editor .ant-table-tbody > tr:hover > td {
-  background-color: #f0f7ff;
-}
-
-.table-fields-editor .ant-table-tbody > tr.ant-table-row-selected > td {
-  background-color: #e6f7ff;
-}
-
-.table-fields-editor .ant-table-cell .ant-btn {
-  padding: 0 8px;
-}
-
-.table-fields-editor .ant-table-cell .ant-btn-dangerous {
-  color: #ff4d4f;
-  border-color: #ff4d4f;
-}
-
-.table-fields-editor .ant-table-cell .ant-btn-dangerous:hover {
-  color: #fff;
-  border-color: #ff4d4f;
-  background-color: #ff4d4f;
-}
-
-/* 表格描述字段样式 */
-.table-fields-editor .ant-input-textarea {
-  resize: none;
-}
-
-.table-fields-editor .ant-input-textarea textarea {
-  padding: 8px 12px;
-  line-height: 1.5;
-}
-
-/* 表格类型选择器样式 */
-.table-fields-editor .ant-select-selector {
-  padding: 4px 11px;
-}
-
-.table-fields-editor .ant-select-selection-item {
-  line-height: 24px;
-}
-
-/* 表格复选框样式 */
-.table-fields-editor .ant-checkbox-wrapper {
-  display: inline-flex;
+/* 字段类型单元格样式 */
+.field-type-cell {
+  display: flex;
   align-items: center;
 }
 
-.table-fields-editor .ant-checkbox {
-  top: 0;
+.field-type-text {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12px;
 }
 
-/* 表格长度输入框样式 */
-.table-fields-editor .ant-input-number {
+/* 数据库表内容样式 */
+.database-table-content {
+  padding: 16px 18px;
+  overflow: hidden;
+  transition: opacity 500ms cubic-bezier(0.23, 1, 0.32, 1),
+              transform 500ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.database-table-content .ant-table {
+  margin-bottom: 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.database-table-content .ant-table table {
+  border-collapse: separate;
+  border-spacing: 0;
   width: 100%;
 }
 
-.table-fields-editor .ant-input-number-input {
-  height: 32px;
-  padding: 4px 11px;
+.database-table-content .ant-table-container {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  overflow: hidden;
 }
 
-/* 表格添加按钮样式 */
-.table-fields-editor .ant-btn-dashed {
-  height: 40px;
-  font-size: 14px;
+.database-table-content .ant-table-thead > tr > th {
+  background: linear-gradient(to bottom, #f7f7f7, #f0f0f0);
+  color: #333;
+  font-weight: 600;
+  padding: 12px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid #e0e0e0;
+  text-align: left;
+  transition: background 0.3s ease;
 }
 
-.table-fields-editor .ant-btn-dashed .anticon {
-  margin-right: 8px;
-}
-
-.form-label-required {
-  position: relative;
-  display: inline-block;
-  padding-right: 10px;
-}
-.form-label-star {
-  color: #ff4d4f;
+.database-table-content .ant-table-thead > tr > th:not(:last-child):not(.ant-table-selection-column):not(.ant-table-row-expand-icon-cell):not([colspan])::before {
   position: absolute;
-  top: -2px;
-  right: 2px;
-  font-size: 14px;
-  font-family: inherit;
-  line-height: 1;
+  top: 50%;
+  right: 0;
+  width: 1px;
+  height: 1.6em;
+  background-color: #e0e0e0;
+  transform: translateY(-50%);
+  transition: background-color 0.3s;
+  content: '';
 }
 
-.database-table-container.collapsed .ant-card-head {
-  padding: 16px 24px;
+.database-table-content .ant-table-tbody > tr > td {
+  padding: 12px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.3s;
+  vertical-align: middle;
 }
 
-.database-table-container.collapsed .ant-card-body {  
-  padding: 4px 24px;
+.database-table-content .ant-table-tbody > tr:last-child > td {
+  border-bottom: none;
 }
 
-.database-table-container.collapsed .table-header .ant-form-item {
-  margin-bottom: 0;
+.database-table-content .ant-table-tbody > tr:nth-child(even) {
+  background-color: #fafafa !important;
 }
 
-.database-table-container.collapsed .table-header .ant-row {
-  row-gap: 8px !important;
+.database-table-content .ant-table-tbody > tr:nth-child(even) > td {
+  background-color: #fafafa !important;
 }
 
+.database-table-content .ant-table-tbody > tr:nth-child(even):hover > td {
+  background-color: #fafafa !important;
+}
+
+/* 彻底禁用表格的所有悬停效果 */
+.database-table-content .ant-table-tbody > tr:hover {
+  background: none !important;
+}
+
+.database-table-content .ant-table-tbody > tr:hover > td {
+  background-color: transparent !important;
+}
+
+.database-table-content .ant-table-tbody > tr > td.ant-table-cell-row-hover {
+  background-color: transparent !important;
+}
+
+/* 修复偶数行在鼠标悬停时的背景色问题 */
+.database-table-content .ant-table-tbody > tr:nth-child(odd),
+.database-table-content .ant-table-tbody > tr:nth-child(odd):hover,
+.database-table-content .ant-table-tbody > tr:nth-child(odd) td,
+.database-table-content .ant-table-tbody > tr:nth-child(odd):hover td,
+.database-table-content .ant-table-tbody > tr:nth-child(odd) > td.ant-table-cell-row-hover {
+  background-color: #ffffff !important;
+}
+
+/* 禁用表格的行悬停动画 */
+.database-table-content .ant-table-tbody > tr > td,
+.database-table-content .ant-table-thead > tr > th,
+.database-table-content .ant-table-cell {
+  transition: none !important;
+}
+
+/* 禁用表格整体的悬停效果 */
+.database-table-content .ant-table {
+  --ant-table-row-hover-bg: transparent !important;
+}
+
+/* 禁用表格行选中和悬停状态 */
+.database-table-content .ant-table-tbody > tr.ant-table-row-selected > td,
+.database-table-content .ant-table-tbody > tr.ant-table-row-selected:hover > td {
+  background: inherit !important;
+}
+
+/* 禁用表格行的鼠标指针样式变化 */
+.database-table-content .ant-table-tbody > tr {
+  cursor: default !important;
+}
+
+/* 状态样式 */
+.nullable-status {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  min-width: 60px;
+}
+
+.nullable-status.nullable {
+  background-color: #f5f5f5;
+  color: #888;
+  border: 1px solid #e8e8e8;
+}
+
+.nullable-status.not-nullable {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+}
+
+.key-status.is-key {
+  color: #52c41a;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  background-color: rgba(82, 196, 26, 0.1);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+}
+
+.key-status.is-key::before {
+  content: '✓';
+  font-weight: bold;
+}
+
+.index-status.is-index {
+  color: #722ed1;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  background-color: rgba(114, 46, 209, 0.1);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+}
+
+.index-status.is-index::before {
+  content: '✓';
+  font-weight: bold;
+}
+
+.foreign-key-reference {
+  color: #722ed1;
+  font-weight: 500;
+  text-decoration: underline dotted;
+  cursor: help;
+}
+
+/* 表格底部样式 */
+.database-table-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.database-table-footer .ant-btn {
+  background-color: #1890ff;
+  border-color: #1890ff;
+  color: white;
+  font-weight: 500;
+  box-shadow: 0 2px 5px rgba(24, 144, 255, 0.25);
+  height: 32px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+}
+
+.database-table-footer .ant-btn:hover {
+  background-color: #40a9ff;
+  border-color: #40a9ff;
+}
+
+.database-table-footer .ant-btn .anticon {
+  margin-right: 6px;
+}
+
+/* 折叠表格时的摘要信息 */
+.table-collapsed-summary {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+}
+
+.summary-content {
+  display: flex;
+  gap: 16px;
+  color: #666;
+  font-size: 13px;
+}
+
+/* 动画效果 */
 .table-fade-enter {
   opacity: 0;
   max-height: 0;
-  transform: scaleY(0.95);
+  transform: scaleY(0.95) translateY(-10px);
+  transform-origin: top;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 500ms cubic-bezier(0.23, 1, 0.32, 1), 
+              max-height 600ms cubic-bezier(0.23, 1, 0.32, 1), 
+              transform 500ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 .table-fade-enter-active {
   opacity: 1;
-  max-height: 500px;
-  transform: scaleY(1);
-  transition: opacity 300ms, max-height 300ms, transform 300ms;
+  max-height: 2000px;
+  transform: scaleY(1) translateY(0);
+  transform-origin: top;
+  overflow: hidden;
+  pointer-events: auto;
+  transition: opacity 500ms cubic-bezier(0.23, 1, 0.32, 1), 
+              max-height 600ms cubic-bezier(0.23, 1, 0.32, 1), 
+              transform 500ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 .table-fade-exit {
   opacity: 1;
-  max-height: 500px;
-  transform: scaleY(1);
+  max-height: 2000px;
+  transform: scaleY(1) translateY(0);
+  transform-origin: top;
+  overflow: hidden;
+  transition: opacity 500ms cubic-bezier(0.23, 1, 0.32, 1), 
+              max-height 600ms cubic-bezier(0.23, 1, 0.32, 1), 
+              transform 500ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 .table-fade-exit-active {
   opacity: 0;
   max-height: 0;
-  transform: scaleY(0.95);
-  transition: opacity 300ms, max-height 300ms, transform 300ms;
+  transform: scaleY(0.95) translateY(-10px);
+  transform-origin: top;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity 500ms cubic-bezier(0.23, 1, 0.32, 1), 
+              max-height 600ms cubic-bezier(0.23, 1, 0.32, 1), 
+              transform 500ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 /* 接口模块特定样式 */
@@ -1103,12 +1267,12 @@
 
 /* 表格行悬停效果 */
 .table-fields-editor .ant-table-tbody > tr:hover > td {
-  background: #f5f5f5;
+  background: transparent !important;
 }
 
 /* 表格行选中效果 */
 .table-fields-editor .ant-table-tbody > tr.ant-table-row-selected > td {
-  background: #e6f7ff;
+  background: #e6f7ff !important;
 }
 
 /* 表格操作按钮样式 */
@@ -1189,6 +1353,26 @@
   line-height: 1;
 }
 
+.database-table-container.collapsed {
+  background-color: transparent;
+  padding: 0;
+  min-height: 0;
+  box-shadow: none;
+  border-radius: 4px;
+  border: 1px solid #e8e8e8;
+  overflow: visible;
+}
+
+.database-table-container.collapsed:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
+}
+
+.database-table-container.collapsed .database-table-header {
+  border-radius: 4px;
+  margin-bottom: 0 !important;
+}
+
 .database-table-container.collapsed .ant-card-head {
   padding: 16px 24px;
 }
@@ -1205,25 +1389,550 @@
   row-gap: 8px !important;
 }
 
-.table-fade-enter {
-  opacity: 0;
-  max-height: 0;
-  transform: scaleY(0.95);
+/* 数据库表编辑模式样式 */
+.database-tables-edit-mode {
+  padding: 0;
+  position: relative;
+  height: calc(100vh - 200px); /* 固定高度 */
+  overflow: hidden; /* 防止内容溢出 */
 }
-.table-fade-enter-active {
-  opacity: 1;
-  max-height: 500px;
-  transform: scaleY(1);
-  transition: opacity 300ms, max-height 300ms, transform 300ms;
+
+.database-tables-edit-layout {
+  display: flex;
+  gap: 20px;
+  height: 100%; /* 填满父容器高度 */
+  max-height: 100%; /* 确保不超过父容器高度 */
+  transition: gap 0.3s ease;
+  position: relative; /* 确保子元素可以相对于它定位 */
 }
-.table-fade-exit {
-  opacity: 1;
-  max-height: 500px;
-  transform: scaleY(1);
+
+/* 左侧表列表样式 */
+.database-tables-sidebar {
+  width: 250px;
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  background-image: linear-gradient(to bottom, #ffffff, #f9fafb);
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  height: 100%; /* 确保高度填满父容器 */
+  overflow: hidden; /* 确保子元素不会溢出 */
+  position: relative; /* 使子元素可以相对于它定位 */
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.08);
 }
-.table-fade-exit-active {
-  opacity: 0;
-  max-height: 0;
-  transform: scaleY(0.95);
-  transition: opacity 300ms, max-height 300ms, transform 300ms;
+
+.database-tables-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: rgba(250, 250, 252, 0.9);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.database-tables-sidebar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.database-tables-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 transparent;
+  height: 0; 
+  min-height: 0; 
+  padding-bottom: 16px; 
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* 减小间距从4px到2px */
+}
+
+.database-tables-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.database-tables-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.database-tables-list::-webkit-scrollbar-thumb {
+  background-color: #d9d9d9;
+  border-radius: 3px;
+}
+
+.database-tables-list .database-table-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 12px; /* 增加上下内边距 */
+  margin: 0 0 6px 0 !important; /* 减小下边距 */
+  border: 1px solid #f0f0f0;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  min-height: 70px; /* 设置最小高度 */
+}
+
+.database-table-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(142, 124, 195, 0.15);
+  border-color: #e6f7ff;
+}
+
+.database-table-item.active {
+  background-color: #ffffff;
+  border-left-color: #8e7cc3;
+  border-color: #8e7cc3;
+  box-shadow: 0 2px 8px rgba(142, 124, 195, 0.2);
+}
+
+.database-table-item-icon {
+  margin-right: 12px;
+  font-size: 16px;
+  color: #8e7cc3;
+  transition: color 0.2s;
+}
+
+.database-table-item:hover .database-table-item-icon {
+  color: #6a5acd;
+}
+
+.database-table-item.active .database-table-item-icon {
+  color: #6a5acd;
+}
+
+.database-table-item-content {
+  flex: 1;
+  overflow: hidden;
+  min-height: 36px; /* 确保内容区域有最小高度 */
+}
+
+.database-table-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.2s;
+}
+
+.database-table-item.active .database-table-item-name {
+  font-weight: 600;
+  color: #6a5acd;
+}
+
+.database-table-item-desc {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 18px; /* 确保描述区域有最小高度 */
+}
+
+.database-tables-add {
+  padding: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: rgba(250, 250, 252, 0.9);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.database-tables-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.new-table-name,
+.new-table-desc {
+  width: 100%;
+}
+
+/* 右侧编辑区域样式 */
+.database-tables-content {
+  flex: 1;
+  background-color: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  position: relative; /* 确保是相对定位，以便子元素可以绝对定位 */
+  transition: all 0.3s ease;
+  height: 100%; /* 确保高度填满父容器 */
+  overflow: hidden; /* 确保子元素不会溢出 */
+}
+
+/* 编辑模式收起状态 */
+.database-tables-edit-mode.sidebar-collapsed .database-tables-sidebar {
+  width: 40px;
+  padding: 0;
+  border-right: 3px solid #8e7cc3;
+  background-color: #FAFAFC;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease-in-out;
+  border-radius: 0 8px 8px 0;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.database-tables-edit-mode.sidebar-collapsed .database-tables-edit-layout {
+  gap: 0;
+}
+
+.sidebar-collapsed-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  cursor: pointer;
+  font-size: 20px;
+  color: #555;
+  background-color: #FAFAFC;
+  transition: all 0.2s ease-in-out;
+}
+
+.sidebar-collapsed-handle:hover {
+  box-shadow: 3px 0 15px rgba(142, 124, 195, 0.2);
+}
+
+.database-tables-edit-mode.sidebar-collapsed .database-tables-sidebar:hover {
+  border-right: 3px solid #6a5acd;
+}
+
+.sidebar-collapsed-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 16px 0;
+  gap: 16px;
+}
+
+.sidebar-collapsed-text {
+  writing-mode: vertical-lr;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #8e7cc3;
+  letter-spacing: 3px;
+  transition: all 0.2s ease-in-out;
+}
+
+.sidebar-collapsed-icon {
+  font-size: 20px;
+  color: #8e7cc3;
+  padding: 8px;
+  border-radius: 6px;
+  background-color: rgba(142, 124, 195, 0.12);
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 2px 6px rgba(142, 124, 195, 0.15);
+}
+
+.sidebar-collapsed-handle:hover .sidebar-collapsed-icon {
+  color: #6a5acd;
+  background-color: rgba(142, 124, 195, 0.2);
+  transform: scale(1.1);
+}
+
+.sidebar-collapsed-handle:hover .sidebar-collapsed-text {
+  color: #6a5acd;
+  font-weight: 600;
+}
+
+.sidebar-collapsed-badge {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  background-color: #8e7cc3;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(142, 124, 195, 0.25);
+  transition: all 0.2s ease-in-out;
+}
+
+.sidebar-collapsed-handle:hover .sidebar-collapsed-badge {
+  transform: scale(1.1);
+  box-shadow: 0 3px 6px rgba(142, 124, 195, 0.3);
+}
+
+.sidebar-collapse-button {
+  color: #555;
+}
+
+.sidebar-collapse-button:hover {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.sidebar-action-button {
+  color: #555;
+}
+
+.sidebar-action-button:hover {
+  background-color: rgba(0,0,0,0.05);
+  color: #8e7cc3;
+}
+
+.database-table-edit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  background-color: #f5f5f5;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.database-table-edit-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.database-table-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.database-table-fields {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 transparent;
+  height: 0;
+  min-height: 0;
+}
+
+.database-table-fields .ant-table {
+  margin-bottom: 0; /* 移除之前添加的边距 */
+}
+
+.database-table-add-field {
+  padding: 16px;
+  border-top: 1px solid #f0f0f0;
+  background-color: #fff;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0; /* 防止该区域被压缩 */
+}
+
+.field-inputs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.field-name-input {
+  grid-column: 1;
+}
+
+.field-type-input {
+  grid-column: 2;
+}
+
+.field-length-input {
+  grid-column: 3;
+}
+
+.field-nullable-input {
+  grid-column: 4;
+}
+
+.field-default-input {
+  grid-column: 1;
+}
+
+.field-checkbox-group {
+  grid-column: 2;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.field-foreign-key-input {
+  grid-column: 3 / span 2;
+}
+
+.field-desc-input {
+  grid-column: 1 / span 4;
+}
+
+.add-field-button {
+  margin-top: 8px;
+}
+
+.database-tables-empty {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.empty-message {
+  color: #999;
+  font-size: 16px;
+}
+
+/* SQL导入弹窗样式 */
+.sql-import-textarea {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+}
+
+/* 响应式布局 */
+@media (max-width: 992px) {
+  .database-tables-edit-layout {
+    flex-direction: column;
+  }
+  
+  .database-tables-sidebar {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+  
+  .field-inputs {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.database-table-edit-header-form {
+  padding: 16px 24px;
+  background-color: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.database-table-edit-header-form .form-label-required {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.database-table-edit-header-form .ant-form-item {
+  margin-bottom: 16px;
+}
+
+.database-table-edit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background-color: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.database-table-edit-title {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.database-table-edit-actions {
+  /* 样式可根据需要添加 */
+}
+
+.database-table-fields {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 transparent;
+  height: 0;
+  min-height: 0;
+}
+
+.table-header-inline .ant-form-item-label {
+  width: 50px; /* 固定标签宽度 */
+}
+
+/* 编辑模式下禁用表格的所有悬停效果 */
+.database-table-fields .ant-table-tbody > tr:hover {
+  background: none !important;
+}
+
+.database-table-fields .ant-table-tbody > tr:hover > td {
+  background-color: transparent !important;
+}
+
+.database-table-fields .ant-table-tbody > tr > td.ant-table-cell-row-hover {
+  background-color: transparent !important;
+}
+
+/* 编辑模式下同样修复偶数行问题 */
+.database-table-fields .ant-table-tbody > tr:nth-child(even),
+.database-table-fields .ant-table-tbody > tr:nth-child(even):hover,
+.database-table-fields .ant-table-tbody > tr:nth-child(even) td,
+.database-table-fields .ant-table-tbody > tr:nth-child(even):hover td,
+.database-table-fields .ant-table-tbody > tr:nth-child(even) > td.ant-table-cell-row-hover {
+  background-color: #fafafa !important;
+}
+
+.database-table-fields .ant-table-tbody > tr:nth-child(odd),
+.database-table-fields .ant-table-tbody > tr:nth-child(odd):hover,
+.database-table-fields .ant-table-tbody > tr:nth-child(odd) td,
+.database-table-fields .ant-table-tbody > tr:nth-child(odd):hover td,
+.database-table-fields .ant-table-tbody > tr:nth-child(odd) > td.ant-table-cell-row-hover {
+  background-color: #ffffff !important;
+}
+
+/* 禁用编辑模式表格的行悬停动画 */
+.database-table-fields .ant-table-tbody > tr > td,
+.database-table-fields .ant-table-thead > tr > th,
+.database-table-fields .ant-table-cell {
+  transition: none !important;
+}
+
+/* 禁用编辑模式表格整体的悬停效果 */
+.database-table-fields .ant-table {
+  --ant-table-row-hover-bg: transparent !important;
+}
+
+/* 禁用编辑模式表格行选中和悬停状态 */
+.database-table-fields .ant-table-tbody > tr.ant-table-row-selected > td,
+.database-table-fields .ant-table-tbody > tr.ant-table-row-selected:hover > td {
+  background: inherit !important;
+}
+
+/* 移除表格行悬停样式引用 */
+.table-fields-editor .ant-table-tbody > tr:hover > td {
+  background: transparent !important;
+}
+
+/* 禁用表格行悬停时的动画效果 */
+.table-fields-editor .ant-table-tbody > tr > td {
+  transition: none !important;
+}
+
+.database-table-content .ant-table-tbody > tr:nth-child(even) > td.ant-table-cell-row-hover {
+  background-color: #fafafa !important;
 } 

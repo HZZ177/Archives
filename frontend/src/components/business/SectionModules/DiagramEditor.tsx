@@ -668,6 +668,10 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           onCollapsedChange={setSidebarCollapsed}
           isEditable={isEditable}
           onRefresh={refreshDatabaseTables}
+          onTableDetailClick={(table) => {
+            setSelectedTable(table);
+            setDetailModalVisible(true);
+          }}
         />
       )}
       
@@ -747,6 +751,10 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
               onCollapsedChange={setSidebarCollapsed}
               isEditable={isEditable}
               onRefresh={refreshDatabaseTables}
+              onTableDetailClick={(table) => {
+                setSelectedTable(table);
+                setDetailModalVisible(true);
+              }}
             />
           )}
           

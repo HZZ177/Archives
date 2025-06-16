@@ -6,7 +6,7 @@
   background-color: #ffffff;
   background-image: linear-gradient(to bottom, #ffffff, #f9fafb);
   box-shadow: 2px 0 16px rgba(0, 0, 0, 0.08);
-  z-index: 100;
+  z-index: 5;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 250px;
   display: flex;
@@ -21,7 +21,7 @@
   box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  background-color: #f8f5ff;
+  background-color: #FAFAFC;
   border-right: 3px solid #8e7cc3;
   border-left: none;
   border-radius: 0 8px 8px 0;

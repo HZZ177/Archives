@@ -9,7 +9,8 @@ import {
   InboxOutlined,
   TableOutlined,
   DragOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import { DatabaseTable } from '../../../types/modules';
 import styles from './DatabaseTablePanel.module.css';
@@ -23,6 +24,7 @@ interface DatabaseTablePanelProps {
   onCollapsedChange: (collapsed: boolean) => void;
   isEditable?: boolean;
   onRefresh?: () => void;
+  onTableDetailClick?: (table: DatabaseTable) => void;
 }
 
 const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
@@ -31,7 +33,8 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
   collapsed,
   onCollapsedChange,
   isEditable = true,
-  onRefresh
+  onRefresh,
+  onTableDetailClick
 }) => {
   console.log('DatabaseTablePanel 渲染:', {
     tablesCount: databaseTables.length,
@@ -95,7 +98,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
         {!collapsed && (
           <>
             {isEditable && onRefresh && (
-              <Tooltip title="刷新数据库表" placement="right">
+              <Tooltip title="刷新数据库表" placement="top">
                 <Button
                   type="text"
                   icon={<ReloadOutlined />}
@@ -104,7 +107,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
                 />
               </Tooltip>
             )}
-            <Tooltip title="收起面板" placement="right">
+            <Tooltip title="收起面板" placement="top">
               <Button
                 type="text"
                 icon={<MenuFoldOutlined />}
@@ -140,11 +143,27 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
                 >
                   <Title level={5} className={styles.tableName}>
                     {table.table_name}
-                    {isEditable && (
-                      <Tooltip title="可拖拽到画布">
-                        <DragOutlined style={{ fontSize: '14px', marginLeft: 'auto', color: '#8e7cc3' }} />
+                    <div style={{ display: 'flex', marginLeft: 'auto' }}>
+                      <Tooltip title="查看表详情" placement="top">
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<EyeOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onTableDetailClick) {
+                              onTableDetailClick(table);
+                            }
+                          }}
+                          style={{ marginRight: '4px' }}
+                        />
                       </Tooltip>
-                    )}
+                      {isEditable && (
+                        <Tooltip title="可拖拽到画布" placement="top">
+                          <DragOutlined style={{ fontSize: '14px', color: '#8e7cc3' }} />
+                        </Tooltip>
+                      )}
+                    </div>
                   </Title>
                   {table.description && (
                     <Paragraph ellipsis={{ rows: 2 }} className={styles.tableDescription}>

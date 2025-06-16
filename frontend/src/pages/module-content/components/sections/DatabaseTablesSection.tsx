@@ -1,6 +1,6 @@
 import React, { ChangeEvent, useState } from 'react';
 import { Button, Input, Form, Table, Space, Select, Checkbox, Tooltip, Card, Tabs, Typography, Row, Col, message, Modal } from 'antd';
-import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined, LinkOutlined, KeyOutlined, ExclamationCircleOutlined, ImportOutlined, ExpandOutlined, CompressOutlined, DeleteOutlined, MinusOutlined } from '@ant-design/icons';
+import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined, LinkOutlined, KeyOutlined, ExclamationCircleOutlined, ImportOutlined, ExpandOutlined, CompressOutlined, DeleteOutlined, MinusOutlined, DownOutlined, UpOutlined, FileTextOutlined, DatabaseOutlined, MenuFoldOutlined, MenuUnfoldOutlined, NumberOutlined, CalendarOutlined, FieldStringOutlined, FieldTimeOutlined, FieldBinaryOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { DatabaseTable, DatabaseTableColumn } from '../../../../types/modules';
 import './SectionStyles.css';
@@ -14,33 +14,40 @@ const { Text } = Typography;
 interface DatabaseTablesSectionProps {
   tables: DatabaseTable[];
   onChange: (tables: DatabaseTable[]) => void;
-  onValidationChange: (tableId: string, errors: string[]) => void;
-  collapsedTables?: Set<string>;
-  setCollapsedTables?: React.Dispatch<React.SetStateAction<Set<string>>>;
+  onValidationChange: (tableIndex: number, errors: string[]) => void;
+  collapsedTables?: Set<number>;
+  setCollapsedTables?: React.Dispatch<React.SetStateAction<Set<number>>>;
+  isEditMode?: boolean;
 }
 
 // 数据库字段类型选项
 const FIELD_TYPE_OPTIONS = [
-  { value: 'int', label: 'INT' },
-  { value: 'bigint', label: 'BIGINT' },
-  { value: 'smallint', label: 'SMALLINT' },
-  { value: 'tinyint', label: 'TINYINT' },
-  { value: 'varchar', label: 'VARCHAR' },
-  { value: 'char', label: 'CHAR' },
-  { value: 'text', label: 'TEXT' },
-  { value: 'mediumtext', label: 'MEDIUMTEXT' },
-  { value: 'longtext', label: 'LONGTEXT' },
-  { value: 'date', label: 'DATE' },
-  { value: 'datetime', label: 'DATETIME' },
-  { value: 'timestamp', label: 'TIMESTAMP' },
-  { value: 'decimal', label: 'DECIMAL' },
-  { value: 'float', label: 'FLOAT' },
-  { value: 'double', label: 'DOUBLE' },
-  { value: 'boolean', label: 'BOOLEAN' },
-  { value: 'enum', label: 'ENUM' },
-  { value: 'json', label: 'JSON' },
-  { value: 'binary', label: 'BINARY' },
-  { value: 'blob', label: 'BLOB' },
+  { label: 'VARCHAR', value: 'varchar' },
+  { label: 'CHAR', value: 'char' },
+  { label: 'TEXT', value: 'text' },
+  { label: 'TINYTEXT', value: 'tinytext' },
+  { label: 'MEDIUMTEXT', value: 'mediumtext' },
+  { label: 'LONGTEXT', value: 'longtext' },
+  { label: 'INT', value: 'int' },
+  { label: 'TINYINT', value: 'tinyint' },
+  { label: 'SMALLINT', value: 'smallint' },
+  { label: 'MEDIUMINT', value: 'mediumint' },
+  { label: 'BIGINT', value: 'bigint' },
+  { label: 'FLOAT', value: 'float' },
+  { label: 'DOUBLE', value: 'double' },
+  { label: 'DECIMAL', value: 'decimal' },
+  { label: 'DATE', value: 'date' },
+  { label: 'DATETIME', value: 'datetime' },
+  { label: 'TIMESTAMP', value: 'timestamp' },
+  { label: 'TIME', value: 'time' },
+  { label: 'YEAR', value: 'year' },
+  { label: 'BOOLEAN', value: 'boolean' },
+  { label: 'JSON', value: 'json' },
+  { label: 'ENUM', value: 'enum' },
+  { label: 'SET', value: 'set' },
+  { label: 'BLOB', value: 'blob' },
+  { label: 'BINARY', value: 'binary' },
+  { label: 'VARBINARY', value: 'varbinary' },
 ];
 
 // 为了表格中的列宽度计算
@@ -63,241 +70,140 @@ const formItemLayout = {
 
 const inputStyle = { maxWidth: 400 };
 
-// 解析MySQL CREATE TABLE语句
+// 添加parseSql函数
 const parseSql = (sql: string): DatabaseTable | null => {
   try {
-    // 检查是否包含CREATE TABLE关键字
-    if (!sql.match(/CREATE\s+TABLE/i)) {
-      message.error('无法识别CREATE TABLE语句，请检查SQL语法');
-      return null;
-    }
-
-    // 基本的正则表达式匹配CREATE TABLE语句
-    const tableNameMatch = sql.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`?(?:(\w+))`?\.)?`?(?:(\w+))`?\s*\(/i);
+    // 提取表名
+    const tableNameMatch = sql.match(/CREATE\s+TABLE\s+(?:`|")?([^`"\s(]+)(?:`|")?/i);
     if (!tableNameMatch) {
-      message.error('无法解析表名，请检查SQL语句格式');
-      return null;
+      throw new Error('无法解析表名');
     }
-
-    const schemaName = tableNameMatch[1];
-    const tableName = tableNameMatch[2];
+    const tableName = tableNameMatch[1];
     
-    if (!tableName) {
-      message.error('表名解析失败，请检查SQL语法');
-      return null;
-    }
+    // 提取表描述
+    const tableCommentMatch = sql.match(/COMMENT\s*=\s*['"]([^'"]+)['"]/i);
+    const tableDescription = tableCommentMatch ? tableCommentMatch[1] : '';
     
-    // 获取表主体内容（括号内的部分）
-    const tableBodyMatch = sql.match(/\(([\s\S]*)\)(?:(?:\s+ENGINE|\s+CHARSET|\s+COLLATE|\s+AUTO_INCREMENT|\s+COMMENT).*)?\s*;?/i);
-    if (!tableBodyMatch) {
-      message.error('无法解析表结构，请检查SQL语句格式，确保有完整的括号');
-      return null;
-    }
+    // 提取字段定义
+    const columnsText = sql.substring(
+      sql.indexOf('(') + 1,
+      sql.lastIndexOf(')')
+    );
     
-    const tableBody = tableBodyMatch[1].trim();
-    
-    if (!tableBody) {
-      message.error('表结构内容为空，请确保CREATE TABLE语句包含字段定义');
-      return null;
-    }
-    
-    // 提取表描述（COMMENT）
-    let tableDescription: string | undefined;
-    const tableCommentMatch = sql.match(/COMMENT\s*=?\s*'([^']*)'/i);
-    if (tableCommentMatch) {
-      tableDescription = tableCommentMatch[1];
-    }
-    
-    // 将表主体分割成字段和约束定义
-    // 使用更复杂的逻辑来正确分割字段（考虑引号、括号等）
-    const definitions: string[] = [];
-    let currentDef = '';
-    let inQuotes = false;
-    let parenCount = 0;
-    
-    for (let i = 0; i < tableBody.length; i++) {
-      const char = tableBody[i];
-      
-      if (char === "'" && tableBody[i-1] !== '\\') {
-        inQuotes = !inQuotes;
-      } else if (char === '(' && !inQuotes) {
-        parenCount++;
-      } else if (char === ')' && !inQuotes) {
-        parenCount--;
-      }
-      
-      if (char === ',' && !inQuotes && parenCount === 0) {
-        definitions.push(currentDef.trim());
-        currentDef = '';
-      } else {
-        currentDef += char;
-      }
-    }
-    
-    if (currentDef.trim()) {
-      definitions.push(currentDef.trim());
-    }
-    
-    if (definitions.length === 0) {
-      message.error('未能识别任何字段定义，请检查SQL语法');
-      return null;
-    }
-    
-    // 初始化结果对象
-    const table: DatabaseTable = {
-      table_name: tableName,
-      schema_name: schemaName,
-      description: tableDescription,
-      columns: []
-    };
-    
-    // 处理主键和外键约束
-    const primaryKeyFields = new Set<string>();
-    const uniqueFields = new Set<string>();
-    const indexFields = new Set<string>();
-    const foreignKeys: {[field: string]: {table: string, column: string}} = {};
-    
-    // 首先提取所有约束
-    definitions.forEach(def => {
-      try {
-        // 主键约束
-        const primaryKeyMatch = def.match(/PRIMARY\s+KEY\s*\((?:`?([^`,\)]+)`?)(?:\s*,\s*`?([^`,\)]+)`?)*\)/i);
-        if (primaryKeyMatch) {
-          for (let i = 1; i < primaryKeyMatch.length; i++) {
-            if (primaryKeyMatch[i]) {
-              primaryKeyFields.add(primaryKeyMatch[i]);
-            }
-          }
-          return; // 跳过，不作为字段处理
-        }
-        
-        // 唯一约束
-        const uniqueMatch = def.match(/UNIQUE(?:\s+KEY|INDEX)?\s*(?:`?\w+`?)?\s*\((?:`?([^`,\)]+)`?)(?:\s*,\s*`?([^`,\)]+)`?)*\)/i);
-        if (uniqueMatch) {
-          for (let i = 1; i < uniqueMatch.length; i++) {
-            if (uniqueMatch[i]) {
-              uniqueFields.add(uniqueMatch[i]);
-            }
-          }
-          return; // 跳过，不作为字段处理
-        }
-        
-        // 普通索引
-        const indexMatch = def.match(/(?:KEY|INDEX)\s+`?\w+`?\s*\((?:`?([^`,\)]+)`?)(?:\s*,\s*`?([^`,\)]+)`?)*\)/i);
-        if (indexMatch) {
-          for (let i = 1; i < indexMatch.length; i++) {
-            if (indexMatch[i]) {
-              indexFields.add(indexMatch[i]);
-            }
-          }
-          return; // 跳过，不作为字段处理
-        }
-        
-        // 外键约束
-        const foreignKeyMatch = def.match(/FOREIGN\s+KEY\s*\(`?([^`\)]+)`?\)\s*REFERENCES\s+`?(\w+)`?\s*\(`?([^`\)]+)`?\)/i);
-        if (foreignKeyMatch) {
-          const [, field, referenceTable, referenceColumn] = foreignKeyMatch;
-          foreignKeys[field] = {
-            table: referenceTable,
-            column: referenceColumn
-          };
-          return; // 跳过，不作为字段处理
-        }
-      } catch (error) {
-        console.error('解析约束时出错:', error);
-        // 继续处理其他定义
-      }
+    // 分割字段定义
+    const columnDefinitions = columnsText.split(',').filter(line => {
+      const trimmed = line.trim();
+      return trimmed && !trimmed.startsWith('PRIMARY KEY') && 
+             !trimmed.startsWith('UNIQUE KEY') && !trimmed.startsWith('INDEX') && 
+             !trimmed.startsWith('FOREIGN KEY') && !trimmed.startsWith('KEY');
     });
     
-    // 处理字段定义
-    let fieldCount = 0;
+    // 解析主键
+    const primaryKeyMatch = columnsText.match(/PRIMARY\s+KEY\s+\(([^)]+)\)/i);
+    const primaryKeys = primaryKeyMatch 
+      ? primaryKeyMatch[1].split(',').map(key => key.trim().replace(/[`"]/g, ''))
+      : [];
     
-    definitions.forEach(def => {
-      try {
-        // 跳过约束定义
-        if (def.match(/^(?:PRIMARY|UNIQUE|FOREIGN)\s+KEY/i) || def.match(/^KEY\s/i) || def.match(/^INDEX\s/i) || def.match(/^CONSTRAINT\s/i)) {
-          return;
-        }
-        
-        // 匹配字段定义：字段名 类型(长度) [NULL|NOT NULL] [DEFAULT 值] [其他约束]
-        const fieldMatch = def.match(/^`?([^`]+)`?\s+(\w+)(?:\((\d+)(?:,\s*\d+)?\))?(.*)$/i);
+    // 解析唯一键
+    const uniqueKeyMatches = [...columnsText.matchAll(/UNIQUE\s+KEY\s+(?:`|")?[^`"\s(]+(?:`|")?\s*\(([^)]+)\)/gi)];
+    const uniqueKeys: string[] = [];
+    uniqueKeyMatches.forEach(match => {
+      match[1].split(',').forEach(key => {
+        uniqueKeys.push(key.trim().replace(/[`"]/g, ''));
+      });
+    });
+    
+    // 解析索引
+    const indexMatches = [...columnsText.matchAll(/INDEX\s+(?:`|")?[^`"\s(]+(?:`|")?\s*\(([^)]+)\)/gi)];
+    const indexKeys: string[] = [];
+    indexMatches.forEach(match => {
+      match[1].split(',').forEach(key => {
+        indexKeys.push(key.trim().replace(/[`"]/g, ''));
+      });
+    });
+    
+    // 解析外键
+    const foreignKeyMatches = [...columnsText.matchAll(/FOREIGN\s+KEY\s+\(([^)]+)\)\s+REFERENCES\s+(?:`|")?([^`"\s(]+)(?:`|")?\s*\(([^)]+)\)/gi)];
+    const foreignKeys: Record<string, { reference_table: string, reference_column: string }> = {};
+    foreignKeyMatches.forEach(match => {
+      const localColumn = match[1].trim().replace(/[`"]/g, '');
+      const referenceTable = match[2].trim();
+      const referenceColumn = match[3].trim().replace(/[`"]/g, '');
+      foreignKeys[localColumn] = { reference_table: referenceTable, reference_column: referenceColumn };
+    });
+    
+    // 解析字段
+    const columns: DatabaseTableColumn[] = [];
+    columnDefinitions.forEach(def => {
+      const fieldMatch = def.match(/^\s*(?:`|")?([^`"\s]+)(?:`|")?\s+([^\s(]+)(?:\(([^)]+)\))?\s*(.*)/i);
         if (!fieldMatch) return;
         
-        fieldCount++;
-        const [, fieldName, fieldType, fieldLength, rest] = fieldMatch;
-        
-        // 检查是否为NOT NULL
-        const isNullable = !rest.match(/\bNOT\s+NULL\b/i);
+      const fieldName = fieldMatch[1];
+      const fieldType = fieldMatch[2].toLowerCase();
+      const fieldLength = fieldMatch[3] ? parseInt(fieldMatch[3]) : undefined;
+      const fieldOptions = fieldMatch[4];
+      
+      // 检查是否可为空
+      const nullable = !fieldOptions.includes('NOT NULL');
         
         // 提取默认值
-        let defaultValue: string | undefined;
-        const defaultMatch = rest.match(/DEFAULT\s+(?:'([^']*)'|(\d+(?:\.\d+)?)|(\bNULL\b)|\b(CURRENT_TIMESTAMP)(?:\(\d\))?\b)/i);
-        if (defaultMatch) {
-          defaultValue = defaultMatch[1] !== undefined ? defaultMatch[1] : 
-                        defaultMatch[2] !== undefined ? defaultMatch[2] : 
-                        defaultMatch[3] !== undefined ? defaultMatch[3] :
-                        defaultMatch[4];
-        }
-        
-        // 提取字段描述
-        let fieldDescription: string | undefined;
-        const commentMatch = rest.match(/COMMENT\s+'([^']*)'/i);
-        if (commentMatch) {
-          fieldDescription = commentMatch[1];
-        }
-        
-        // 检查是否有PRIMARY KEY约束
-        const isPrimaryKey = primaryKeyFields.has(fieldName) || rest.includes('PRIMARY KEY');
-        
-        // 检查是否有UNIQUE约束
-        const isUnique = uniqueFields.has(fieldName) || rest.includes('UNIQUE');
-        
-        // 检查是否有索引
-        const isIndex = indexFields.has(fieldName);
-        
-        // 创建列对象
-        const column: DatabaseTableColumn = {
+      const defaultValueMatch = fieldOptions.match(/DEFAULT\s+(?:'([^']*)'|(\d+(?:\.\d+)?)|([^'\s,]+))/i);
+      const defaultValue = defaultValueMatch 
+        ? (defaultValueMatch[1] || defaultValueMatch[2] || defaultValueMatch[3])
+        : undefined;
+      
+      // 提取注释
+      const commentMatch = fieldOptions.match(/COMMENT\s+['"]([^'"]+)['"]/i);
+      const description = commentMatch ? commentMatch[1] : '';
+      
+      // 检查是否为主键、唯一键或索引
+      const isPrimaryKey = primaryKeys.includes(fieldName);
+      const isUnique = uniqueKeys.includes(fieldName);
+      const isIndex = indexKeys.includes(fieldName);
+      
+      // 检查是否有外键
+      const foreignKey = foreignKeys[fieldName];
+      
+      columns.push({
           field_name: fieldName,
-          field_type: fieldType.toLowerCase(),
-          length: fieldLength ? parseInt(fieldLength) : undefined,
-          nullable: isNullable && !isPrimaryKey, // 主键不能为空
+        field_type: fieldType,
+        length: fieldLength,
+        nullable,
           default_value: defaultValue,
-          description: fieldDescription,
+        description,
           is_primary_key: isPrimaryKey,
           is_unique: isUnique,
-          is_index: isIndex
-        };
-        
-        // 设置外键信息
-        if (foreignKeys[fieldName]) {
-          column.foreign_key = {
-            reference_table: foreignKeys[fieldName].table,
-            reference_column: foreignKeys[fieldName].column
-          };
-        }
-        
-        table.columns.push(column);
-      } catch (error) {
-        console.error('解析字段时出错:', error);
-        // 继续处理其他字段
-      }
+        is_index: isIndex,
+        foreign_key: foreignKey
+      });
     });
     
-    // 如果没有解析出任何列，返回错误
-    if (table.columns.length === 0) {
-      if (fieldCount > 0) {
-        message.error('字段解析失败，请检查字段定义格式');
-      } else {
-        message.error('未能解析出任何字段，请检查SQL语句格式');
-      }
-      return null;
-    }
-    
-    return table;
+    return {
+      table_name: tableName,
+      description: tableDescription,
+      schema_name: '',
+      columns
+    };
   } catch (error) {
     console.error('SQL解析错误:', error);
-    message.error('SQL解析失败，请检查语法');
+    message.error('SQL解析失败，请检查格式');
     return null;
+  }
+};
+
+// 添加字段类型图标映射
+const getFieldTypeIcon = (fieldType: string) => {
+  const type = fieldType.toLowerCase();
+  if (type.includes('int') || type.includes('float') || type.includes('double') || type.includes('decimal')) {
+    return <NumberOutlined style={{ color: '#1890ff', marginRight: 5 }} />;
+  } else if (type.includes('char') || type.includes('text') || type === 'json' || type === 'enum' || type === 'set') {
+    return <FieldStringOutlined style={{ color: '#52c41a', marginRight: 5 }} />;
+  } else if (type.includes('date') || type.includes('time') || type === 'year') {
+    return <CalendarOutlined style={{ color: '#fa8c16', marginRight: 5 }} />;
+  } else if (type.includes('blob') || type.includes('binary')) {
+    return <FieldBinaryOutlined style={{ color: '#722ed1', marginRight: 5 }} />;
+  } else {
+    return <InfoCircleOutlined style={{ color: '#d9d9d9', marginRight: 5 }} />;
   }
 };
 
@@ -305,8 +211,9 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
   tables,
   onChange,
   onValidationChange,
-  collapsedTables = new Set<string>(),
+  collapsedTables = new Set<number>(),
   setCollapsedTables = () => {},
+  isEditMode = false,
 }) => {
   const [expandedRowKeys, setExpandedRowKeys] = useState<Record<number, React.Key[]>>({});
   const [tableErrors, setTableErrors] = useState<Record<number, string[]>>({});
@@ -314,36 +221,63 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
   const [importLoading, setImportLoading] = useState<boolean>(false);
   const [sqlImportModalVisible, setSqlImportModalVisible] = useState<boolean>(false);
   const newTableRef = React.useRef<HTMLDivElement>(null);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
+  const [validationErrors, setValidationErrors] = useState<Record<number, string[]>>({});
+  const [currentTableIndex, setCurrentTableIndex] = useState<number>(0);
+  const [newTableName, setNewTableName] = useState<string>('');
+  const [newTableDesc, setNewTableDesc] = useState<string>('');
+  const [newFieldName, setNewFieldName] = useState<string>('');
+  const [newFieldType, setNewFieldType] = useState<string | undefined>(undefined);
+  const [newFieldLength, setNewFieldLength] = useState<string>('');
+  const [newFieldNullable, setNewFieldNullable] = useState<boolean | undefined>(undefined);
+  const [newFieldDesc, setNewFieldDesc] = useState<string>('');
+  const [newFieldDefaultValue, setNewFieldDefaultValue] = useState<string>('');
+  const [newFieldIsPrimaryKey, setNewFieldIsPrimaryKey] = useState<boolean>(false);
+  const [newFieldIsIndex, setNewFieldIsIndex] = useState<boolean>(false);
+  const [newFieldForeignKey, setNewFieldForeignKey] = useState<string>('');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  const toggleCollapse = (tableId: string) => {
+  const toggleCollapse = (tableIndex: number) => {
     setCollapsedTables(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(tableId)) {
-        newSet.delete(tableId);
+      if (newSet.has(tableIndex)) {
+        newSet.delete(tableIndex);
       } else {
-        newSet.add(tableId);
+        newSet.add(tableIndex);
       }
       return newSet;
     });
   };
 
-  const handleTableChange = (tableId: string, changes: Partial<DatabaseTable>) => {
-    const updatedTables = tables.map(table => 
-      table.table_name === tableId ? { ...table, ...changes } : table
+  const handleTableChange = (tableIndex: number, changes: Partial<DatabaseTable>) => {
+    const updatedTables = tables.map((table, index) => 
+      index === tableIndex ? { ...table, ...changes } : table
     );
     onChange(updatedTables);
   };
 
   const handleDeleteTable = (tableIndex: number) => {
-    const updatedTables = [...tables];
-    updatedTables.splice(tableIndex, 1);
-    onChange(updatedTables);
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除表 "${tables[tableIndex].table_name}" 吗？此操作不可撤销。`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: () => {
+        const newTables = [...tables];
+        newTables.splice(tableIndex, 1);
+        onChange(newTables);
+        if (currentTableIndex === tableIndex) {
+          setCurrentTableIndex(0);
+        } else if (currentTableIndex > tableIndex) {
+          setCurrentTableIndex(currentTableIndex - 1);
+        }
+        message.success('数据表已删除');
+      },
+    });
   };
 
-  const renderTableHeader = (table: DatabaseTable) => {
-    const isCollapsed = collapsedTables.has(table.table_name);
-    const errors = validationErrors[table.table_name] || [];
+  const renderTableHeader = (table: DatabaseTable, tableIndex: number) => {
+    const errors = validationErrors[tableIndex] || [];
 
     // 自定义label，星号右上角
     const requiredLabel = (
@@ -354,33 +288,50 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
     );
 
     return (
-      <div className="table-header">
-        <Row gutter={[16, 8]} align="middle">
-          <Col span={24}>
+      <div className="table-header-inline">
+        <Row gutter={[16, 8]} align="middle" justify="space-between">
+          <Col span={10}>
             <Form.Item
               label={requiredLabel}
-              validateStatus={errors.length > 0 ? 'error' : ''}
-              help={errors.length > 0 ? errors[0] : ''}
+              validateStatus={errors.some(e => e.includes('表名')) ? 'error' : ''}
+              help={errors.find(e => e.includes('表名')) || ''}
               {...formItemLayout}
+              style={{ marginBottom: 0 }}
             >
               <Input
                 value={table.table_name}
-                onChange={(e) => handleTableChange(table.table_name, { table_name: e.target.value })}
+                onChange={(e) => handleTableChange(tableIndex, { table_name: e.target.value })}
                 placeholder="请输入表名"
-                style={inputStyle}
               />
             </Form.Item>
           </Col>
-          <Col span={24}>
-            <Form.Item label="描述" {...formItemLayout}>
-              <Input.TextArea
+          <Col span={10}>
+            <Form.Item label="描述" {...formItemLayout} style={{ marginBottom: 0 }}>
+              <Input
                 value={table.description}
-                onChange={(e) => handleTableChange(table.table_name, { description: e.target.value })}
+                onChange={(e) => handleTableChange(tableIndex, { description: e.target.value })}
                 placeholder="请输入表描述"
-                autoSize={{ minRows: 1, maxRows: 2 }}
-                style={inputStyle}
               />
             </Form.Item>
+          </Col>
+          <Col span={4} style={{ textAlign: 'right' }}>
+            <Button
+              type="primary"
+              onClick={() => {
+                const sql = generateSql(tables[currentTableIndex]);
+                Modal.info({
+                  title: `${tables[currentTableIndex].table_name} SQL定义`,
+                  content: (
+                    <pre style={{ maxHeight: '400px', overflow: 'auto' }}>
+                      {sql}
+                    </pre>
+                  ),
+                  width: 800,
+                });
+              }}
+            >
+              查看SQL
+            </Button>
           </Col>
         </Row>
       </div>
@@ -388,27 +339,21 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
   };
 
   const renderTableActions = (table: DatabaseTable, tableIndex: number) => {
-    const isCollapsed = collapsedTables.has(table.table_name);
-
     return (
-      <Space>
+      <div className="database-tables-actions">
         <Button
           type="text"
-          icon={isCollapsed ? <ExpandOutlined /> : <CompressOutlined />}
-          onClick={() => toggleCollapse(table.table_name)}
-          className="table-collapse-button"
-        >
-          {isCollapsed ? '展开' : '折叠'}
-        </Button>
-        <Button
-          type="text"
-          danger
+          size="small"
           icon={<DeleteOutlined />}
-          onClick={() => handleDeleteTable(tableIndex)}
+          danger
+          onClick={(e) => {
+            e.stopPropagation(); // 防止点击事件冒泡到header触发展开/折叠
+            handleDeleteTable(tableIndex);
+          }}
         >
           删除
         </Button>
-      </Space>
+      </div>
     );
   };
 
@@ -469,20 +414,29 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
     return errors;
   };
   
-  // 验证所有表
+  React.useEffect(() => {
+    const allErrors: Record<number, string[]> = {};
+    tables.forEach((table, index) => {
+      const tableSpecificErrors = validateTable(table, index);
+      if (tableSpecificErrors.length > 0) {
+        allErrors[index] = tableSpecificErrors;
+      }
+      onValidationChange(index, tableSpecificErrors);
+    });
+    setValidationErrors(allErrors);
+  }, [tables]);
+
   const validateAllTables = (): boolean => {
     let isValid = true;
-    const newTableErrors: Record<number, string[]> = {};
-    
+    const allErrors: Record<number, string[]> = {};
     tables.forEach((table, index) => {
       const errors = validateTable(table, index);
-      newTableErrors[index] = errors;
       if (errors.length > 0) {
         isValid = false;
+        allErrors[index] = errors;
       }
     });
-    
-    setTableErrors(newTableErrors);
+    setTableErrors(allErrors);
     return isValid;
   };
 
@@ -499,302 +453,14 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
     });
   };
 
-  // 添加新表
-  const addTable = () => {
-    const newTable: DatabaseTable = {
-      table_name: '',
-      description: '',
-      schema_name: '',
-      columns: []
-    };
-    const newTablesArray = [...tables, newTable];
-    onChange(newTablesArray);
-    // 确保新添加的表默认展开
-    setCollapsedTables(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(newTable.table_name); // 使用delete确保展开
-      return newSet;
-    });
-
-    // 延迟滚动，确保DOM更新
-    setTimeout(() => {
-      newTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+  // 打开SQL导入弹窗
+  const showSqlImportModal = () => {
+    setSqlImportModalVisible(true);
   };
 
-  // 更新列信息
-  const handleColumnChange = (tableIndex: number, columnIndex: number, field: keyof DatabaseTableColumn, value: any) => {
-    const newTables = [...tables];
-    const newColumns = [...newTables[tableIndex].columns];
-    const columnToUpdate = { ...newColumns[columnIndex] };
-
-    // 根据字段类型处理值
-    if (field === 'nullable' || field === 'is_primary_key' || field === 'is_unique' || field === 'is_index') {
-      columnToUpdate[field] = Boolean(value);
-    } else if (field === 'length') {
-      columnToUpdate[field] = value === '' ? undefined : Number(value);
-    } else {
-      (columnToUpdate as any)[field] = value;
-    }
-
-    newColumns[columnIndex] = columnToUpdate;
-    
-    // 如果设置为主键，则自动设为不可为空和唯一
-    if (field === 'is_primary_key' && value === true) {
-      newColumns[columnIndex].nullable = false;
-      newColumns[columnIndex].is_unique = true;
-    }
-
-    newTables[tableIndex] = {
-      ...newTables[tableIndex],
-      columns: newColumns,
-    };
-    onChange(newTables);
-  };
-
-  // 添加新列
-  const addColumn = (tableIndex: number) => {
-    const newTables = [...tables];
-    const newColumn: DatabaseTableColumn = {
-      field_name: '',
-      field_type: 'varchar',
-      length: 255,
-      nullable: true,
-      default_value: '',
-      description: '',
-      is_primary_key: false,
-      is_unique: false,
-      is_index: false,
-    };
-    newTables[tableIndex].columns.push(newColumn);
-    onChange(newTables);
-  };
-  
-  // 删除列
-  const deleteColumn = (tableIndex: number, columnIndex: number) => {
-    const newTables = [...tables];
-    newTables[tableIndex].columns.splice(columnIndex, 1);
-    onChange(newTables);
-  };
-
-  // 生成SQL预览
-  const generateSql = (table: DatabaseTable): string => {
-    let sql = `CREATE TABLE ${table.schema_name ? `${table.schema_name}.` : ''}${table.table_name} (\n`;
-    
-    // 添加列定义
-    const columnDefinitions = table.columns.map(column => {
-      let def = `  ${column.field_name} ${column.field_type.toUpperCase()}`;
-      
-      // 添加长度/精度
-      if (column.length) {
-        def += `(${column.length})`;
-      }
-      
-      // 添加是否可为空
-      def += column.nullable ? ' NULL' : ' NOT NULL';
-      
-      // 添加默认值
-      if (column.default_value) {
-        def += ` DEFAULT ${column.default_value}`;
-      }
-      
-      // 添加主键、唯一约束
-      if (column.is_primary_key) {
-        def += ' PRIMARY KEY';
-      } else if (column.is_unique) {
-        def += ' UNIQUE';
-      }
-      
-      return def;
-    });
-    
-    sql += columnDefinitions.join(',\n');
-    
-    // 添加外键定义
-    const foreignKeys = table.columns
-      .filter(column => column.foreign_key)
-      .map(column => {
-        return `  FOREIGN KEY (${column.field_name}) REFERENCES ${column.foreign_key?.reference_table}(${column.foreign_key?.reference_column})`;
-      });
-    
-    if (foreignKeys.length > 0) {
-      sql += ',\n' + foreignKeys.join(',\n');
-    }
-    
-    sql += '\n);';
-    
-    // 添加索引
-    const indexes = table.columns
-      .filter(column => column.is_index && !column.is_primary_key && !column.is_unique)
-      .map(column => {
-        return `CREATE INDEX idx_${table.table_name}_${column.field_name} ON ${table.table_name}(${column.field_name});`;
-      });
-    
-    if (indexes.length > 0) {
-      sql += '\n\n' + indexes.join('\n');
-    }
-    
-    return sql;
-  };
-
-  // 表格列定义
-  const getColumnsDefinition = (tableIndex: number): ColumnsType<DatabaseTableColumn> => {
-    return [
-      {
-        title: '字段名',
-        dataIndex: 'field_name',
-        key: 'field_name',
-        width: FIELD_NAME_WIDTH,
-        render: (text: string, record: DatabaseTableColumn, index: number) => (
-          <Input
-            value={text}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => handleColumnChange(tableIndex, index, 'field_name', e.target.value)}
-            placeholder="输入字段名"
-          />
-        )
-      },
-      {
-        title: '字段类型',
-        dataIndex: 'field_type',
-        key: 'field_type',
-        width: FIELD_TYPE_WIDTH,
-        render: (text: string, record: DatabaseTableColumn, index: number) => (
-          <Select
-            value={text}
-            onChange={(value: string) => handleColumnChange(tableIndex, index, 'field_type', value)}
-            style={{ width: '100%' }}
-          >
-            {FIELD_TYPE_OPTIONS.map(option => (
-              <Option key={option.value} value={option.value}>{option.label}</Option>
-            ))}
-          </Select>
-        )
-      },
-      {
-        title: '长度/精度',
-        dataIndex: 'length',
-        key: 'length',
-        width: FIELD_LENGTH_WIDTH,
-        render: (text: number | undefined, record: DatabaseTableColumn, index: number) => (
-          <Input
-            type="number"
-            value={text}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => 
-              handleColumnChange(tableIndex, index, 'length', e.target.value)
-            }
-            placeholder="长度"
-          />
-        )
-      },
-      {
-        title: '可为空',
-        dataIndex: 'nullable',
-        key: 'nullable',
-        width: NULLABLE_WIDTH,
-        render: (nullable: boolean, record: DatabaseTableColumn, index: number) => (
-          <Checkbox
-            checked={nullable}
-            onChange={(e) => handleColumnChange(tableIndex, index, 'nullable', e.target.checked)}
-            disabled={record.is_primary_key} // 主键不能为空
-          />
-        )
-      },
-      {
-        title: '主键',
-        dataIndex: 'is_primary_key',
-        key: 'is_primary_key',
-        width: PK_WIDTH,
-        render: (isPrimaryKey: boolean, record: DatabaseTableColumn, index: number) => (
-          <Checkbox
-            checked={isPrimaryKey}
-            onChange={(e) => handleColumnChange(tableIndex, index, 'is_primary_key', e.target.checked)}
-          />
-        )
-      },
-      {
-        title: '默认值',
-        dataIndex: 'default_value',
-        key: 'default_value',
-        width: DEFAULT_VALUE_WIDTH,
-        render: (text: string | undefined, record: DatabaseTableColumn, index: number) => (
-          <Input
-            value={text}
-            onChange={(e) => handleColumnChange(tableIndex, index, 'default_value', e.target.value)}
-            placeholder="默认值"
-          />
-        )
-      },
-      {
-        title: '选项',
-        key: 'options',
-        width: OPTIONS_WIDTH,
-        render: (_, record: DatabaseTableColumn, index: number) => (
-          <Space size="small">
-            <Tooltip title="唯一约束">
-              <Checkbox
-                checked={record.is_unique}
-                onChange={(e) => handleColumnChange(tableIndex, index, 'is_unique', e.target.checked)}
-                disabled={record.is_primary_key} // 主键已经是唯一的
-              >
-                唯一
-              </Checkbox>
-            </Tooltip>
-            <Tooltip title="索引">
-              <Checkbox
-                checked={record.is_index}
-                onChange={(e) => handleColumnChange(tableIndex, index, 'is_index', e.target.checked)}
-              >
-                索引
-              </Checkbox>
-            </Tooltip>
-          </Space>
-        )
-      },
-      {
-        title: '字段描述',
-        key: 'description',
-        width: DESCRIPTION_WIDTH,
-        render: (text: any, record: DatabaseTableColumn, index: number) => {
-          const rowKey = `${tableIndex}_column_${index}`;
-          const isExpanded = (expandedRowKeys[tableIndex] || []).includes(rowKey);
-          const preview = record.description
-            ? record.description.length > 6
-              ? record.description.substring(0, 6) + '...'
-              : record.description
-            : '-';
-
-          return (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {preview}
-              </span>
-              <Button
-                type="text"
-                size="small"
-                icon={isExpanded ? <MinusOutlined /> : <PlusOutlined />}
-                onClick={() => handleRowExpand(tableIndex, rowKey)}
-              />
-            </div>
-          );
-        },
-      },
-      {
-        title: '操作',
-        key: 'action',
-        width: ACTION_WIDTH,
-        render: (_: any, record: DatabaseTableColumn, index: number) => (
-          <Button
-            type="text"
-            danger
-            icon={<MinusCircleOutlined />}
-            onClick={() => deleteColumn(tableIndex, index)}
-            size="small"
-          >
-            删除
-          </Button>
-        )
-      }
-    ];
+  // 关闭SQL导入弹窗
+  const closeSqlImportModal = () => {
+    setSqlImportModalVisible(false);
   };
 
   // 处理SQL导入
@@ -864,144 +530,748 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
     message.info('已填充示例SQL，您可以根据需要修改并导入');
   };
 
-  // 打开SQL导入弹窗
-  const showSqlImportModal = () => {
-    setSqlImportModalVisible(true);
+  // 添加新表，使用状态中的新表名和描述
+  const handleAddTable = () => {
+    if (!newTableName.trim()) {
+      message.warning('表名不能为空');
+      return;
+    }
+    
+    const newTable: DatabaseTable = {
+      table_name: newTableName,
+      description: newTableDesc,
+      schema_name: '',
+      columns: []
+    };
+    
+    const newTables = [...tables, newTable];
+    onChange(newTables);
+    setCurrentTableIndex(newTables.length - 1);
+    
+    // 清空输入
+    setNewTableName('');
+    setNewTableDesc('');
+    
+    // 确保新添加的表默认展开
+    setCollapsedTables(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(newTables.length - 1);
+      return newSet;
+    });
+
+    // 延迟滚动，确保DOM更新
+    setTimeout(() => {
+      newTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
-  // 关闭SQL导入弹窗
-  const closeSqlImportModal = () => {
-    setSqlImportModalVisible(false);
+  // 处理添加新字段
+  const handleAddField = () => {
+    if (!newFieldName) {
+      message.warning('字段名不能为空');
+      return;
+    }
+
+    if (newFieldType === undefined) {
+      message.warning('请选择字段类型');
+      return;
+    }
+
+    if (newFieldNullable === undefined) {
+      message.warning('请选择是否可否为空');
+      return;
+    }
+
+    if (tables.length === 0 || currentTableIndex < 0 || currentTableIndex >= tables.length) {
+      message.warning('请先选择或创建一个表');
+      return;
+    }
+
+    // 处理外键 - 虽然UI上不显示，但我们仍然保留这部分逻辑以保持数据结构的完整性
+    let foreignKey = undefined;
+    if (newFieldForeignKey) {
+      const parts = newFieldForeignKey.split('.');
+      if (parts.length === 2) {
+        foreignKey = {
+          reference_table: parts[0],
+          reference_column: parts[1]
+        };
+      } else {
+        message.warning('外键格式不正确，请使用"表名.字段名"格式');
+        return;
+      }
+    }
+
+    // 添加新字段
+    const newColumn: DatabaseTableColumn = {
+      field_name: newFieldName,
+      field_type: newFieldType,
+      length: newFieldLength ? parseInt(newFieldLength) : undefined,
+      nullable: newFieldNullable,
+      default_value: newFieldDefaultValue,
+      is_primary_key: newFieldIsPrimaryKey,
+      is_unique: false,
+      is_index: newFieldIsIndex,
+      foreign_key: foreignKey,
+      description: newFieldDesc
+    };
+    
+    const newTables = [...tables];
+    newTables[currentTableIndex].columns.push(newColumn);
+    onChange(newTables);
+    
+    // 清空输入
+    setNewFieldName('');
+    setNewFieldType(undefined);
+    setNewFieldLength('');
+    setNewFieldNullable(undefined);
+    setNewFieldDefaultValue('');
+    setNewFieldDesc('');
+    setNewFieldIsPrimaryKey(false);
+    setNewFieldIsIndex(false);
+    setNewFieldForeignKey('');
   };
 
-  return (
-    <div className="section-content database-tables-section">
-      {tables.map((table, tableIndex) => (
-        <div 
-          key={tableIndex} 
-          className={`database-table-container ${collapsedTables.has(table.table_name) ? 'collapsed' : ''}`}
-          ref={tableIndex === tables.length - 1 ? newTableRef : null}
-        >
-          <Card 
-            title={renderTableHeader(table)}
-            extra={renderTableActions(table, tableIndex)}
-          >
-            <CSSTransition
-              in={collapsedTables.has(table.table_name)}
-              timeout={300}
-              classNames="table-fade"
-              unmountOnExit
+  // 更新列信息
+  const handleColumnChange = (tableIndex: number, columnIndex: number, field: keyof DatabaseTableColumn, value: any) => {
+    const newTables = [...tables];
+    const newColumns = [...newTables[tableIndex].columns];
+    const columnToUpdate = { ...newColumns[columnIndex] };
+
+    // 根据字段类型处理值
+    if (field === 'nullable' || field === 'is_primary_key' || field === 'is_unique' || field === 'is_index') {
+      columnToUpdate[field] = Boolean(value);
+    } else if (field === 'length') {
+      columnToUpdate[field] = value === '' ? undefined : Number(value);
+    } else {
+      (columnToUpdate as any)[field] = value;
+    }
+
+    newColumns[columnIndex] = columnToUpdate;
+    
+    // 如果设置为主键，则自动设为不可为空和唯一
+    if (field === 'is_primary_key' && value === true) {
+      newColumns[columnIndex].nullable = false;
+      newColumns[columnIndex].is_unique = true;
+    }
+
+    newTables[tableIndex] = {
+      ...newTables[tableIndex],
+      columns: newColumns,
+    };
+    onChange(newTables);
+  };
+
+  // 添加新列
+  const addColumn = (tableIndex: number) => {
+    const newColumn: DatabaseTableColumn = {
+      field_name: '',
+      field_type: 'varchar',
+      length: 255,
+      nullable: true,
+      is_primary_key: false,
+      is_unique: false,
+      is_index: false,
+      description: '',
+      default_value: ''
+    };
+
+    const newTables = [...tables];
+    newTables[tableIndex].columns.push(newColumn);
+    onChange(newTables);
+  };
+  
+  // 删除列
+  const deleteColumn = (tableIndex: number, columnIndex: number) => {
+    const newTables = [...tables];
+    newTables[tableIndex].columns.splice(columnIndex, 1);
+    onChange(newTables);
+  };
+
+  // 生成SQL预览
+  const generateSql = (table: DatabaseTable): string => {
+    const tableName = table.table_name;
+    const tableComment = table.description ? ` COMMENT='${table.description}'` : '';
+    
+    // 生成字段定义
+    const columnDefinitions = table.columns.map(column => {
+      const fieldName = `\`${column.field_name}\``;
+      const fieldType = column.field_type.toUpperCase();
+      const fieldLength = column.length ? `(${column.length})` : '';
+      const nullableStr = column.nullable ? '' : ' NOT NULL';
+      const defaultValue = column.default_value 
+        ? ` DEFAULT ${isNaN(Number(column.default_value)) ? `'${column.default_value}'` : column.default_value}`
+        : '';
+      const commentStr = column.description ? ` COMMENT '${column.description}'` : '';
+      
+      return `  ${fieldName} ${fieldType}${fieldLength}${nullableStr}${defaultValue}${commentStr}`;
+    }).join(',\n');
+    
+    // 生成主键定义
+    const primaryKeys = table.columns
+      .filter(column => column.is_primary_key)
+      .map(column => `\`${column.field_name}\``);
+    
+    const primaryKeyStr = primaryKeys.length > 0 
+      ? `,\n  PRIMARY KEY (${primaryKeys.join(', ')})`
+      : '';
+    
+    // 生成唯一键定义
+    const uniqueKeys = table.columns
+      .filter(column => column.is_unique && !column.is_primary_key)
+      .map((column, index) => `  UNIQUE KEY \`uk_${column.field_name}\` (\`${column.field_name}\`)`)
+      .join(',\n');
+    
+    const uniqueKeyStr = uniqueKeys ? `,\n${uniqueKeys}` : '';
+    
+    // 生成索引定义
+    const indexes = table.columns
+      .filter(column => column.is_index && !column.is_unique && !column.is_primary_key)
+      .map((column, index) => `  INDEX \`idx_${column.field_name}\` (\`${column.field_name}\`)`)
+      .join(',\n');
+    
+    const indexStr = indexes ? `,\n${indexes}` : '';
+    
+    // 生成外键定义
+    const foreignKeys = table.columns
+      .filter(column => column.foreign_key)
+      .map((column, index) => {
+        const fk = column.foreign_key!;
+        return `  FOREIGN KEY (\`${column.field_name}\`) REFERENCES \`${fk.reference_table}\`(\`${fk.reference_column}\`)`;
+      })
+      .join(',\n');
+    
+    const foreignKeyStr = foreignKeys ? `,\n${foreignKeys}` : '';
+    
+    // 组合SQL语句
+    return `CREATE TABLE \`${tableName}\` (\n${columnDefinitions}${primaryKeyStr}${uniqueKeyStr}${indexStr}${foreignKeyStr}\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4${tableComment};`;
+  };
+
+  // 阅读模式下的渲染
+  const renderReadMode = () => {
+    return (
+      <div className="database-tables-section-content">
+        <div className="database-tables-header">
+          <div className="database-tables-count">
+            共 {tables.length} 个数据表
+          </div>
+          <div className="database-tables-actions">
+            <Button 
+              type="default"
+              size="small"
+              onClick={() => {
+                setCollapsedTables(new Set());
+              }}
+              className="expand-all-button"
+              icon={<ExpandOutlined />}
             >
-              <div>
-                <div className="table-collapsed-summary">
-                  <div className="summary-content">
-                    <span>字段: {table.columns.length}</span>
-                    {table.columns.filter(f => f.is_primary_key).length > 0 && (
-                      <span>主键: {table.columns.filter(f => f.is_primary_key).length}</span>
-                    )}
-                    {table.columns.filter(f => f.foreign_key).length > 0 && (
-                      <span>外键: {table.columns.filter(f => f.foreign_key).length}</span>
+              全部展开
+            </Button>
+            <Button 
+              type="default"
+              size="small"
+              onClick={() => {
+                setCollapsedTables(new Set(tables.map((_, index) => index)));
+              }}
+              className="collapse-all-button"
+              icon={<CompressOutlined />}
+            >
+              全部折叠
+            </Button>
+          </div>
+        </div>
+
+        {tables.map((table, index) => {
+          const isCollapsed = collapsedTables.has(index);
+          const primaryKeyField = table.columns.find(col => col.is_primary_key);
+          const fieldsCount = table.columns.length;
+          
+          return (
+            <div 
+              key={index} 
+              className={`database-table-container${isCollapsed ? ' collapsed' : ''}`}
+              ref={index === tables.length - 1 ? newTableRef : null}
+            >
+              <div 
+                className="database-table-header"
+                onClick={() => toggleCollapse(index)}
+              >
+                <div className="database-table-icon">
+                  <DatabaseOutlined />
+                </div>
+                <div className="database-table-title">
+                  <div className="table-name">{table.table_name}</div>
+                  {table.description && <div className="table-description">{table.description}</div>}
+                </div>
+                {isCollapsed && (
+                  <div className="table-summary">
+                    <span>{fieldsCount} 个字段</span>
+                    {primaryKeyField && (
+                      <span className="primary-key-info">
+                        <KeyOutlined style={{ marginRight: 4 }} /> {primaryKeyField.field_name}
+                      </span>
                     )}
                   </div>
+                )}
+                <div className="database-table-toggle">
+                  {isCollapsed ? <DownOutlined /> : <UpOutlined />}
                 </div>
               </div>
-            </CSSTransition>
-            <CSSTransition
-              in={!collapsedTables.has(table.table_name)}
-              timeout={300}
-              classNames="table-fade"
-              unmountOnExit
-            >
-              <div>
-                <Table
-                  dataSource={table.columns}
-                  columns={getColumnsDefinition(tableIndex)}
-                  pagination={false}
-                  rowKey={(record, index) => `${tableIndex}_column_${index}`}
-                  size="small"
-                  style={{ marginBottom: 16 }}
-                  rowClassName={(record, index) => {
-                    if (!record.field_name || record.field_name.trim() === '') {
-                      return 'error-row';
-                    }
-                    return '';
-                  }}
-                  expandedRowKeys={expandedRowKeys[tableIndex] || []}
-                  expandable={{
-                    expandedRowRender: (record, index) => (
-                      <div style={{ padding: '8px 16px', backgroundColor: '#fafafa' }}>
-                        <Form.Item label="字段描述" style={{ marginBottom: 0 }}>
-                          <TextArea
-                            value={record.description || ''}
-                            onChange={(e) => handleColumnChange(tableIndex, index, 'description', e.target.value)}
-                            placeholder="输入字段描述"
-                            autoSize={{ minRows: 2, maxRows: 4 }}
-                          />
-                        </Form.Item>
-                      </div>
-                    ),
-                    rowExpandable: record => true,
-                    expandIcon: () => null,
-                    showExpandColumn: false,
-                  }}
-                />
-                
-                <Button
-                  type="dashed"
-                  onClick={() => addColumn(tableIndex)}
-                  block
-                  icon={<PlusOutlined />}
-                  style={{ marginTop: 8, marginBottom: 8 }}
-                >
-                  添加字段
-                </Button>
+              <CSSTransition
+                in={!isCollapsed}
+                timeout={300}
+                classNames="table-fade"
+                unmountOnExit
+              >
+                <div className="database-table-content">
+                  <Table
+                    dataSource={table.columns}
+                    pagination={false}
+                    size="small"
+                    rowKey={(record, index) => `${index}_${index}`}
+                    columns={[
+                      {
+                        title: '字段名',
+                        dataIndex: 'field_name',
+                        key: 'field_name',
+                        width: '12%',
+                        render: (text, record) => (
+                          <div className="field-name-cell">
+                            <span className="field-name-text">{text}</span>
+                            {record.is_primary_key && (
+                              <Tooltip title="主键">
+                                <KeyOutlined className="field-primary-icon" />
+                              </Tooltip>
+                            )}
+                          </div>
+                        )
+                      },
+                      {
+                        title: '类型',
+                        dataIndex: 'field_type',
+                        key: 'field_type',
+                        width: '10%',
+                        render: (text, record) => (
+                          <span className="field-type-cell">
+                            {getFieldTypeIcon(text)}
+                            <span className="field-type-text">{text.toUpperCase()}</span>
+                          </span>
+                        )
+                      },
+                      {
+                        title: '长度',
+                        dataIndex: 'length',
+                        key: 'length',
+                        width: '10%',
+                        render: (text) => text || '-'
+                      },
+                      {
+                        title: '可否为空',
+                        dataIndex: 'nullable',
+                        key: 'nullable',
+                        width: '7%',
+                        render: (nullable) => (
+                          <span className={`nullable-status ${nullable ? 'nullable' : 'not-nullable'}`}>
+                            {nullable ? '是' : '否'}
+                          </span>
+                        )
+                      },
+                      {
+                        title: '默认值',
+                        dataIndex: 'default_value',
+                        key: 'default_value',
+                        width: '12%',
+                        render: (text) => text || '-'
+                      },
+                      {
+                        title: '主键',
+                        dataIndex: 'is_primary_key',
+                        key: 'is_primary_key',
+                        width: '7%',
+                        render: (isPrimary) => (
+                          <span className={`key-status ${isPrimary ? 'is-key' : 'not-key'}`}>
+                            {isPrimary ? '' : '-'}
+                          </span>
+                        )
+                      },
+                      {
+                        title: '索引',
+                        dataIndex: 'is_index',
+                        key: 'is_index',
+                        width: '7%',
+                        render: (isIndex) => (
+                          <span className={`index-status ${isIndex ? 'is-index' : 'not-index'}`}>
+                            {isIndex ? '' : '-'}
+                          </span>
+                        )
+                      },
+                      {
+                        title: '说明',
+                        dataIndex: 'description',
+                        key: 'description',
+                        width: '29%',
+                        render: (text) => text || '-'
+                      },
+                    ]}
+                  />
+                  <div className="database-table-footer">
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<FileTextOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const sql = generateSql(table);
+                        Modal.info({
+                          title: `${table.table_name} SQL定义`,
+                          content: (
+                            <pre style={{ maxHeight: '400px', overflow: 'auto' }}>
+                              {sql}
+                            </pre>
+                          ),
+                          width: 800,
+                        });
+                      }}
+                    >
+                      查看SQL
+                    </Button>
+                  </div>
+                </div>
+              </CSSTransition>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // 编辑模式下的渲染
+  const renderEditMode = () => {
+    return (
+      <div className={`database-tables-edit-mode ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <div className="database-tables-edit-layout">
+          <div className="database-tables-sidebar">
+            {isSidebarCollapsed ? (
+              <div className="sidebar-collapsed-handle" onClick={() => setIsSidebarCollapsed(false)}>
+                <div className="sidebar-collapsed-content">
+                  <div className="sidebar-collapsed-icon">
+                    <DatabaseOutlined />
+                  </div>
+                  <div className="sidebar-collapsed-text">数据表</div>
+                  {tables.length > 0 && (
+                    <div className="sidebar-collapsed-badge">
+                      {tables.length}
+                    </div>
+                  )}
+                </div>
               </div>
-            </CSSTransition>
-          </Card>
+            ) : (
+              <>
+                <div className="database-tables-sidebar-header">
+                  <div className="database-tables-sidebar-title">数据库列表</div>
+                  <Space>
+                    <Tooltip title="导入SQL" placement="top">
+                      <Button 
+                        type="text"
+                        icon={<ImportOutlined />}
+                        onClick={showSqlImportModal}
+                        className="sidebar-action-button"
+                      />
+                    </Tooltip>
+                    <Tooltip title="收起" placement="top">
+                      <Button
+                        type="text"
+                        icon={<MenuFoldOutlined />}
+                        onClick={() => setIsSidebarCollapsed(true)}
+                        className="sidebar-collapse-button"
+                      />
+                    </Tooltip>
+                  </Space>
+                </div>
+            
+                <div className="database-tables-list">
+                  {tables.map((table, index) => (
+                    <div 
+                      key={index} 
+                      className={`database-table-item ${currentTableIndex === index ? 'active' : ''}`}
+                      onClick={() => setCurrentTableIndex(index)}
+                    >
+                      <div className="database-table-item-icon">
+                        <DatabaseOutlined />
+                      </div>
+                      <div className="database-table-item-content">
+                        <div className="database-table-item-name">{table.table_name}</div>
+                        <div className="database-table-item-desc">{table.description || '无描述'}</div>
+                      </div>
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTable(index);
+                        }}
+                      >
+                        删除
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+            
+                <div className="database-tables-add">
+                  <div className="database-tables-add-form">
+                    <Input 
+                      placeholder="新表名称" 
+                      className="new-table-name"
+                      value={newTableName}
+                      onChange={(e) => setNewTableName(e.target.value)}
+                    />
+                    <Input 
+                      placeholder="表描述" 
+                      className="new-table-desc"
+                      value={newTableDesc}
+                      onChange={(e) => setNewTableDesc(e.target.value)}
+                    />
+                    <Button
+                      type="primary"
+                      block
+                      onClick={handleAddTable}
+                      icon={<PlusOutlined />}
+                    >
+                      添加新表
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          
+          <div className="database-tables-content">
+            {tables.length > 0 && currentTableIndex < tables.length ? (
+              <>
+                <div className="database-table-edit-header-form">
+                  {renderTableHeader(tables[currentTableIndex], currentTableIndex)}
+                </div>
+                
+                <div className="database-table-fields">
+                  <Table
+                    dataSource={tables[currentTableIndex].columns}
+                    pagination={false}
+                    size="small"
+                    rowKey={(record, index) => `field_${index}`}
+                    columns={[
+                      {
+                        title: '字段名',
+                        dataIndex: 'field_name',
+                        key: 'field_name',
+                        width: '12%',
+                        render: (text, record, index) => (
+                          <Input
+                            value={text}
+                            onChange={(e) => handleColumnChange(currentTableIndex, index, 'field_name', e.target.value)}
+                            placeholder="输入字段名"
+                          />
+                        )
+                      },
+                      {
+                        title: '类型',
+                        dataIndex: 'field_type',
+                        key: 'field_type',
+                        width: '10%',
+                        render: (text, record, index) => (
+                          <Select
+                            value={text}
+                            onChange={(value) => handleColumnChange(currentTableIndex, index, 'field_type', value)}
+                            style={{ width: '100%' }}
+                          >
+                            {FIELD_TYPE_OPTIONS.map(option => (
+                              <Option key={option.value} value={option.value}>{option.label}</Option>
+                            ))}
+                          </Select>
+                        )
+                      },
+                      {
+                        title: '长度',
+                        dataIndex: 'length',
+                        key: 'length',
+                        width: '10%',
+                        render: (text, record, index) => (
+                          <Input
+                            type="number"
+                            value={text}
+                            onChange={(e) => handleColumnChange(currentTableIndex, index, 'length', e.target.value)}
+                            placeholder="长度"
+                          />
+                        )
+                      },
+                      {
+                        title: '可否为空',
+                        dataIndex: 'nullable',
+                        key: 'nullable',
+                        width: '8%',
+                        render: (nullable, record, index) => (
+                          <Select
+                            value={nullable ? '是' : '否'}
+                            onChange={(value) => handleColumnChange(currentTableIndex, index, 'nullable', value === '是')}
+                            style={{ width: '100%' }}
+                          >
+                            <Option value="是">是</Option>
+                            <Option value="否">否</Option>
+                          </Select>
+                        )
+                      },
+                      {
+                        title: '默认值',
+                        dataIndex: 'default_value',
+                        key: 'default_value',
+                        width: '10%',
+                        render: (text, record, index) => (
+                          <Input
+                            value={text}
+                            onChange={(e) => handleColumnChange(currentTableIndex, index, 'default_value', e.target.value)}
+                            placeholder="默认值"
+                          />
+                        )
+                      },
+                      {
+                        title: '主键',
+                        dataIndex: 'is_primary_key',
+                        key: 'is_primary_key',
+                        width: '6%',
+                        render: (isPrimary, record, index) => (
+                          <Checkbox
+                            checked={isPrimary}
+                            onChange={(e) => handleColumnChange(currentTableIndex, index, 'is_primary_key', e.target.checked)}
+                          />
+                        )
+                      },
+                      {
+                        title: '索引',
+                        dataIndex: 'is_index',
+                        key: 'is_index',
+                        width: '6%',
+                        render: (isIndex, record, index) => (
+                          <Checkbox
+                            checked={isIndex}
+                            onChange={(e) => handleColumnChange(currentTableIndex, index, 'is_index', e.target.checked)}
+                          />
+                        )
+                      },
+                      {
+                        title: '说明',
+                        dataIndex: 'description',
+                        key: 'description',
+                        width: '30%',
+                        render: (text, record, index) => (
+                          <Input
+                            value={text}
+                            onChange={(e) => handleColumnChange(currentTableIndex, index, 'description', e.target.value)}
+                            placeholder="字段说明"
+                          />
+                        )
+                      },
+                      {
+                        title: '操作',
+                        key: 'action',
+                        width: '8%',
+                        render: (_, record, index) => (
+                          <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => deleteColumn(currentTableIndex, index)}
+                            size="small"
+                          >
+                            删除
+                          </Button>
+                        )
+                      }
+                    ]}
+                  />
+                </div>
+                
+                <div className="database-table-add-field">
+                  <div className="field-inputs">
+                    <Input 
+                      placeholder="字段名" 
+                      className="field-name-input" 
+                      value={newFieldName}
+                      onChange={(e) => setNewFieldName(e.target.value)}
+                    />
+                    <Select 
+                      placeholder="类型" 
+                      className="field-type-input"
+                      value={newFieldType}
+                      onChange={(value) => setNewFieldType(value)}
+                    >
+                      {FIELD_TYPE_OPTIONS.map(option => (
+                        <Option key={option.value} value={option.value}>{option.label}</Option>
+                      ))}
+                    </Select>
+                    <Input 
+                      placeholder="长度" 
+                      type="number" 
+                      className="field-length-input"
+                      value={newFieldLength}
+                      onChange={(e) => setNewFieldLength(e.target.value)}
+                    />
+                    <Select 
+                      placeholder="可否为空" 
+                      className="field-nullable-input"
+                      value={newFieldNullable === undefined ? undefined : (newFieldNullable ? '是' : '否')}
+                      onChange={(value) => setNewFieldNullable(value === '是')}
+                    >
+                      <Option value="是">是</Option>
+                      <Option value="否">否</Option>
+                    </Select>
+                    <Input 
+                      placeholder="默认值" 
+                      className="field-default-input"
+                      value={newFieldDefaultValue}
+                      onChange={(e) => setNewFieldDefaultValue(e.target.value)}
+                    />
+                    <div className="field-checkbox-group">
+                      <Checkbox
+                        checked={newFieldIsPrimaryKey}
+                        onChange={(e) => setNewFieldIsPrimaryKey(e.target.checked)}
+                      >
+                        主键
+                      </Checkbox>
+                      <Checkbox
+                        checked={newFieldIsIndex}
+                        onChange={(e) => setNewFieldIsIndex(e.target.checked)}
+                      >
+                        索引
+                      </Checkbox>
+                    </div>
+                    <Input 
+                      placeholder="说明" 
+                      className="field-desc-input"
+                      value={newFieldDesc}
+                      onChange={(e) => setNewFieldDesc(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    type="primary"
+                    block
+                    onClick={handleAddField}
+                    className="add-field-button"
+                  >
+                    添加字段
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="database-tables-empty">
+                <div className="empty-message">
+                  <InfoCircleOutlined /> 请在左侧添加数据表或导入SQL
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      ))}
       
-      <Button
-        type="dashed"
-        onClick={addTable}
-        block
-        icon={<PlusOutlined />}
-        style={{ marginTop: 16 }}
-      >
-        添加数据库表
-      </Button>
-      
-      {/* 操作按钮组 */}
-      <Space style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}>
-        <Button
-          type="primary"
-          style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-          icon={<ImportOutlined />}
-          onClick={showSqlImportModal}
-        >
-          从SQL导入表结构
-        </Button>
-        
-        <Button
-          type="primary"
-          onClick={() => {
-            const isValid = validateAllTables();
-            if (isValid) {
-              message.success('所有表格数据验证通过');
-            } else {
-              message.error('表格数据存在错误，请查看错误提示修复');
-            }
-          }}
-          disabled={tables.length === 0}
-        >
-          验证表结构
-          <Tooltip title="验证所有表格结构是否符合规范，包括检查表名是否为空、字段名是否重复、主键是否唯一、外键引用是否完整等">
-            <InfoCircleOutlined style={{ marginLeft: 8 }} />
-          </Tooltip>
-        </Button>
-      </Space>
-      
-      {/* SQL导入弹窗 */}
       <Modal
         title="从SQL导入表结构"
         open={sqlImportModalVisible}
@@ -1053,6 +1323,9 @@ const DatabaseTablesSection: React.FC<DatabaseTablesSectionProps> = ({
       </Modal>
     </div>
   );
+  };
+
+  return isEditMode ? renderEditMode() : renderReadMode();
 };
 
 export default DatabaseTablesSection; 
