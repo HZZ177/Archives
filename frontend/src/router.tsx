@@ -11,8 +11,6 @@ import ModuleSectionConfig from './pages/structure-management/components/ModuleS
 // 使用React.lazy进行代码分割，减少初始加载时间
 const UserList = lazy(() => import('./pages/user/UserList'));
 const UserDetail = lazy(() => import('./pages/user/components/UserDetail'));
-const DocumentList = lazy(() => import('./pages/documents/DocumentList'));
-const DocumentEdit = lazy(() => import('./pages/documents/DocumentEdit'));
 const RoleList = lazy(() => import('./pages/role/RoleList'));
 const PermissionList = lazy(() => import('./pages/permission/PermissionList'));
 const StructureManagementPage = lazy(() => import('./pages/structure-management/StructureManagementPage'));
@@ -130,26 +128,6 @@ const router = createBrowserRouter([
       {
         path: ROUTES.PERMISSION_LIST,
         element: <SuspenseWrapper component={PermissionList} />
-      },
-      {
-        path: ROUTES.TEMPLATE_LIST,
-        element: <div>模板列表页面</div>
-      },
-      {
-        path: `${ROUTES.TEMPLATE_LIST}/:id`,
-        element: <div>模板详情页面</div>
-      },
-      {
-        path: ROUTES.DOCUMENT_LIST,
-        element: <SuspenseWrapper component={DocumentList} />
-      },
-      {
-        path: `${ROUTES.DOCUMENT_LIST}/new`,
-        element: <SuspenseWrapper component={DocumentEdit} />
-      },
-      {
-        path: `${ROUTES.DOCUMENT_LIST}/:id`,
-        element: <SuspenseWrapper component={DocumentEdit} />
       },
       {
         path: '/structure-management',

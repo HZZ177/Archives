@@ -9,7 +9,6 @@ from backend.app.db.base import Base
 from backend.app.db.session import engine
 from backend.app.models.user import User, Role
 from backend.app.models.permission import Permission
-from backend.app.models.document import Document, Template, Section, Image, Relation
 from backend.app.models.workspace import Workspace, workspace_user
 from backend.app.models.module_section_config import ModuleSectionConfig
 

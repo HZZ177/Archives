@@ -35,8 +35,6 @@ class User(Base):
 
     # 关系
     roles = relationship("Role", secondary=user_role, back_populates="users")
-    documents = relationship("Document", back_populates="creator")
-    templates = relationship("Template", back_populates="creator")
     # 添加工作区关系
     default_workspace = relationship("Workspace", foreign_keys=[default_workspace_id])
     workspaces = relationship("Workspace", secondary=workspace_user, back_populates="users")

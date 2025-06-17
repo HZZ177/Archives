@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
-from backend.app.api.endpoints import auth, users, documents, templates, images
+from backend.app.api.endpoints import auth, users
 from backend.app.api.endpoints import module_structures, module_contents
 from backend.app.api.endpoints import roles, permissions
 from backend.app.api.endpoints import workspaces
@@ -45,9 +45,6 @@ def create_app() -> FastAPI:
     # 添加路由
     app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
     app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
-    app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", tags=["documents"])
-    app.include_router(templates.router, prefix=f"{settings.API_V1_STR}/templates", tags=["templates"])
-    app.include_router(images.router, prefix=f"{settings.API_V1_STR}/images", tags=["images"])
     app.include_router(module_structures.router, prefix=f"{settings.API_V1_STR}/module-structures", tags=["module-structures"])
     app.include_router(module_contents.router, prefix=f"{settings.API_V1_STR}/module-contents", tags=["module-contents"])
     app.include_router(roles.router, prefix=f"{settings.API_V1_STR}/roles", tags=["roles"])
