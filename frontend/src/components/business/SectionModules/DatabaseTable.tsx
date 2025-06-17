@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Space, Typography, Button, Table, Form, Input, Select, Modal } from 'antd';
 import { EditOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { Section } from '../../../types/document';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -16,7 +15,7 @@ interface DatabaseField {
 }
 
 interface DatabaseTableProps {
-  section: Section;
+  section: any;
   onSave: (content: string) => void;
   isEditable?: boolean;
 }

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Space, Typography, Button, Table, Modal, Select, Form, Input, Tag } from 'antd';
 import { EditOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { Section, Relation } from '../../../types/document';
 import axios from 'axios';
 import { API_BASE_URL } from '../../../config/constants';
 
@@ -9,7 +8,7 @@ const { Title } = Typography;
 const { Option } = Select;
 
 interface RelatedModulesProps {
-  section: Section;
+  section: any;
   documentId: number;
   onSave: (content: string) => void;
   isEditable?: boolean;
@@ -30,7 +29,7 @@ const RelatedModules: React.FC<RelatedModulesProps> = ({
   onSave,
   isEditable = true,
 }) => {
-  const [relations, setRelations] = useState<Relation[]>([]);
+  const [relations, setRelations] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
@@ -174,7 +173,7 @@ const RelatedModules: React.FC<RelatedModulesProps> = ({
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: Relation) => (
+      render: (_: any, record: any) => (
         isEditable && isEditing && (
           <Button
             type="link"

@@ -10,6 +10,7 @@ from backend.app.services.permission_service import permission_service
 from backend.app.services.role_service import role_service
 from backend.app.services.workspace_service import workspace_service
 from backend.app.services.module_section_config_service import module_section_config_service
+from backend.app.services.image_service import image_service
 
 __all__ = [
     'auth_service',
@@ -18,5 +19,6 @@ __all__ = [
     'permission_service',
     'role_service',
     'workspace_service',
-    'module_section_config_service'
+    'module_section_config_service',
+    'image_service'
 ]

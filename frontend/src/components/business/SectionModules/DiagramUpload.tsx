@@ -2,14 +2,13 @@ import React, { useState } from 'react';
 import { Card, Upload, Button, Space, Typography, message, Image } from 'antd';
 import { UploadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
-import { Section, Image as ImageType } from '../../../types/document';
 import { UPLOAD_MAX_SIZE, ALLOWED_IMAGE_TYPES } from '../../../config/constants';
 
 const { Title } = Typography;
 const { Dragger } = Upload;
 
 interface DiagramUploadProps {
-  section: Section;
+  section: any;
   onUpload: (file: File) => Promise<void>;
   onDelete: (imageId: number) => Promise<void>;
   isEditable?: boolean;
@@ -63,7 +62,7 @@ const DiagramUpload: React.FC<DiagramUploadProps> = ({
   };
 
   // 处理文件删除
-  const handleDelete = async (image: ImageType) => {
+  const handleDelete = async (image: any) => {
     try {
       await onDelete(image.id);
       message.success('图片删除成功');
@@ -104,7 +103,7 @@ const DiagramUpload: React.FC<DiagramUploadProps> = ({
 
     return (
       <div style={{ marginTop: 16 }}>
-        {section.images.map((image) => (
+        {section.images.map((image: any) => (
           <div key={image.id} style={{ position: 'relative', marginBottom: 16 }}>
             <Image
               src={image.file_path}

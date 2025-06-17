@@ -1,5 +1,19 @@
 // API 基础URL
-export const API_BASE_URL = 'http://localhost:8000/api/v1';
+const getApiBaseUrl = () => {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol; // 获取当前协议 (http: 或 https:)
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    // 开发环境或本地访问，保持 http
+    return 'http://localhost:8000/api/v1';
+  } else {
+    // 局域网或生产环境访问，使用当前协议和主机名
+    // protocol 自身包含冒号, 例如 "https:"
+    return `${protocol}//${hostname}:8000/api/v1`;
+  }
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 // 本地存储键名
 export const STORAGE_TOKEN_KEY = 'token';

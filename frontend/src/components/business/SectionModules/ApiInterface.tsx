@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Space, Typography, Button, Table, Collapse, Tag, Divider, Modal, Form, Input, Select, Radio } from 'antd';
 import { EditOutlined, SaveOutlined, PlusOutlined, DeleteOutlined, CodeOutlined } from '@ant-design/icons';
-import { Section } from '../../../types/document';
 import { API_BASE_URL } from '../../../config/constants';
 
 const { Title, Text } = Typography;
@@ -19,7 +18,7 @@ interface ApiEndpoint {
 }
 
 interface ApiInterfaceProps {
-  section: Section;
+  section: any;
   onSave: (content: string) => void;
   isEditable?: boolean;
 }
