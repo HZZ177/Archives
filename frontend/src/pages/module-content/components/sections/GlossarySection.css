@@ -1,13 +1,9 @@
 .glossary-section {
-  padding: 16px;
-  border-radius: 4px;
   background-color: #fff;
-  border: 1px solid #e8e8e8;
 }
 
 .glossary-section.readonly-mode {
   border: none;
-  padding: 0;
 }
 
 .glossary-header {

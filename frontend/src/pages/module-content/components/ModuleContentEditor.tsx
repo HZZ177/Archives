@@ -1102,21 +1102,15 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                         {config.title}
                       </Title>
                       <Divider className="section-divider" />
-                      
-                      {isEditMode ? (
-                        <GlossarySection
-                          content={glossaryItems}
-                          onChange={(newContent) => {
-                            console.log('术语表数据更新:', newContent);
-                            setGlossaryItems(newContent);
-                            // 更新content中的glossary字段
-                            handleSectionUpdate('glossary', newContent);
-                          }}
-                          isEditable={true}
-                        />
-                      ) : (
-                        <div className="section-content">
-                          {glossaryItems && glossaryItems.length > 0 ? (
+                      <div className="section-content">
+                        {isEditMode ? (
+                          <GlossarySection
+                            content={glossaryItems}
+                            onChange={setGlossaryItems}
+                            isEditable={true}
+                          />
+                        ) : (
+                          hasContent(sectionKey) ? (
                             <GlossarySection
                               content={glossaryItems}
                               onChange={() => {}}
@@ -1124,9 +1118,9 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                             />
                           ) : (
                             <div className="empty-content" onClick={handleEmptyContentClick}>点击"编辑"添加名称解释</div>
-                          )}
-                        </div>
-                      )}
+                          )
+                        )}
+                      </div>
                     </div>
                   );
                 
