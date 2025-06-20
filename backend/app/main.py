@@ -63,10 +63,6 @@ def create_app() -> FastAPI:
     os.makedirs(static_dir, exist_ok=True)
     uploads_dir = os.path.join(static_dir, "uploads")
     os.makedirs(uploads_dir, exist_ok=True)
-
-    # 确保模块图片上传目录存在
-    module_diagrams_dir = "uploads/module_diagrams"
-    os.makedirs(module_diagrams_dir, exist_ok=True)
     
     # 确保Markdown编辑器图片上传目录存在
     markdown_images_dir = "uploads/images"
