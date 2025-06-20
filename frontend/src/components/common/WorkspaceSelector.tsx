@@ -105,9 +105,10 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
       onClick={(e) => {
         setOpen(!open);
         // 点击后自动失去焦点
-        if (e.currentTarget) {
+        const button = e.currentTarget;  // 保存对DOM元素的引用
+        if (button) {
           setTimeout(() => {
-            e.currentTarget.blur();
+            button.blur();  // 使用保存的引用
           }, 100);
         }
       }}
