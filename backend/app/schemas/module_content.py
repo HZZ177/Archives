@@ -77,8 +77,10 @@ class ModuleContentBase(BaseModel):
     overview_text: Optional[str] = None
     details_text: Optional[str] = None
     database_tables_json: Optional[List[DatabaseTable]] = []
+    database_table_refs_json: Optional[List[int]] = []  # 引用的工作区数据库表ID列表
     related_module_ids_json: Optional[List[int]] = []
     api_interfaces_json: Optional[List[ApiInterface]] = []
+    api_interface_refs_json: Optional[List[int]] = []  # 引用的工作区接口ID列表
     terminology_json: Optional[List[GlossaryItem]] = []
     table_relation_diagram: Optional[Dict[str, Any]] = None
 

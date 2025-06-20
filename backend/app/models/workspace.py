@@ -33,3 +33,5 @@ class Workspace(Base):
     creator = relationship("User", foreign_keys=[created_by], back_populates="created_workspaces")
     users = relationship("User", secondary=workspace_user, back_populates="workspaces")
     module_nodes = relationship("ModuleStructureNode", back_populates="workspace") 
+    tables = relationship("WorkspaceTable", back_populates="workspace", cascade="all, delete-orphan")
+    interfaces = relationship("WorkspaceInterface", back_populates="workspace", cascade="all, delete-orphan") 

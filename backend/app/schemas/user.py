@@ -76,7 +76,7 @@ class UserInDB(UserBase):
     hashed_password: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # API响应中返回的用户模型
@@ -89,7 +89,7 @@ class UserResponse(UserBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
         from_attributes = True
 
 
@@ -122,7 +122,7 @@ class UserDetail(UserResponse):
     roles: List[str] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # 用户状态更新模型

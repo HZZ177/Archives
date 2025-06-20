@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from sqlalchemy import select, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,6 +70,7 @@ class ModuleContentRepository(BaseRepository[ModuleContent, ModuleContentCreate,
                 content = ModuleContent(
                     module_node_id=module_node_id,
                     user_id=user_id,
+                    created_by=user_id,
                     **content_dict
                 )
                 db.add(content)
@@ -81,6 +82,58 @@ class ModuleContentRepository(BaseRepository[ModuleContent, ModuleContentCreate,
         except Exception as e:
             await db.rollback()
             logger.error(f"更新或创建模块内容失败: {str(e)}")
+            raise
+    
+    async def update_table_refs(
+        self,
+        db: AsyncSession,
+        module_node_id: int,
+        user_id: int,
+        table_refs: List[int]
+    ) -> Optional[ModuleContent]:
+        """
+        更新模块内容中的数据库表引用
+        """
+        try:
+            content = await self.get_by_node_id(db, module_node_id)
+            if not content:
+                return None
+            
+            content.database_table_refs_json = table_refs
+            content.user_id = user_id
+            
+            await db.commit()
+            await db.refresh(content)
+            return content
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"更新模块内容数据库表引用失败: {str(e)}")
+            raise
+    
+    async def update_interface_refs(
+        self,
+        db: AsyncSession,
+        module_node_id: int,
+        user_id: int,
+        interface_refs: List[int]
+    ) -> Optional[ModuleContent]:
+        """
+        更新模块内容中的接口引用
+        """
+        try:
+            content = await self.get_by_node_id(db, module_node_id)
+            if not content:
+                return None
+            
+            content.api_interface_refs_json = interface_refs
+            content.user_id = user_id
+            
+            await db.commit()
+            await db.refresh(content)
+            return content
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"更新模块内容接口引用失败: {str(e)}")
             raise
     
     # 图像路径更新方法已移除

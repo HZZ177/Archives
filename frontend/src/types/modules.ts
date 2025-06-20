@@ -33,17 +33,20 @@ export interface DatabaseTableColumn {
   previewMode?: boolean; // 是否处于预览模式
 }
 
+// 表关系类型
+export interface TableRelationship {
+  to_table: string; // 关联表
+  type: 'one-to-one' | 'one-to-many' | 'many-to-many'; // 关系类型
+  description?: string; // 关系描述
+}
+
 // 数据库表类型
 export interface DatabaseTable {
   table_name: string;
   schema_name?: string; // 模式名称
   description?: string; // 表描述
   columns: DatabaseTableColumn[];
-  relationships?: { // 表关系
-    to_table: string; // 关联表
-    type: 'one-to-one' | 'one-to-many' | 'many-to-many'; // 关系类型
-    description?: string; // 关系描述
-  }[];
+  relationships?: TableRelationship[];
 }
 
 // API接口参数类型
@@ -112,19 +115,21 @@ export interface ExampleItem {
 // 模块内容类型
 export interface ModuleContent {
   id: number;
-  node_id: number;
+  module_node_id: number;
   overview_text?: string;
-  content: {
-    overview?: string;
-    diagram?: DiagramData;
-    key_tech?: KeyTechnology[];
-    database_tables?: DatabaseTable[];
-    related_modules?: number[];
-    interface_definitions?: ApiInterfaceCard[];
-    glossary?: GlossaryItem[];
-  };
-  sections?: any[]; // 为动态模块添加sections
-  last_updated_at: string;
+  diagram_data?: any;
+  diagram_version?: number;
+  details_text?: string;
+  database_tables_json?: DatabaseTable[];
+  database_table_refs_json?: number[];  // 引用的工作区数据库表ID列表
+  related_module_ids_json?: number[];
+  api_interfaces_json?: ApiInterface[];
+  api_interface_refs_json?: number[];  // 引用的工作区接口ID列表
+  terminology_json?: GlossaryItem[];
+  table_relation_diagram?: any;
+  user_id: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // 创建/更新模块结构节点的请求参数
@@ -185,4 +190,25 @@ export interface RelatedModule {
   id: number;
   name: string;
   description?: string;
+}
+
+// 引用的工作区数据库表
+export interface ReferencedTable {
+  id: number;
+  table_name: string;
+  schema_name?: string;
+  description?: string;
+  columns: DatabaseTableColumn[];
+  relationships?: TableRelationship[];
+}
+
+// 引用的工作区接口
+export interface ReferencedInterface {
+  id: number;
+  path: string;
+  method: string;
+  description?: string;
+  content_type?: string;
+  request_params: ApiInterfaceParameter[];
+  response_params: ApiInterfaceParameter[];
 } 

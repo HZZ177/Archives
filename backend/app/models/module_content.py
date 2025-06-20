@@ -17,8 +17,10 @@ class ModuleContent(Base):
     diagram_version = Column(Integer, default=1)  # 版本控制
     details_text = Column(Text, nullable=True)  # 功能详解
     database_tables_json = Column(JSON, nullable=True)  # 数据库表
+    database_table_refs_json = Column(JSON, nullable=True)  # 引用的工作区数据库表ID列表
     related_module_ids_json = Column(JSON, nullable=True)  # 关联模块
     api_interfaces_json = Column(JSON, nullable=True)  # 涉及接口
+    api_interface_refs_json = Column(JSON, nullable=True)  # 引用的工作区接口ID列表
     terminology_json = Column(JSON, nullable=True)  # 术语表/名称解释
     table_relation_diagram = Column(JSON, nullable=True)  # 表关联关系图
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # 最后修改者

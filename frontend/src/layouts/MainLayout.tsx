@@ -10,7 +10,9 @@ import {
   HomeOutlined,
   AppstoreOutlined,
   FolderOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  DatabaseOutlined,
+  ApiOutlined
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
@@ -110,6 +112,23 @@ const staticMenuItems: ExtendedMenuItem[] = [
             label: '页面模块配置',
             page_path: '/structure-management/module-config',
         }
+    ]
+  },
+  {
+    key: '/workspace-resources',
+    icon: <FolderOutlined />,
+    label: '工作区资源',
+    children: [
+      {
+        key: '/workspace/:workspaceId/database-resources',
+        icon: <DatabaseOutlined />,
+        label: '数据库表管理',
+      },
+      {
+        key: '/workspace/:workspaceId/api-resources',
+        icon: <ApiOutlined />,
+        label: 'API接口管理',
+      },
     ]
   },
 ];
@@ -493,7 +512,6 @@ const MainLayout: React.FC = () => {
           title: <span>结构管理</span>,
         });
         
-        // 处理结构管理的子页面
         if (pathSnippets.includes('tree')) {
           breadcrumbItems.push({
             title: <span>结构树配置</span>,
@@ -563,10 +581,35 @@ const MainLayout: React.FC = () => {
           });
         }
       }
+    } else if (pathSnippets.includes('workspace') && (pathSnippets.includes('database-resources') || pathSnippets.includes('api-resources'))) {
+      // 工作区资源页面的面包屑
+      breadcrumbItems.push({
+        title: <Link to="/">首页</Link>,
+      });
+      
+      breadcrumbItems.push({
+        title: <span>工作区资源</span>,
+      });
+      
+      if (currentWorkspace) {
+        breadcrumbItems.push({
+          title: <span>{currentWorkspace.name}</span>,
+        });
+      }
+      
+      if (pathSnippets.includes('database-resources')) {
+        breadcrumbItems.push({
+          title: <span>数据库表管理</span>,
+        });
+      } else if (pathSnippets.includes('api-resources')) {
+        breadcrumbItems.push({
+          title: <span>API接口管理</span>,
+        });
+      }
     }
 
     return breadcrumbItems;
-  }, [location.pathname, userModules]);
+  }, [location.pathname, userModules, currentWorkspace]);
 
   // 添加菜单预加载功能，在鼠标悬停时预加载组件
   const handleMenuHover = (key: string) => {
@@ -652,6 +695,14 @@ const MainLayout: React.FC = () => {
               }
               
               console.log('菜单点击: 导航到', info.key);
+              
+              // 处理工作区资源菜单的动态路径
+              if (info.key.includes(':workspaceId') && currentWorkspace) {
+                const actualPath = info.key.replace(':workspaceId', currentWorkspace.id.toString());
+                console.log('工作区资源菜单: 替换动态路径', info.key, '->', actualPath);
+                navigate(actualPath);
+                return;
+              }
               
               // 在导航前预加载目标组件
               try {

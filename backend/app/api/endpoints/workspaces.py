@@ -196,7 +196,7 @@ async def batch_add_users_to_workspace_endpoint(
         )
         return success_response(message=result.get("message", "批量操作成功"), data=result)
     except HTTPException as e:
-        return error_response(message=e.detail, status_code=e.status_code)
+        return error_response(message=e.detail)
     except Exception as e:
         logger.error(f"批量添加用户到工作区失败: {str(e)}")
         return error_response(message=f"批量添加用户到工作区失败: {str(e)}")

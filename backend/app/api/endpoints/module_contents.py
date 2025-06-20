@@ -148,4 +148,84 @@ async def get_table_relation_diagram(
         raise
     except Exception as e:
         logger.error(f"获取表关联关系图失败: {str(e)}")
-        return error_response(message=str(e) if hasattr(e, "detail") else f"获取表关联关系图失败: {str(e)}") 
+        return error_response(message=str(e) if hasattr(e, "detail") else f"获取表关联关系图失败: {str(e)}")
+
+# 添加引用相关的API端点
+
+@router.get("/{module_node_id}/referenced-tables", response_model=APIResponse[List[Any]])
+async def get_referenced_tables(
+    module_node_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    获取模块引用的工作区数据库表
+    """
+    try:
+        tables = await module_content_service.get_referenced_tables(db, module_node_id)
+        return success_response(data=tables)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取引用的数据库表失败: {str(e)}")
+        return error_response(message=str(e) if hasattr(e, "detail") else f"获取引用的数据库表失败: {str(e)}")
+
+@router.put("/{module_node_id}/table-refs", response_model=APIResponse[ModuleContentResponse])
+async def update_table_refs(
+    module_node_id: int,
+    table_ids: List[int],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    更新模块内容中的数据库表引用
+    """
+    try:
+        content, message = await module_content_service.update_table_refs(
+            db, module_node_id, table_ids, current_user
+        )
+        return success_response(data=content, message=message)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新数据库表引用失败: {str(e)}")
+        return error_response(message=str(e) if hasattr(e, "detail") else f"更新数据库表引用失败: {str(e)}")
+
+@router.get("/{module_node_id}/referenced-interfaces", response_model=APIResponse[List[Any]])
+async def get_referenced_interfaces(
+    module_node_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    获取模块引用的工作区接口
+    """
+    try:
+        interfaces = await module_content_service.get_referenced_interfaces(db, module_node_id)
+        return success_response(data=interfaces)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取引用的接口失败: {str(e)}")
+        return error_response(message=str(e) if hasattr(e, "detail") else f"获取引用的接口失败: {str(e)}")
+
+@router.put("/{module_node_id}/interface-refs", response_model=APIResponse[ModuleContentResponse])
+async def update_interface_refs(
+    module_node_id: int,
+    interface_ids: List[int],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    更新模块内容中的接口引用
+    """
+    try:
+        content, message = await module_content_service.update_interface_refs(
+            db, module_node_id, interface_ids, current_user
+        )
+        return success_response(data=content, message=message)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新接口引用失败: {str(e)}")
+        return error_response(message=str(e) if hasattr(e, "detail") else f"更新接口引用失败: {str(e)}") 
