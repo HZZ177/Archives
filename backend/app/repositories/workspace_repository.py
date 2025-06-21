@@ -1,13 +1,19 @@
-from typing import List, Optional, Dict, Any
-from sqlalchemy import select, update, and_, or_, func
+from typing import List, Optional, Dict, Any, Tuple
+
+from fastapi import HTTPException, status
+from sqlalchemy import select, update, and_, or_, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.app.core.logger import logger
 from backend.app.models.user import User
-from backend.app.models.workspace import Workspace, workspace_user, WorkspaceTable, WorkspaceInterface
+from backend.app.models.workspace import Workspace, workspace_user
+from backend.app.models.workspace_interface import WorkspaceInterface
+from backend.app.models.workspace_table import WorkspaceTable
 from backend.app.repositories.base_repository import BaseRepository
-from backend.app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate, WorkspaceTableCreate, WorkspaceTableUpdate, WorkspaceInterfaceCreate, WorkspaceInterfaceUpdate
+from backend.app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate
+from backend.app.schemas.workspace_interface import WorkspaceInterfaceCreate, WorkspaceInterfaceUpdate
+from backend.app.schemas.workspace_table import WorkspaceTableCreate, WorkspaceTableUpdate
 
 
 class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUpdate]):
@@ -334,23 +340,36 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
             raise
 
     async def get_tables_by_workspace_id(self, db: AsyncSession, workspace_id: int) -> List[WorkspaceTable]:
-        result = await db.execute(
-            select(WorkspaceTable)
-            .options(selectinload(WorkspaceTable.creator))
-            .where(
-                and_(
-                    WorkspaceTable.workspace_id == workspace_id,
-                    WorkspaceTable.created_by.isnot(None)
+        """获取工作区下的所有表"""
+        try:
+            result = await db.execute(
+                select(WorkspaceTable)
+                .options(
+                    selectinload(WorkspaceTable.creator),
+                    selectinload(WorkspaceTable.last_editor)
+                )
+                .where(
+                    and_(
+                        WorkspaceTable.workspace_id == workspace_id,
+                        WorkspaceTable.created_by.isnot(None)
+                    )
                 )
             )
-        )
-        return list(result.scalars().all())
+            return list(result.scalars().all())
+        except Exception as e:
+            logger.error(f"获取工作区表失败: {str(e)}")
+            raise
 
     async def get_table_by_id(self, db: AsyncSession, table_id: int) -> Optional[WorkspaceTable]:
         """通过ID获取工作区表"""
         try:
             result = await db.execute(
-                select(WorkspaceTable).where(WorkspaceTable.id == table_id)
+                select(WorkspaceTable)
+                .options(
+                    selectinload(WorkspaceTable.creator),
+                    selectinload(WorkspaceTable.last_editor)
+                )
+                .where(WorkspaceTable.id == table_id)
             )
             return result.scalar_one_or_none()
         except Exception as e:
@@ -362,11 +381,22 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
         try:
             db_obj_data = table_create.dict()
             db_obj_data['created_by'] = created_by_id
+            db_obj_data['user_id'] = created_by_id  # 设置最后修改者为创建者
             new_table = WorkspaceTable(**db_obj_data)
             db.add(new_table)
             await db.commit()
             await db.refresh(new_table)
-            return new_table
+            
+            # 显式加载creator和last_editor关系，避免在序列化过程中出现异步加载错误
+            result = await db.execute(
+                select(WorkspaceTable)
+                .options(
+                    selectinload(WorkspaceTable.creator),
+                    selectinload(WorkspaceTable.last_editor)
+                )
+                .where(WorkspaceTable.id == new_table.id)
+            )
+            return result.scalar_one_or_none() or new_table
         except Exception as e:
             await db.rollback()
             logger.error(f"创建工作区表失败: {str(e)}")
@@ -381,7 +411,18 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
 
             await db.commit()
             await db.refresh(table_obj)
-            return table_obj
+            
+            # 显式加载creator和last_editor关系，避免在序列化过程中出现异步加载错误
+            result = await db.execute(
+                select(WorkspaceTable)
+                .options(
+                    selectinload(WorkspaceTable.creator),
+                    selectinload(WorkspaceTable.last_editor)
+                )
+                .where(WorkspaceTable.id == table_obj.id)
+            )
+            updated_table_with_relations = result.scalar_one_or_none()
+            return updated_table_with_relations or table_obj
         except Exception as e:
             await db.rollback()
             logger.error(f"更新工作区表(ID:{table_obj.id})失败: {str(e)}")
@@ -394,17 +435,22 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
             await db.commit()
 
     async def get_interfaces_by_workspace_id(self, db: AsyncSession, workspace_id: int) -> List[WorkspaceInterface]:
-        result = await db.execute(
-            select(WorkspaceInterface)
-            .options(selectinload(WorkspaceInterface.creator))
-            .where(
-                and_(
-                    WorkspaceInterface.workspace_id == workspace_id,
-                    WorkspaceInterface.created_by.isnot(None)
+        """获取工作区下的所有接口"""
+        try:
+            result = await db.execute(
+                select(WorkspaceInterface)
+                .options(selectinload(WorkspaceInterface.creator))
+                .where(
+                    and_(
+                        WorkspaceInterface.workspace_id == workspace_id,
+                        WorkspaceInterface.created_by.isnot(None)
+                    )
                 )
             )
-        )
-        return list(result.scalars().all())
+            return list(result.scalars().all())
+        except Exception as e:
+            logger.error(f"获取工作区下的所有接口失败: {str(e)}")
+            raise
 
     async def get_interface_by_id(self, db: AsyncSession, interface_id: int) -> Optional[WorkspaceInterface]:
         return await db.get(WorkspaceInterface, interface_id)

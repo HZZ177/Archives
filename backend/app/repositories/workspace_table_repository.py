@@ -36,7 +36,7 @@ class WorkspaceTableRepository(BaseRepository[WorkspaceTable, WorkspaceTableCrea
             result = await db.execute(
                 select(WorkspaceTable)
                 .where(WorkspaceTable.workspace_id == workspace_id)
-                .order_by(WorkspaceTable.table_name)
+                .order_by(WorkspaceTable.name)
             )
             return result.scalars().all()
         except Exception as e:
@@ -129,7 +129,7 @@ class WorkspaceTableRepository(BaseRepository[WorkspaceTable, WorkspaceTableCrea
         try:
             query = select(exists().where(
                 (WorkspaceTable.workspace_id == workspace_id) &
-                (WorkspaceTable.table_name == table_name)
+                (WorkspaceTable.name == table_name)
             ))
             
             if exclude_id:

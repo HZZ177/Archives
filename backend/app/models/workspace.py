@@ -1,9 +1,11 @@
 import datetime
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Text, Table, JSON
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Text, Table
 from sqlalchemy.orm import relationship
 
 from backend.app.db.base import Base
 from backend.app.db.utils import get_local_time
+from backend.app.models.workspace_table import WorkspaceTable
+from backend.app.models.workspace_interface import WorkspaceInterface
 
 # 工作区-用户关联表
 workspace_user = Table(
@@ -34,47 +36,6 @@ class Workspace(Base):
     users = relationship("User", secondary=workspace_user, back_populates="workspaces")
     module_nodes = relationship("ModuleStructureNode", back_populates="workspace") 
     
-    # 新增关系
-    database_tables = relationship("WorkspaceTable", back_populates="workspace", cascade="all, delete-orphan")
-    api_interfaces = relationship("WorkspaceInterface", back_populates="workspace", cascade="all, delete-orphan")
-
-
-class WorkspaceTable(Base):
-    """工作区级别的数据库表模型"""
-    __tablename__ = "workspace_tables"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
-    name = Column(String(100), nullable=False)
-    schema_name = Column(String(100), nullable=True)
-    description = Column(Text, nullable=True)
-    columns_json = Column(JSON, nullable=False)  # 存储表字段信息
-    relationships_json = Column(JSON, nullable=True)  # 存储表关系信息
-    created_by = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=get_local_time)
-    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
-    
-    # 关系
-    workspace = relationship("Workspace", back_populates="database_tables")
-    creator = relationship("User", foreign_keys=[created_by])
-
-
-class WorkspaceInterface(Base):
-    """工作区级别的接口模型"""
-    __tablename__ = "workspace_interfaces"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
-    path = Column(String(255), nullable=False)
-    method = Column(String(10), nullable=False)  # GET, POST, PUT, DELETE, PATCH
-    description = Column(Text, nullable=True)
-    content_type = Column(String(100), nullable=True)
-    request_params_json = Column(JSON, nullable=True)  # 存储请求参数
-    response_params_json = Column(JSON, nullable=True)  # 存储响应参数
-    created_by = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=get_local_time)
-    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
-    
-    # 关系
-    workspace = relationship("Workspace", back_populates="api_interfaces")
-    creator = relationship("User", foreign_keys=[created_by]) 
+    # 使用导入的模型定义关系
+    tables = relationship("WorkspaceTable", back_populates="workspace", cascade="all, delete-orphan")
+    interfaces = relationship("WorkspaceInterface", back_populates="workspace", cascade="all, delete-orphan") 

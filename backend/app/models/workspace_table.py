@@ -12,7 +12,7 @@ class WorkspaceTable(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
-    table_name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)
     schema_name = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
     columns_json = Column(JSON, nullable=False)  # 存储字段信息

@@ -18,10 +18,8 @@ const ModuleContentPage = lazy(() => import('./pages/module-content/ModuleConten
 const WorkspaceManagePage = lazy(() => import('./pages/workspace/WorkspaceManagePage'));
 const HomePage = lazy(() => import('./pages/home/HomePage'));
 const ProfilePage = lazy(() => import('./pages/user/ProfilePage'));
-const WorkspaceTablesPage = lazy(() => import('./pages/database-resources/WorkspaceTablesPage'));
-const WorkspaceInterfacesPage = lazy(() => import('./pages/api-resources/WorkspaceInterfacesPage'));
 
-// 新增工作区表和接口管理页面
+// 工作区资源页面
 const WorkspaceTablesPage = lazy(() => import('./pages/workspace-resources/WorkspaceTablesPage'));
 const WorkspaceInterfacesPage = lazy(() => import('./pages/workspace-resources/WorkspaceInterfacesPage'));
 

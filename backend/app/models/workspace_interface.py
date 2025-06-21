@@ -18,7 +18,7 @@ class WorkspaceInterface(Base):
     content_type = Column(String(100), nullable=True)
     request_params_json = Column(JSON, nullable=True)  # 请求参数
     response_params_json = Column(JSON, nullable=True)  # 响应参数
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # 最后修改者
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # 最后修改者，设置为可为空
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)  # 创建者
     created_at = Column(DateTime, default=get_local_time)
     updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)

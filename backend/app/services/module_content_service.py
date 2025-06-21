@@ -140,7 +140,7 @@ class ModuleContentService:
                 if table:
                     tables.append({
                         "id": table.id,
-                        "table_name": table.table_name,
+                        "name": table.name,
                         "schema_name": table.schema_name,
                         "description": table.description,
                         "columns": table.columns_json,

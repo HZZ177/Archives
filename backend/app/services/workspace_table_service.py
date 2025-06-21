@@ -166,13 +166,13 @@ class WorkspaceTableService:
             
             # 检查是否已存在同名表
             table_exists = await workspace_table_repository.check_table_exists(
-                db, workspace_id, table_data.table_name
+                db, workspace_id, table_data.name
             )
             
             if table_exists:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"工作区中已存在名为 '{table_data.table_name}' 的数据库表"
+                    detail=f"工作区中已存在名为 '{table_data.name}' 的数据库表"
                 )
             
             # 创建数据库表
@@ -221,15 +221,15 @@ class WorkspaceTableService:
             await self.validate_workspace_access(db, table.workspace_id, user, require_write=True)
             
             # 检查是否与其他表名冲突
-            if table_data.table_name != table.table_name:
+            if table_data.name != table.name:
                 table_exists = await workspace_table_repository.check_table_exists(
-                    db, table.workspace_id, table_data.table_name, exclude_id=table_id
+                    db, table.workspace_id, table_data.name, exclude_id=table_id
                 )
                 
                 if table_exists:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"工作区中已存在名为 '{table_data.table_name}' 的数据库表"
+                        detail=f"工作区中已存在名为 '{table_data.name}' 的数据库表"
                     )
             
             # 更新数据库表

@@ -7,7 +7,7 @@ from backend.app.schemas.module_content import DatabaseTable, DatabaseTableColum
 
 class WorkspaceTableBase(BaseModel):
     """工作区数据库表基础模型"""
-    table_name: str
+    name: str
     schema_name: Optional[str] = None
     description: Optional[str] = None
     columns_json: List[Dict[str, Any]]  # 字段信息，与DatabaseTableColumn兼容
