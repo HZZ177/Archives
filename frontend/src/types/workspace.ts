@@ -9,47 +9,79 @@ export interface Workspace {
   id: number;
   name: string;
   description?: string;
+  icon?: string;
   color?: string;
-  is_default?: boolean;
-  created_at?: string;
-  updated_at?: string;
-  owner_id?: number;
+  is_default: boolean;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// 工作区用户关系
+export interface WorkspaceUser {
+  user_id: number;
+  workspace_id: number;
+  access_level: string; // 'read', 'write', 'admin'
+  username: string;
+  email: string;
+}
+
+// 工作区数据库表
+export interface WorkspaceTable {
+  id: number;
+  workspace_id: number;
+  table_name: string;
+  schema_name?: string;
+  description?: string;
+  columns_json: any[];
+  relationships_json?: any[];
+  user_id: number;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// 工作区数据库表详情
+export interface WorkspaceTableDetail extends WorkspaceTable {
+  columns: any[]; // 转换后的字段信息
+}
+
+// 工作区接口
+export interface WorkspaceInterface {
+  id: number;
+  workspace_id: number;
+  path: string;
+  method: string;
+  description?: string;
+  content_type?: string;
+  request_params_json?: any[];
+  response_params_json?: any[];
+  user_id: number;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// 工作区接口详情
+export interface WorkspaceInterfaceDetail extends WorkspaceInterface {
+  request_params: any[]; // 转换后的请求参数
+  response_params: any[]; // 转换后的响应参数
 }
 
 // 创建工作区请求
-export interface WorkspaceCreateRequest {
+export interface CreateWorkspaceRequest {
   name: string;
   description?: string;
   icon?: string;
   color?: string;
-  is_default?: boolean;
 }
 
 // 更新工作区请求
-export interface WorkspaceUpdateRequest {
+export interface UpdateWorkspaceRequest {
   name?: string;
   description?: string;
   icon?: string;
   color?: string;
-  is_default?: boolean;
-}
-
-// 工作区用户关系类型
-export interface WorkspaceUser {
-  id: number;
-  user_id: number;
-  workspace_id: number;
-  role: 'owner' | 'admin' | 'member' | 'guest';
-  username: string;
-  email?: string;
-  is_superuser?: boolean;
-  created_at?: string;
-  updated_at?: string;
-  user?: {
-    id: number;
-    username: string;
-    email?: string;
-  };
 }
 
 // 添加用户到工作区请求

@@ -18,6 +18,8 @@ const ModuleContentPage = lazy(() => import('./pages/module-content/ModuleConten
 const WorkspaceManagePage = lazy(() => import('./pages/workspace/WorkspaceManagePage'));
 const HomePage = lazy(() => import('./pages/home/HomePage'));
 const ProfilePage = lazy(() => import('./pages/user/ProfilePage'));
+const WorkspaceTablesPage = lazy(() => import('./pages/database-resources/WorkspaceTablesPage'));
+const WorkspaceInterfacesPage = lazy(() => import('./pages/api-resources/WorkspaceInterfacesPage'));
 
 // 新增工作区表和接口管理页面
 const WorkspaceTablesPage = lazy(() => import('./pages/workspace-resources/WorkspaceTablesPage'));
@@ -165,6 +167,15 @@ const router = createBrowserRouter([
       {
         path: '/structure-management/module-config',
         element: <SuspenseWrapper component={ModuleSectionConfig} />
+      },
+      // 添加工作区数据库表和接口管理页面路由
+      {
+        path: '/workspace/:workspaceId/database-resources',
+        element: <SuspenseWrapper component={WorkspaceTablesPage} />
+      },
+      {
+        path: '/workspace/:workspaceId/api-resources',
+        element: <SuspenseWrapper component={WorkspaceInterfacesPage} />
       },
     ]
   },
