@@ -24,7 +24,7 @@ import {
 import WorkspaceUserTable from './components/WorkspaceUserTable';
 import AddUserToWorkspaceModal from './components/AddUserToWorkspaceModal';
 import { useAuthContext } from '../../contexts/AuthContext';
-import { useWorkspaceContext } from '../../contexts/WorkspaceContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 import './WorkspaceManagePage.css';
 
 // 用于处理API返回的原始工作区用户数据
@@ -46,7 +46,7 @@ interface ApiWorkspaceUser {
 
 const WorkspaceManagePage: React.FC = () => {
   const { currentUser } = useAuthContext();
-  const { refreshWorkspaces: refreshWorkspacesContext } = useWorkspaceContext();
+  const { refreshWorkspaces: refreshWorkspacesContext } = useWorkspace();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [createModalVisible, setCreateModalVisible] = useState<boolean>(false);

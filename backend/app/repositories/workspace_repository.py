@@ -5,9 +5,9 @@ from sqlalchemy.orm import selectinload
 
 from backend.app.core.logger import logger
 from backend.app.models.user import User
-from backend.app.models.workspace import Workspace, workspace_user
+from backend.app.models.workspace import Workspace, workspace_user, WorkspaceTable, WorkspaceInterface
 from backend.app.repositories.base_repository import BaseRepository
-from backend.app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate
+from backend.app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate, WorkspaceTableCreate, WorkspaceTableUpdate, WorkspaceInterfaceCreate, WorkspaceInterfaceUpdate
 
 
 class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUpdate]):
@@ -37,7 +37,7 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
             result = await db.execute(
                 select(Workspace).order_by(Workspace.name)
             )
-            return result.scalars().all()
+            return list(result.scalars().all())
         except Exception as e:
             logger.error(f"获取所有工作区失败: {str(e)}")
             raise
@@ -53,17 +53,19 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
                 .where(workspace_user.c.user_id == user_id)
                 .order_by(Workspace.name)
             )
-            return result.scalars().all()
+            return list(result.scalars().all())
         except Exception as e:
             logger.error(f"获取用户({user_id})的工作区失败: {str(e)}")
             raise
     
-    async def create_workspace(self, db: AsyncSession, workspace_data: Dict[str, Any], created_by: int) -> Workspace:
+    async def create(self, db: AsyncSession, obj_in: WorkspaceCreate, created_by: int) -> Workspace:
         """
         创建工作区
         """
         try:
-            workspace = Workspace(**workspace_data, created_by=created_by)
+            db_obj_data = obj_in.dict()
+            db_obj_data['created_by'] = created_by
+            workspace = Workspace(**db_obj_data)
             db.add(workspace)
             await db.commit()
             await db.refresh(workspace)
@@ -330,6 +332,113 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
             await db.rollback()
             logger.error(f"设置用户({user_id})的默认工作区({workspace_id})失败: {str(e)}")
             raise
+
+    async def get_tables_by_workspace_id(self, db: AsyncSession, workspace_id: int) -> List[WorkspaceTable]:
+        result = await db.execute(
+            select(WorkspaceTable)
+            .options(selectinload(WorkspaceTable.creator))
+            .where(
+                and_(
+                    WorkspaceTable.workspace_id == workspace_id,
+                    WorkspaceTable.created_by.isnot(None)
+                )
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_table_by_id(self, db: AsyncSession, table_id: int) -> Optional[WorkspaceTable]:
+        """通过ID获取工作区表"""
+        try:
+            result = await db.execute(
+                select(WorkspaceTable).where(WorkspaceTable.id == table_id)
+            )
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(f"获取工作区表(ID:{table_id})失败: {str(e)}")
+            raise
+
+    async def create_workspace_table(self, db: AsyncSession, table_create: WorkspaceTableCreate, created_by_id: int) -> WorkspaceTable:
+        """创建工作区表"""
+        try:
+            db_obj_data = table_create.dict()
+            db_obj_data['created_by'] = created_by_id
+            new_table = WorkspaceTable(**db_obj_data)
+            db.add(new_table)
+            await db.commit()
+            await db.refresh(new_table)
+            return new_table
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"创建工作区表失败: {str(e)}")
+            raise
+
+    async def update_workspace_table(self, db: AsyncSession, table_obj: WorkspaceTable, table_update: WorkspaceTableUpdate) -> WorkspaceTable:
+        """更新工作区表"""
+        try:
+            update_data = table_update.dict(exclude_unset=True)
+            for field, value in update_data.items():
+                setattr(table_obj, field, value)
+
+            await db.commit()
+            await db.refresh(table_obj)
+            return table_obj
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"更新工作区表(ID:{table_obj.id})失败: {str(e)}")
+            raise
+
+    async def delete_workspace_table(self, db: AsyncSession, table_id: int):
+        table = await self.get_table_by_id(db, table_id)
+        if table:
+            await db.delete(table)
+            await db.commit()
+
+    async def get_interfaces_by_workspace_id(self, db: AsyncSession, workspace_id: int) -> List[WorkspaceInterface]:
+        result = await db.execute(
+            select(WorkspaceInterface)
+            .options(selectinload(WorkspaceInterface.creator))
+            .where(
+                and_(
+                    WorkspaceInterface.workspace_id == workspace_id,
+                    WorkspaceInterface.created_by.isnot(None)
+                )
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_interface_by_id(self, db: AsyncSession, interface_id: int) -> Optional[WorkspaceInterface]:
+        return await db.get(WorkspaceInterface, interface_id)
+
+    async def create_workspace_interface(self, db: AsyncSession, interface_create: WorkspaceInterfaceCreate, created_by_id: int) -> WorkspaceInterface:
+        """创建工作区接口"""
+        try:
+            db_obj_data = interface_create.dict()
+            db_obj_data['created_by'] = created_by_id
+            new_interface = WorkspaceInterface(**db_obj_data)
+            db.add(new_interface)
+            await db.commit()
+            await db.refresh(new_interface)
+            return new_interface
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"创建工作区接口失败: {str(e)}")
+            raise
+
+    async def update_workspace_interface(self, db: AsyncSession, interface_id: int, interface_update: WorkspaceInterfaceUpdate) -> Optional[WorkspaceInterface]:
+        interface = await self.get_interface_by_id(db, interface_id)
+        if interface:
+            update_data = interface_update.dict(exclude_unset=True)
+            for key, value in update_data.items():
+                setattr(interface, key, value)
+            await db.commit()
+            await db.refresh(interface)
+        return interface
+
+    async def delete_workspace_interface(self, db: AsyncSession, interface_id: int):
+        interface = await self.get_interface_by_id(db, interface_id)
+        if interface:
+            await db.delete(interface)
+            await db.commit()
 
 
 # 创建工作区仓库实例

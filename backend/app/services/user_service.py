@@ -6,6 +6,8 @@ from backend.app.core.logger import logger
 from backend.app.core.security import get_password_hash
 from backend.app.models.user import User, Role
 from backend.app.repositories.user_repository import user_repository
+from backend.app.repositories.auth_repository import auth_repository
+from backend.app.services.workspace_service import workspace_service
 from backend.app.schemas.user import UserCreate, UserUpdate, UserStatusUpdate, UserPage
 from backend.app.schemas.role import UserRoleUpdate, RoleResponse
 from backend.app.api.deps import check_permissions
@@ -112,6 +114,16 @@ class UserService:
             
             # 创建用户
             user = await user_repository.create_user(db, user_dict, role_ids)
+            
+            # 将用户添加到默认工作区
+            try:
+                logger.info(f"正在将新用户(ID:{user.id})添加到默认工作区...")
+                workspace_result = await workspace_service.add_user_to_default_workspace(db, user.id)
+                logger.info(f"用户添加到默认工作区结果: {workspace_result}")
+            except Exception as e:
+                # 不要因为添加到工作区失败而影响用户创建
+                logger.error(f"将用户添加到默认工作区失败: {str(e)}")
+            
             return user
         except HTTPException:
             raise

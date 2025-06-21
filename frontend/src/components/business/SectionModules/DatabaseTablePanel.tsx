@@ -13,6 +13,7 @@ import {
   EyeOutlined
 } from '@ant-design/icons';
 import { DatabaseTable } from '../../../types/modules';
+import { WorkspaceTableRead } from '../../../types/workspace';
 import styles from './DatabaseTablePanel.module.css';
 
 const { Title, Paragraph } = Typography;
@@ -142,7 +143,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
                   bordered={false}
                 >
                   <Title level={5} className={styles.tableName}>
-                    {table.table_name}
+                    {table.name}
                     <div style={{ display: 'flex', marginLeft: 'auto' }}>
                       <Tooltip title="查看表详情" placement="top">
                         <Button
@@ -152,7 +153,14 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
                           onClick={(e) => {
                             e.stopPropagation();
                             if (onTableDetailClick) {
-                              onTableDetailClick(table);
+                              // 确保表数据格式正确
+                              const processedTable = {
+                                ...table,
+                                // 确保 columns 属性存在
+                                columns: table.columns || (table as any).columns_json || []
+                              };
+                              console.log('处理后的表数据:', processedTable);
+                              onTableDetailClick(processedTable);
                             }
                           }}
                           style={{ marginRight: '4px' }}

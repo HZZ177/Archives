@@ -19,6 +19,10 @@ const WorkspaceManagePage = lazy(() => import('./pages/workspace/WorkspaceManage
 const HomePage = lazy(() => import('./pages/home/HomePage'));
 const ProfilePage = lazy(() => import('./pages/user/ProfilePage'));
 
+// 新增工作区表和接口管理页面
+const WorkspaceTablesPage = lazy(() => import('./pages/workspace-resources/WorkspaceTablesPage'));
+const WorkspaceInterfacesPage = lazy(() => import('./pages/workspace-resources/WorkspaceInterfacesPage'));
+
 // 加载指示器组件
 const LoadingComponent = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '200px' }}>
@@ -140,6 +144,15 @@ const router = createBrowserRouter([
       {
         path: ROUTES.WORKSPACES_MANAGE,
         element: <SuspenseWrapper component={WorkspaceManagePage} />
+      },
+      // 新增工作区表和接口管理路由
+      {
+        path: ROUTES.WORKSPACE_TABLES,
+        element: <SuspenseWrapper component={WorkspaceTablesPage} />
+      },
+      {
+        path: ROUTES.WORKSPACE_INTERFACES,
+        element: <SuspenseWrapper component={WorkspaceInterfacesPage} />
       },
       {
         path: 'user/profile',

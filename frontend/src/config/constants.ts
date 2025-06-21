@@ -40,6 +40,8 @@ export const ROUTES = {
   MODULE_CONTENT: '/module-content',
   WORKSPACES_MANAGE: '/workspaces/manage',
   WORKSPACES_EDIT: '/workspaces/:id',
+  WORKSPACE_TABLES: '/workspaces/tables',
+  WORKSPACE_INTERFACES: '/workspaces/interfaces',
 };
 
 // 状态码

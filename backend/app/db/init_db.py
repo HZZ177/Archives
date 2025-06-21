@@ -93,6 +93,39 @@ async def create_system_permissions(session: AsyncSession) -> None:
             "icon": "appstore",
             "parent_id": 5,  # 结构管理节点
             "description": "配置页面模块的显示和顺序"
+        },
+        # 数据资源 - 作为父节点
+        {
+            "code": "workspace:resources", 
+            "name": "数据资源",
+            "page_path": "/workspaces",
+            "sort": 120,
+            "is_visible": True,
+            "icon": "database",
+            "parent_id": None,
+            "description": "工作区数据资源管理"
+        },
+        # 表池 - 作为数据资源的子页面
+        {
+            "code": "workspace:resources:tables",
+            "name": "表池管理",
+            "page_path": "/workspaces/tables",
+            "sort": 121,
+            "is_visible": True,
+            "icon": "table",
+            "parent_id": 8, # 数据资源节点
+            "description": "管理工作区内的数据表"
+        },
+        # 接口池 - 作为数据资源的子页面
+        {
+            "code": "workspace:resources:interfaces",
+            "name": "接口池管理",
+            "page_path": "/workspaces/interfaces",
+            "sort": 122,
+            "is_visible": True,
+            "icon": "api",
+            "parent_id": 8, # 数据资源节点
+            "description": "管理工作区内的API接口"
         }
     ]
 

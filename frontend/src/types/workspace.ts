@@ -1,6 +1,8 @@
 /**
  * 工作区类型定义
  */
+import { ApiParam, DatabaseTable, DatabaseTableColumn, ApiInterfaceCard } from './modules';
+import { UserSimple } from './user';
 
 // 工作区基础类型
 export interface Workspace {
@@ -102,4 +104,83 @@ export interface BatchAddUsersToWorkspaceRequest {
 
 export interface BatchRemoveUsersFromWorkspaceRequest {
   user_ids: number[];
+}
+
+// 工作区表类型
+export interface WorkspaceTable {
+  id: number;
+  workspace_id: number;
+  name: string;
+  schema_name?: string;
+  description?: string;
+  columns_json: DatabaseTableColumn[];
+  relationships_json?: any[];
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkspaceTableRead extends WorkspaceTable {
+  creator?: UserSimple;
+}
+
+// 创建工作区表请求
+export interface WorkspaceTableCreate {
+  workspace_id: number;
+  name: string;
+  schema_name?: string;
+  description?: string;
+  columns_json: DatabaseTableColumn[];
+  relationships_json?: any[];
+}
+
+// 更新工作区表请求
+export interface WorkspaceTableUpdate {
+  name?: string;
+  schema_name?: string;
+  description?: string;
+  columns_json?: DatabaseTableColumn[];
+  relationships_json?: any[];
+}
+
+// 工作区接口类型
+export interface WorkspaceInterface {
+  id: number;
+  workspace_id: number;
+  path: string;
+  method: string;
+  description?: string;
+  content_type?: string;
+  request_params_json?: ApiParam[];
+  response_params_json?: ApiParam[];
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// 创建工作区接口请求
+export interface WorkspaceInterfaceCreate {
+  workspace_id: number;
+  path: string;
+  method: string;
+  description?: string;
+  content_type?: string;
+  request_params_json?: ApiParam[];
+  response_params_json?: ApiParam[];
+}
+
+// 更新工作区接口请求
+export interface WorkspaceInterfaceUpdate {
+  path?: string;
+  method?: string;
+  description?: string;
+  content_type?: string;
+  request_params_json?: ApiParam[];
+  response_params_json?: ApiParam[];
+}
+
+// 模块内容引用工作区表和接口的类型
+export interface ModuleContentReferences {
+  database_table_refs?: number[];
+  api_interface_refs?: number[];
 } 

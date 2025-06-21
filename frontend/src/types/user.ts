@@ -9,6 +9,11 @@ export interface User {
   updated_at?: string;
 }
 
+export interface UserSimple {
+  id: number;
+  username: string;
+}
+
 export interface UserState {
   currentUser: User | null;
   token: string | null;

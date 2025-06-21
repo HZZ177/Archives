@@ -10,6 +10,7 @@ import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import DatabaseTablePanel from './DatabaseTablePanel';
 import DatabaseTableDetail from './DatabaseTableDetail';
 import styles from './DiagramEditor.module.css';
+import { useWorkspace } from '../../../contexts/WorkspaceContext';
 
 // 调试工具函数
 const DEBUG = true; // 设置为 false 可以禁用所有调试输出
@@ -51,6 +52,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   const containerRef = useRef<HTMLDivElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const isUpdatingRef = useRef(false);
+  const workspace = useWorkspace();
 
   // 在 useEffect 中添加日志
   useEffect(() => {
@@ -66,44 +68,38 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   const loadDatabaseTables = async () => {
     try {
       console.log('开始加载数据库表数据，moduleId:', moduleId, '图表类型:', diagramType);
-      const moduleContent = await fetchModuleContent(moduleId);
+      const moduleContent = await fetchModuleContent(
+        moduleId, 
+        workspace.currentWorkspace?.id,
+        workspace.workspaceTables
+      );
       console.log('获取到模块内容:', moduleContent);
       
-      // 修正：直接从 moduleContent 中获取 database_tables_json
-      if (moduleContent && (moduleContent as any).database_tables_json) {
-        console.log('找到数据库表:', (moduleContent as any).database_tables_json);
-        setDatabaseTables((moduleContent as any).database_tables_json);
+      // 尝试从多个可能的路径获取数据库表
+      let tables = null;
+      
+      // 1. 尝试从关联表查询返回的完整表对象获取（新的存储方式）
+      if (moduleContent && (moduleContent as any).database_tables && Array.isArray((moduleContent as any).database_tables)) {
+        console.log('从 moduleContent.database_tables 找到数据库表:', (moduleContent as any).database_tables);
+        tables = (moduleContent as any).database_tables;
+      }
+      // 2. 尝试从新的路径获取
+      else if (moduleContent && moduleContent.content && moduleContent.content.database_tables) {
+        console.log('从 content.database_tables 找到数据库表:', moduleContent.content.database_tables);
+        tables = moduleContent.content.database_tables;
+      } 
+      // 3. 尝试从旧的路径获取
+      else if (moduleContent && (moduleContent as any).database_tables_json) {
+        console.log('从 database_tables_json 找到数据库表:', (moduleContent as any).database_tables_json);
+        tables = (moduleContent as any).database_tables_json;
+      }
+      
+      if (tables && tables.length > 0) {
+        setDatabaseTables(tables);
       } else {
         console.log('未找到数据库表数据，moduleContent结构:', moduleContent);
-        // 如果没有找到数据库表，尝试创建一个测试表以验证组件渲染
-        if (diagramType === 'tableRelation') {
-          const testTable: DatabaseTable = {
-            table_name: '测试表',
-            description: '这是一个测试表，用于验证组件渲染',
-            columns: [
-              {
-                field_name: 'id',
-                field_type: 'int',
-                nullable: false,
-                is_primary_key: true,
-                is_unique: true,
-                is_index: false
-              },
-              {
-                field_name: 'name',
-                field_type: 'varchar',
-                length: 255,
-                nullable: true,
-                is_primary_key: false,
-                is_unique: false,
-                is_index: true,
-                description: '名称字段'
-              }
-            ]
-          };
-          console.log('创建测试表数据:', testTable);
-          setDatabaseTables([testTable]);
-        }
+        // 清空数据库表，显示空状态
+        setDatabaseTables([]);
       }
     } catch (error) {
       console.error('加载数据库表失败:', error);
@@ -122,7 +118,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
       console.error('刷新数据库表失败:', error);
       message.error({ content: '刷新数据库表失败', key: 'refreshTables' });
     }
-  }, [moduleId]);
+  }, [moduleId, workspace.currentWorkspace?.id]);
 
   // 监听编辑模式变化，在进入编辑模式时自动刷新数据库表
   useEffect(() => {
@@ -398,7 +394,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
               // 兼容旧版本
               try {
                 const tableData = JSON.parse(rectElementInGroup.customData.tableData);
-                debug('解析表数据成功', { tableName: tableData.table_name });
+                debug('解析表数据成功', { tableName: tableData.name });
                 setSelectedTable(tableData);
                 setDetailModalVisible(true);
                 return; // 找到了表数据，提前返回
@@ -410,7 +406,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
               // 新版本，从数据库表列表中查找匹配的表
               const tableName = rectElementInGroup.customData.tableName;
               debug('查找表', { tableName });
-              const table = databaseTables.find(t => t.table_name === tableName);
+              const table = databaseTables.find(t => t.name === tableName);
               if (table) {
                 debug('找到表', { tableName });
                 setSelectedTable(table);
@@ -438,7 +434,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           // 兼容旧版本
           try {
             const tableData = JSON.parse(clickedElement.customData.tableData);
-            debug('解析表数据成功', { tableName: tableData.table_name });
+            debug('解析表数据成功', { tableName: tableData.name });
             setSelectedTable(tableData);
             setDetailModalVisible(true);
           } catch (error) {
@@ -449,7 +445,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           // 新版本，从数据库表列表中查找匹配的表
           const tableName = clickedElement.customData.tableName;
           debug('查找表', { tableName });
-          const table = databaseTables.find(t => t.table_name === tableName);
+          const table = databaseTables.find(t => t.name === tableName);
           if (table) {
             debug('找到表', { tableName });
             setSelectedTable(table);
@@ -537,11 +533,11 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
             fillStyle: "solid" as const, // 实心填充
             strokeStyle: "solid" as const, // 朴素线条
             label: {
-              text: `${tableData.table_name}\n\n${tableData.description || '无描述'}\n\n字段数量: ${tableData.columns?.length || 0}`,
+              text: `${tableData.name}\n\n${tableData.description || '无描述'}\n\n字段数量: ${tableData.columns?.length || 0}`,
               fontSize: 16,
             },
             customData: {
-              tableName: tableData.table_name,
+              tableName: tableData.name,
               columnsCount: tableData.columns?.length || 0,
               tableData: JSON.stringify(tableData) // 保留完整数据以备后用
             }
@@ -669,6 +665,8 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           isEditable={isEditable}
           onRefresh={refreshDatabaseTables}
           onTableDetailClick={(table) => {
+            console.log('查看表详情按钮点击，表数据结构:', table);
+            console.log('表字段:', table.columns);
             setSelectedTable(table);
             setDetailModalVisible(true);
           }}
@@ -811,11 +809,11 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
       
       {/* 数据库表详情弹窗 */}
       <Modal
-        title={selectedTable?.table_name}
-        visible={detailModalVisible}
+        title={selectedTable?.name || (selectedTable as any)?.table_name || '表详情'}
+        open={detailModalVisible}
         footer={null}
         onCancel={() => setDetailModalVisible(false)}
-        width={700}
+        width={800}
       >
         {selectedTable && <DatabaseTableDetail table={selectedTable} />}
       </Modal>

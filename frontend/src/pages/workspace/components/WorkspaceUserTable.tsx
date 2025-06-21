@@ -4,7 +4,7 @@ import { EditOutlined, DeleteOutlined, QuestionCircleOutlined, ExclamationCircle
 import { WorkspaceUser } from '../../../types/workspace';
 import { updateWorkspaceUserRole, removeUserFromWorkspace, removeUsersFromWorkspaceBatch } from '../../../apis/workspaceService';
 import { roleConfig, getEffectiveRole, getRoleColor, getRoleLabel, getRoleDescription } from '../../../utils/roleMapping';
-import { useWorkspaceContext } from '../../../contexts/WorkspaceContext';
+import { useWorkspace } from '../../../contexts/WorkspaceContext';
 
 const { Text } = Typography;
 
@@ -29,7 +29,7 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
   const [selectedUser, setSelectedUser] = useState<WorkspaceUser | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [actionLoading, setActionLoading] = useState<boolean>(false);
-  const { refreshWorkspaces } = useWorkspaceContext();
+  const { refreshWorkspaces } = useWorkspace();
 
   const handleRemoveUser = (user: WorkspaceUser) => {
     Modal.confirm({

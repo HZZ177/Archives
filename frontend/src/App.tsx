@@ -5,6 +5,7 @@ import zhCN from 'antd/locale/zh_CN';
 import { UserProvider } from './contexts/UserContext';
 import { ModuleProvider } from './contexts/ModuleContext';
 import { PermissionProvider } from './contexts/PermissionContext';
+import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import PasswordChangeWrapper from './components/layouts/PasswordChangeWrapper';
 import router from './router';
 import './styles/global.css';
@@ -27,13 +28,15 @@ const App: React.FC = () => {
   return (
     <ConfigProvider locale={zhCN}>
       <UserProvider>
-        <ModuleProvider>
-          <PermissionProvider>
-            <PasswordChangeWrapper>
-              <RouterProvider router={router} />
-            </PasswordChangeWrapper>
-          </PermissionProvider>
-        </ModuleProvider>
+        <WorkspaceProvider>
+          <ModuleProvider>
+            <PermissionProvider>
+              <PasswordChangeWrapper>
+                <RouterProvider router={router} />
+              </PasswordChangeWrapper>
+            </PermissionProvider>
+          </ModuleProvider>
+        </WorkspaceProvider>
       </UserProvider>
     </ConfigProvider>
   );

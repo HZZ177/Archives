@@ -12,7 +12,14 @@ import {
   SetDefaultWorkspaceRequest,
   CreateWorkspaceParams,
   UpdateWorkspaceParams,
-  WorkspaceUserParams
+  WorkspaceUserParams,
+  WorkspaceTable,
+  WorkspaceTableRead,
+  WorkspaceTableCreate,
+  WorkspaceTableUpdate,
+  WorkspaceInterface,
+  WorkspaceInterfaceCreate,
+  WorkspaceInterfaceUpdate
 } from '../types/workspace';
 import { APIResponse } from '../types/api';
 
@@ -242,7 +249,7 @@ export const updateWorkspaceUserRole = async (workspaceId: number, userId: numbe
     
     // 使用access_level作为参数名，与后端API匹配
     const response = await request.post<APIResponse<WorkspaceUser>>(
-      `/workspaces/${workspaceId}/users/${userId}`, 
+      `/workspaces/${workspaceId}/users/${userId}/role`,
       { access_level: roleToAccessLevel[role] || 'read' }
     );
     return unwrapResponse(response.data);
@@ -259,7 +266,7 @@ export const updateWorkspaceUserRole = async (workspaceId: number, userId: numbe
  */
 export const removeUserFromWorkspace = async (workspaceId: number, userId: number): Promise<void> => {
   try {
-    await request.post<APIResponse<void>>(`/workspaces/${workspaceId}/users/${userId}/remove`);
+    await request.delete<APIResponse<void>>(`/workspaces/${workspaceId}/users/${userId}`);
   } catch (error) {
     console.error(`从工作区(ID:${workspaceId})移除用户(ID:${userId})失败:`, error);
     throw error;
@@ -273,13 +280,170 @@ export const removeUserFromWorkspace = async (workspaceId: number, userId: numbe
  */
 export const setDefaultWorkspace = async (userId: number, workspaceId: number): Promise<void> => {
   try {
-    await request.post<APIResponse<void>>(`/workspaces/default`, { 
-      user_id: userId, 
-      workspace_id: workspaceId 
-    });
+    await request.post<APIResponse<void>>(`/users/${userId}/default-workspace`, { workspace_id: workspaceId });
     invalidateWorkspaceCache();
   } catch (error) {
-    console.error(`设置默认工作区失败:`, error);
+    console.error(`设置默认工作区(ID:${workspaceId})失败:`, error);
+    throw error;
+  }
+};
+
+// 工作区表相关API
+
+/**
+ * 获取工作区下的所有数据库表
+ * @param workspaceId 工作区ID
+ * @returns 数据库表列表
+ */
+export const getWorkspaceTables = async (workspaceId: number): Promise<WorkspaceTableRead[]> => {
+  try {
+    const response = await request.get<APIResponse<WorkspaceTableRead[]>>(`/workspaces/${workspaceId}/tables`);
+    return unwrapResponse(response.data);
+  } catch (error) {
+    console.error(`获取工作区(ID:${workspaceId})数据库表列表失败:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 获取工作区下的特定数据库表
+ * @param workspaceId 工作区ID
+ * @param tableId 表ID
+ * @returns 数据库表详情
+ */
+export const getWorkspaceTable = async (workspaceId: number, tableId: number): Promise<WorkspaceTableRead> => {
+  try {
+    const response = await request.get<APIResponse<WorkspaceTableRead>>(`/workspaces/${workspaceId}/tables/${tableId}`);
+    return unwrapResponse(response.data);
+  } catch (error) {
+    console.error(`获取工作区(ID:${workspaceId})数据库表(ID:${tableId})详情失败:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 创建工作区数据库表
+ * @param workspaceId 工作区ID
+ * @param data 表数据
+ * @returns 创建的数据库表
+ */
+export const createWorkspaceTable = async (workspaceId: number, data: WorkspaceTableCreate): Promise<WorkspaceTableRead> => {
+  try {
+    const response = await request.post<APIResponse<WorkspaceTableRead>>(`/workspaces/${workspaceId}/tables`, data);
+    return unwrapResponse(response.data);
+  } catch (error) {
+    console.error(`创建工作区(ID:${workspaceId})数据库表失败:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 更新工作区数据库表
+ * @param workspaceId 工作区ID
+ * @param tableId 表ID
+ * @param data 更新数据
+ * @returns 更新后的数据库表
+ */
+export const updateWorkspaceTable = async (workspaceId: number, tableId: number, data: WorkspaceTableUpdate): Promise<WorkspaceTableRead> => {
+  try {
+    const response = await request.put<APIResponse<WorkspaceTableRead>>(`/workspaces/${workspaceId}/tables/${tableId}`, data);
+    return unwrapResponse(response.data);
+  } catch (error) {
+    console.error(`更新工作区(ID:${workspaceId})数据库表(ID:${tableId})失败:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 删除工作区数据库表
+ * @param workspaceId 工作区ID
+ * @param tableId 表ID
+ */
+export const deleteWorkspaceTable = async (workspaceId: number, tableId: number): Promise<void> => {
+  try {
+    await request.delete<APIResponse<void>>(`/workspaces/${workspaceId}/tables/${tableId}`);
+  } catch (error) {
+    console.error(`删除工作区(ID:${workspaceId})数据库表(ID:${tableId})失败:`, error);
+    throw error;
+  }
+};
+
+// 工作区接口相关API
+
+/**
+ * 获取工作区下的所有接口
+ * @param workspaceId 工作区ID
+ * @returns 接口列表
+ */
+export const getWorkspaceInterfaces = async (workspaceId: number): Promise<WorkspaceInterface[]> => {
+  try {
+    const response = await request.get<APIResponse<WorkspaceInterface[]>>(`/workspaces/${workspaceId}/interfaces`);
+    return unwrapResponse(response.data);
+  } catch (error) {
+    console.error(`获取工作区(ID:${workspaceId})接口列表失败:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 获取工作区下的特定接口
+ * @param workspaceId 工作区ID
+ * @param interfaceId 接口ID
+ * @returns 接口详情
+ */
+export const getWorkspaceInterface = async (workspaceId: number, interfaceId: number): Promise<WorkspaceInterface> => {
+  try {
+    const response = await request.get<APIResponse<WorkspaceInterface>>(`/workspaces/${workspaceId}/interfaces/${interfaceId}`);
+    return unwrapResponse(response.data);
+  } catch (error) {
+    console.error(`获取工作区(ID:${workspaceId})接口(ID:${interfaceId})详情失败:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 创建工作区接口
+ * @param workspaceId 工作区ID
+ * @param data 接口数据
+ * @returns 创建的接口
+ */
+export const createWorkspaceInterface = async (workspaceId: number, data: WorkspaceInterfaceCreate): Promise<WorkspaceInterface> => {
+  try {
+    const response = await request.post<APIResponse<WorkspaceInterface>>(`/workspaces/${workspaceId}/interfaces`, data);
+    return unwrapResponse(response.data);
+  } catch (error) {
+    console.error(`创建工作区(ID:${workspaceId})接口失败:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 更新工作区接口
+ * @param workspaceId 工作区ID
+ * @param interfaceId 接口ID
+ * @param data 更新数据
+ * @returns 更新后的接口
+ */
+export const updateWorkspaceInterface = async (workspaceId: number, interfaceId: number, data: WorkspaceInterfaceUpdate): Promise<WorkspaceInterface> => {
+  try {
+    const response = await request.put<APIResponse<WorkspaceInterface>>(`/workspaces/${workspaceId}/interfaces/${interfaceId}`, data);
+    return unwrapResponse(response.data);
+  } catch (error) {
+    console.error(`更新工作区(ID:${workspaceId})接口(ID:${interfaceId})失败:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 删除工作区接口
+ * @param workspaceId 工作区ID
+ * @param interfaceId 接口ID
+ */
+export const deleteWorkspaceInterface = async (workspaceId: number, interfaceId: number): Promise<void> => {
+  try {
+    await request.delete<APIResponse<void>>(`/workspaces/${workspaceId}/interfaces/${interfaceId}`);
+  } catch (error) {
+    console.error(`删除工作区(ID:${workspaceId})接口(ID:${interfaceId})失败:`, error);
     throw error;
   }
 }; 

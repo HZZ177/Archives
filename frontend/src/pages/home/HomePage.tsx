@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Typography, Spin, Card, Space, Button } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useModules } from '../../contexts/ModuleContext';
-import { useWorkspaceContext } from '../../contexts/WorkspaceContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { ModuleGraph } from '../../components/ModuleGraph/ModuleGraph';
 import { PlusOutlined, ProjectOutlined } from '@ant-design/icons';
 import './HomePage.css';
@@ -15,7 +15,7 @@ const { Title, Text } = Typography;
  */
 const HomePage: React.FC = () => {
   const { modules, loading: modulesLoading } = useModules();
-  const { currentWorkspace, loading: workspaceLoading } = useWorkspaceContext();
+  const { currentWorkspace, loading: workspaceLoading } = useWorkspace();
   const navigate = useNavigate();
   const location = useLocation();
   const [currentModuleId, setCurrentModuleId] = useState<number | null>(null);

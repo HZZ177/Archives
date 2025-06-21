@@ -24,6 +24,7 @@ interface ApiInterfaceCardProps {
   isEditable?: boolean;
   isExpanded?: boolean;
   onToggleExpand?: (id: string, expanded: boolean) => void;
+  showEditButton?: boolean;
 }
 
 const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
@@ -32,7 +33,8 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
   onDelete,
   isEditable = true,
   isExpanded = false,
-  onToggleExpand
+  onToggleExpand,
+  showEditButton = true
 }) => {
   const [expanded, setExpanded] = useState(isExpanded);
 
@@ -145,18 +147,20 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
           </Button>
           {isEditable && (
             <div className="api-card-icon-buttons">
-              <Tooltip title="编辑">
-                <Button
-                  type="text"
-                  size="small"
-                  className="api-card-icon-button edit-button"
-                  icon={<EditOutlined />}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEdit(data.id);
-                  }}
-                />
-              </Tooltip>
+              {showEditButton && (
+                <Tooltip title="编辑">
+                  <Button
+                    type="text"
+                    size="small"
+                    className="api-card-icon-button edit-button"
+                    icon={<EditOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(data.id);
+                    }}
+                  />
+                </Tooltip>
+              )}
               <Tooltip title="删除">
                 <Button
                   type="text"

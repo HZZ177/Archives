@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Layout, Menu, theme, Button, Dropdown, Avatar, Breadcrumb, Tooltip } from 'antd';
+import { Layout, Menu, theme, Button, Dropdown, Avatar, Breadcrumb, Tooltip, Space, Spin } from 'antd';
 import type { ItemType } from 'antd/es/menu/interface';
 import {
   UserOutlined,
@@ -10,12 +10,19 @@ import {
   HomeOutlined,
   AppstoreOutlined,
   FolderOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  SettingOutlined,
+  SafetyCertificateOutlined,
+  BranchesOutlined,
+  BookOutlined,
+  DatabaseOutlined,
+  ApiOutlined
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
+import { usePermission } from '../contexts/PermissionContext';
+import { useWorkspace, WorkspaceProvider } from '../contexts/WorkspaceContext';
 import { useModules } from '../contexts/ModuleContext';
-import { WorkspaceProvider, useWorkspaceContext } from '../contexts/WorkspaceContext';
 import { ROUTES } from '../config/constants';
 import { fetchModuleTree } from '../apis/moduleService';
 import { ModuleStructureNode } from '../types/modules';
@@ -23,6 +30,7 @@ import { fetchUserPagePermissions } from '../apis/permissionService';
 // 使用新的PageTransition组件
 import PageTransition from '../components/common/PageTransition';
 import WorkspaceSelector from '../components/common/WorkspaceSelector';
+import PasswordChangeWrapper from '../components/layouts/PasswordChangeWrapper';
 
 const { Header, Sider, Content } = Layout;
 
@@ -112,6 +120,26 @@ const staticMenuItems: ExtendedMenuItem[] = [
         }
     ]
   },
+  {
+    key: '/workspaces/resources',
+    icon: <BookOutlined />,
+    label: '数据资源',
+    page_path: '/workspaces/resources',
+    children: [
+      {
+        key: '/workspaces/tables',
+        icon: <DatabaseOutlined />,
+        label: '数据库表池',
+        page_path: '/workspaces/tables',
+      },
+      {
+        key: '/workspaces/interfaces',
+        icon: <ApiOutlined />,
+        label: '接口池',
+        page_path: '/workspaces/interfaces',
+      },
+    ],
+  },
 ];
 
 // 创建一个全局事件总线，用于在不同组件间通信
@@ -138,6 +166,80 @@ const findMenuPathKeys = (
   return [];
 };
 
+// 菜单项定义
+interface MenuItem {
+  key: string;
+  icon: React.ReactNode;
+  label: string;
+  path: string;
+  children?: MenuItem[];
+  permission?: string;
+}
+
+// 菜单配置
+const menuItems: MenuItem[] = [
+  {
+    key: 'home',
+    icon: <HomeOutlined />,
+    label: '首页',
+    path: ROUTES.HOME,
+  },
+  {
+    key: 'system',
+    icon: <SettingOutlined />,
+    label: '系统管理',
+    path: '/system',
+    children: [
+      {
+        key: 'users',
+        icon: <TeamOutlined />,
+        label: '用户管理',
+        path: ROUTES.USER_LIST,
+        permission: 'users:view',
+      },
+      {
+        key: 'roles',
+        icon: <SafetyCertificateOutlined />,
+        label: '角色管理',
+        path: ROUTES.ROLE_LIST,
+        permission: 'roles:view',
+      },
+    ],
+  },
+  {
+    key: 'structure',
+    icon: <BranchesOutlined />,
+    label: '结构管理',
+    path: ROUTES.STRUCTURE_MANAGEMENT,
+  },
+  {
+    key: 'workspaces',
+    icon: <AppstoreOutlined />,
+    label: '工作区管理',
+    path: ROUTES.WORKSPACES_MANAGE,
+  },
+  {
+    key: 'workspace-resources',
+    icon: <BookOutlined />,
+    label: '数据资源',
+    path: '/workspaces/resources',
+    children: [
+      {
+        key: 'workspace-tables',
+        icon: <DatabaseOutlined />,
+        label: '数据库表池',
+        path: ROUTES.WORKSPACE_TABLES,
+      },
+      {
+        key: 'workspace-interfaces',
+        icon: <ApiOutlined />,
+        label: '接口池',
+        path: ROUTES.WORKSPACE_INTERFACES,
+      },
+    ],
+  },
+];
+
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   // 使用ModuleContext代替本地状态
@@ -153,8 +255,9 @@ const MainLayout: React.FC = () => {
   const location = useLocation();
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [filteredMenuItems, setFilteredMenuItems] = useState<ItemType[]>([]);
-  const { currentWorkspace } = useWorkspaceContext();
+  const { currentWorkspace, initializing } = useWorkspace();
   const [openKeys, setOpenKeys] = useState<string[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>(['home']);
   
   const {
     token: { colorBgContainer },
@@ -365,7 +468,9 @@ const MainLayout: React.FC = () => {
     // 超级管理员可以看到所有菜单
     if (userState.currentUser?.is_superuser) {
       // 合并静态菜单项、分割线和用户自定义模块菜单项
-      setFilteredMenuItems([...staticMenuItems, ...dividerItem, ...userModuleMenuItems]);
+      const allMenuItems = [...staticMenuItems, ...dividerItem, ...userModuleMenuItems];
+      setFilteredMenuItems(allMenuItems);
+      console.log('超级管理员菜单项:', JSON.stringify(allMenuItems, null, 2));
       return;
     }
 
@@ -397,6 +502,7 @@ const MainLayout: React.FC = () => {
     }
     
     setFilteredMenuItems(finalMenuItems);
+    console.log('普通用户菜单项:', JSON.stringify(finalMenuItems, null, 2));
   }, [userModules, userPermissions, userState.currentUser]);
 
   // 用户菜单
@@ -611,179 +717,236 @@ const MainLayout: React.FC = () => {
     setOpenKeys(keys);
   };
 
-  return (
-    <WorkspaceProvider>
-      <Layout style={{ minHeight: '100vh' }}>
-        {/* 主菜单侧边栏 */}
-        <Sider 
-          trigger={null} 
-          collapsible 
-          collapsed={collapsed}
-          theme="light"
-          style={{
-            overflow: 'auto',
-            height: '100vh',
-            position: 'fixed',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            borderRight: '1px solid #f0f0f0',
-            zIndex: 2,
-            transition: isDragging ? 'none' : 'width 0.2s'
-          }}
-          width={collapsed ? 80 : siderWidth}
-        >
-          <div style={{ height: 32, margin: 16, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
-            {collapsed ? '档案' : '档案管理系统'}
-          </div>
-          <Menu
-            theme="light"
-            mode="inline"
-            defaultSelectedKeys={['/']}
-            defaultOpenKeys={['system']}
-            selectedKeys={[location.pathname]}
-            openKeys={openKeys}
-            onOpenChange={handleOpenChange}
-            items={filteredMenuItems}
-            onClick={async (info) => {
-              // 防止重复导航到当前路径，避免不必要的组件重新加载
-              if (info.key === location.pathname) {
-                return;
-              }
-              
-              console.log('菜单点击: 导航到', info.key);
-              
-              // 在导航前预加载目标组件
-              try {
-                const preloadRegistry = await import('../utils/preloadRegistry');
-                // 根据路径预加载对应组件
-                switch(info.key) {
-                  case '/roles':
-                    preloadRegistry.preloadComponentByName('RoleList');
-                    break;
-                  case '/users':
-                    preloadRegistry.preloadComponentByName('UserList');
-                    break;
-                  case '/structure-management':
-                    preloadRegistry.preloadComponentByName('StructureManagementPage');
-                    break;
-                  default:
-                    // 对于模块内容页面
-                    if (info.key.startsWith('/module-content/')) {
-                      preloadRegistry.preloadComponentByName('ModuleContentPage');
-                    }
-                    break;
-                }
-              } catch (error) {
-                console.error('预加载组件失败:', error);
-              }
-              
-              // 执行导航
-              navigate(info.key);
-            }}
-            onMouseEnter={(event) => {
-              // 获取鼠标所在菜单项的key（路径）
-              const targetMenuItem = event.target as HTMLElement;
-              const menuItemKey = targetMenuItem.closest('li[data-menu-id]')?.getAttribute('data-menu-id');
-              
-              if (menuItemKey) {
-                // 提取实际路径（去掉前缀）
-                const pathKey = menuItemKey.replace(/^.+:/, '');
-                handleMenuHover(pathKey);
-              }
-            }}
-            style={{
-              // 禁用可能的内部过渡效果
-              transition: isDragging ? 'none' : undefined
-            }}
-          />
-        </Sider>
+  // 根据当前路径设置选中的菜单项
+  useEffect(() => {
+    const pathname = location.pathname;
+    
+    // 查找匹配的菜单项
+    let matchedKey = 'home';
+    let parentKey = '';
+    
+    const findMatchingMenuItem = (items: MenuItem[]) => {
+      for (const item of items) {
+        if (pathname === item.path || pathname.startsWith(`${item.path}/`)) {
+          matchedKey = item.key;
+          return true;
+        }
         
-        {/* 添加拖动手柄 */}
-        {!collapsed && (
-          <div
-            ref={dragHandleRef}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: siderWidth,
-              width: '5px',
-              height: '100%',
-              backgroundColor: 'transparent',
-              cursor: 'col-resize',
-              zIndex: 100,
-              transition: isDragging ? 'none' : 'left 0.2s'
-            }}
-            onMouseDown={handleDragStart}
-          >
-            {/* 添加可视提示，在鼠标悬停时显示 */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                backgroundColor: '#e6e6e6',
-                opacity: isDragging ? 0.5 : 0,
-                transition: 'opacity 0.2s'
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.opacity = '0.5'; }}
-              onMouseOut={(e) => { if (!isDragging) e.currentTarget.style.opacity = '0'; }}
-            />
-          </div>
-        )}
+        if (item.children) {
+          const childMatch = item.children.some(child => {
+            if (pathname === child.path || pathname.startsWith(`${child.path}/`)) {
+              matchedKey = child.key;
+              parentKey = item.key;
+              return true;
+            }
+            return false;
+          });
+          
+          if (childMatch) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+    
+    findMatchingMenuItem(menuItems);
+    setSelectedKeys([matchedKey]);
+    
+    if (parentKey && !openKeys.includes(parentKey)) {
+      setOpenKeys(prev => [...prev, parentKey]);
+    }
+  }, [location.pathname, openKeys]);
 
-        {/* 主内容区域 */}
-        <Layout style={{ 
-          marginLeft: collapsed ? 80 : siderWidth, 
-          transition: isDragging ? 'none' : 'margin-left 0.2s'
+  // 如果工作区正在初始化，显示加载指示器
+  if (initializing) {
+    return (
+      <Layout style={{ minHeight: '100vh' }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          height: '100vh', 
+          width: '100%',
+          background: colorBgContainer
         }}>
-          <Header style={{ padding: 0, background: colorBgContainer }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <Button
-                  type="text"
-                  icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                  onClick={() => setCollapsed(!collapsed)}
-                  style={{
-                    fontSize: '16px',
-                    width: 64,
-                    height: 64,
-                  }}
-                />
-                <WorkspaceSelector style={{ marginLeft: 16 }} />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <Dropdown 
-                  menu={{ 
-                    items: userMenuItems,
-                    onClick: ({ key }) => handleMenuClick(key),
-                  }} 
-                  placement="bottomRight"
-                >
-                  <Button type="text" style={{ height: 64 }}>
-                    <Avatar icon={<UserOutlined />} />
-                    <span style={{ marginLeft: 8 }}>
-                      {userState.currentUser?.username || '用户'}
-                    </span>
-                  </Button>
-                </Dropdown>
-              </div>
-            </div>
-          </Header>
-          <Content style={{ margin: '24px 16px', padding: 24, overflow: 'auto', borderRadius: 8, background: colorBgContainer }}>
-            <Breadcrumb 
-              style={{ marginBottom: 16 }}
-              items={generateBreadcrumb()}
-            />
-            <div className="main-content">
-              <PageTransition />
-            </div>
-          </Content>
-        </Layout>
+          <Spin tip="正在加载工作区..." size="large" />
+        </div>
       </Layout>
-    </WorkspaceProvider>
+    );
+  }
+
+  return (
+    <Layout style={{ minHeight: '100vh' }}>
+      {/* 主菜单侧边栏 */}
+      <Sider 
+        trigger={null} 
+        collapsible 
+        collapsed={collapsed}
+        theme="light"
+        style={{
+          overflow: 'auto',
+          height: '100vh',
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          borderRight: '1px solid #f0f0f0',
+          zIndex: 2,
+          transition: isDragging ? 'none' : 'width 0.2s'
+        }}
+        width={collapsed ? 80 : siderWidth}
+      >
+        <div style={{ height: 32, margin: 16, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
+          {collapsed ? '档案' : '档案管理系统'}
+        </div>
+        <Menu
+          theme="light"
+          mode="inline"
+          defaultSelectedKeys={['/']}
+          defaultOpenKeys={['system']}
+          selectedKeys={[location.pathname]}
+          openKeys={openKeys}
+          onOpenChange={handleOpenChange}
+          items={filteredMenuItems}
+          onClick={async (info) => {
+            // 防止重复导航到当前路径，避免不必要的组件重新加载
+            if (info.key === location.pathname) {
+              return;
+            }
+            
+            console.log('菜单点击: 导航到', info.key);
+            
+            // 在导航前预加载目标组件
+            try {
+              const preloadRegistry = await import('../utils/preloadRegistry');
+              // 根据路径预加载对应组件
+              switch(info.key) {
+                case '/roles':
+                  preloadRegistry.preloadComponentByName('RoleList');
+                  break;
+                case '/users':
+                  preloadRegistry.preloadComponentByName('UserList');
+                  break;
+                case '/structure-management':
+                  preloadRegistry.preloadComponentByName('StructureManagementPage');
+                  break;
+                default:
+                  // 对于模块内容页面
+                  if (info.key.startsWith('/module-content/')) {
+                    preloadRegistry.preloadComponentByName('ModuleContentPage');
+                  }
+                  break;
+              }
+            } catch (error) {
+              console.error('预加载组件失败:', error);
+            }
+            
+            // 执行导航
+            navigate(info.key);
+          }}
+          onMouseEnter={(event) => {
+            // 获取鼠标所在菜单项的key（路径）
+            const targetMenuItem = event.target as HTMLElement;
+            const menuItemKey = targetMenuItem.closest('li[data-menu-id]')?.getAttribute('data-menu-id');
+            
+            if (menuItemKey) {
+              // 提取实际路径（去掉前缀）
+              const pathKey = menuItemKey.replace(/^.+:/, '');
+              handleMenuHover(pathKey);
+            }
+          }}
+          style={{
+            // 禁用可能的内部过渡效果
+            transition: isDragging ? 'none' : undefined
+          }}
+        />
+      </Sider>
+      
+      {/* 添加拖动手柄 */}
+      {!collapsed && (
+        <div
+          ref={dragHandleRef}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: siderWidth,
+            width: '5px',
+            height: '100%',
+            backgroundColor: 'transparent',
+            cursor: 'col-resize',
+            zIndex: 100,
+            transition: isDragging ? 'none' : 'left 0.2s'
+          }}
+          onMouseDown={handleDragStart}
+        >
+          {/* 添加可视提示，在鼠标悬停时显示 */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              backgroundColor: '#e6e6e6',
+              opacity: isDragging ? 0.5 : 0,
+              transition: 'opacity 0.2s'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.opacity = '0.5'; }}
+            onMouseOut={(e) => { if (!isDragging) e.currentTarget.style.opacity = '0'; }}
+          />
+        </div>
+      )}
+
+      {/* 主内容区域 */}
+      <Layout style={{ 
+        marginLeft: collapsed ? 80 : siderWidth, 
+        transition: isDragging ? 'none' : 'margin-left 0.2s'
+      }}>
+        <Header style={{ padding: 0, background: colorBgContainer }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <Button
+                type="text"
+                icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                onClick={() => setCollapsed(!collapsed)}
+                style={{
+                  fontSize: '16px',
+                  width: 64,
+                  height: 64,
+                }}
+              />
+              <WorkspaceSelector style={{ marginLeft: 16 }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <Dropdown 
+                menu={{ 
+                  items: userMenuItems,
+                  onClick: ({ key }) => handleMenuClick(key),
+                }} 
+                placement="bottomRight"
+              >
+                <Button type="text" style={{ height: 64 }}>
+                  <Avatar icon={<UserOutlined />} />
+                  <span style={{ marginLeft: 8 }}>
+                    {userState.currentUser?.username || '用户'}
+                  </span>
+                </Button>
+              </Dropdown>
+            </div>
+          </div>
+        </Header>
+        <Content style={{ margin: '24px 16px', padding: 24, overflow: 'auto', borderRadius: 8, background: colorBgContainer }}>
+          <Breadcrumb 
+            style={{ marginBottom: 16 }}
+            items={generateBreadcrumb()}
+          />
+          <div className="main-content">
+            <PageTransition />
+          </div>
+        </Content>
+      </Layout>
+    </Layout>
   );
 };
 

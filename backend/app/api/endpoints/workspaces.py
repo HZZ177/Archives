@@ -15,12 +15,21 @@ from backend.app.schemas.workspace import (
     WorkspaceBatchRemoveUsers,
     WorkspaceUserResponse,
     UserDefaultWorkspace,
-    WorkspaceUserRoleUpdate
+    WorkspaceUserRoleUpdate,
+    Workspace,
+    WorkspaceTable,
+    WorkspaceTableCreate,
+    WorkspaceTableUpdate,
+    WorkspaceTableRead,
+    WorkspaceInterface,
+    WorkspaceInterfaceCreate,
+    WorkspaceInterfaceUpdate
 )
 from backend.app.schemas.response import APIResponse
-from backend.app.services.workspace_service import workspace_service
+from backend.app.services.workspace_service import WorkspaceService
 
 router = APIRouter()
+workspace_service = WorkspaceService()
 
 
 @router.get("/", response_model=APIResponse[List[WorkspaceResponse]])
@@ -196,7 +205,7 @@ async def batch_add_users_to_workspace_endpoint(
         )
         return success_response(message=result.get("message", "批量操作成功"), data=result)
     except HTTPException as e:
-        return error_response(message=e.detail, status_code=e.status_code)
+        return error_response(message=e.detail)
     except Exception as e:
         logger.error(f"批量添加用户到工作区失败: {str(e)}")
         return error_response(message=f"批量添加用户到工作区失败: {str(e)}")
@@ -320,3 +329,223 @@ async def add_user_to_default_workspace(
     except Exception as e:
         logger.error(f"添加用户到默认工作区失败: {str(e)}")
         return error_response(message=f"添加用户到默认工作区失败: {str(e)}") 
+
+
+# 工作区表相关接口
+@router.get("/{workspace_id}/tables", response_model=APIResponse[List[WorkspaceTableRead]])
+async def get_workspace_tables(
+    workspace_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """获取工作区所有表"""
+    try:
+        tables = await workspace_service.get_workspace_tables(db, workspace_id, current_user)
+        return success_response(data=tables)
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"获取工作区表失败: {e}")
+        return error_response(f"获取工作区表失败: {e}")
+
+
+@router.get("/{workspace_id}/tables/{table_id}", response_model=APIResponse[WorkspaceTableRead])
+async def get_workspace_table(
+    workspace_id: int,
+    table_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """获取单个工作区表"""
+    try:
+        table = await workspace_service.get_workspace_table(db, table_id, current_user)
+        return success_response(data=table)
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"获取工作区表失败: {e}")
+        return error_response(f"获取工作区表失败: {e}")
+
+
+@router.post("/{workspace_id}/tables", response_model=APIResponse[WorkspaceTableRead])
+async def create_workspace_table(
+    workspace_id: int,
+    table_create: WorkspaceTableCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """创建工作区表"""
+    try:
+        table = await workspace_service.create_workspace_table(db, workspace_id, table_create, current_user)
+        return success_response(data=table)
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"创建工作区表失败: {e}")
+        return error_response(f"创建工作区表失败: {e}")
+
+
+@router.put("/{workspace_id}/tables/{table_id}", response_model=APIResponse[WorkspaceTableRead])
+async def update_workspace_table(
+    workspace_id: int,
+    table_id: int,
+    table_update: WorkspaceTableUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """更新工作区表"""
+    try:
+        # TODO: 验证 workspace_id 是否与 table_id 匹配
+        updated_table = await workspace_service.update_workspace_table(db, table_id, table_update, current_user)
+        return success_response(data=updated_table, message="表更新成功")
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"更新工作区表失败: {str(e)}")
+        return error_response(message=f"更新工作区表失败: {str(e)}")
+
+
+@router.delete("/{workspace_id}/tables/{table_id}", response_model=APIResponse)
+async def delete_workspace_table(
+    workspace_id: int,
+    table_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """
+    删除工作区数据库表
+    """
+    try:
+        await workspace_service.delete_workspace_table(db, table_id, current_user)
+        return success_response(message="数据库表删除成功")
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"删除工作区数据库表失败: {str(e)}")
+        return error_response(message=f"删除工作区数据库表失败: {str(e)}")
+
+
+# 工作区接口相关接口
+@router.get("/{workspace_id}/interfaces", response_model=APIResponse[List[WorkspaceInterface]])
+async def get_workspace_interfaces(
+    workspace_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """获取工作区下的所有接口"""
+    try:
+        workspace = await workspace_service.get_workspace(db, workspace_id)
+        if not workspace:
+            raise HTTPException(status_code=404, detail=f"ID为{workspace_id}的工作区不存在")
+        
+        interfaces = await workspace_service.get_workspace_interfaces(db, workspace_id, current_user)
+        return success_response(data=interfaces)
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"获取工作区下的所有接口失败: {str(e)}")
+        return error_response(message=f"获取工作区下的所有接口失败: {str(e)}")
+
+
+@router.get("/{workspace_id}/interfaces/{interface_id}", response_model=APIResponse[WorkspaceInterface])
+async def get_workspace_interface(
+    workspace_id: int,
+    interface_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """获取工作区下的特定接口"""
+    try:
+        workspace = await workspace_service.get_workspace(db, workspace_id)
+        if not workspace:
+            raise HTTPException(status_code=404, detail=f"ID为{workspace_id}的工作区不存在")
+        
+        interface = await workspace_service.get_workspace_interface(db, interface_id, current_user)
+        if not interface:
+            raise HTTPException(status_code=404, detail=f"ID为{interface_id}的接口不存在")
+        
+        return success_response(data=interface)
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"获取工作区下的特定接口失败: {str(e)}")
+        return error_response(message=f"获取工作区下的特定接口失败: {str(e)}")
+
+
+@router.post("/{workspace_id}/interfaces", response_model=APIResponse[WorkspaceInterface])
+async def create_workspace_interface(
+    workspace_id: int,
+    interface_create: WorkspaceInterfaceCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """创建工作区接口"""
+    try:
+        workspace = await workspace_service.get_workspace(db, workspace_id)
+        if not workspace:
+            raise HTTPException(status_code=404, detail=f"ID为{workspace_id}的工作区不存在")
+        
+        # 确保workspace_id匹配
+        if interface_create.workspace_id != workspace_id:
+            interface_create.workspace_id = workspace_id
+        
+        interface = await workspace_service.create_workspace_interface(db, workspace_id, interface_create, current_user)
+        return success_response(data=interface, message="接口创建成功")
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"创建工作区接口失败: {str(e)}")
+        return error_response(message=f"创建工作区接口失败: {str(e)}")
+
+
+@router.put("/{workspace_id}/interfaces/{interface_id}", response_model=APIResponse[WorkspaceInterface])
+async def update_workspace_interface(
+    workspace_id: int,
+    interface_id: int,
+    interface_update: WorkspaceInterfaceUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """更新工作区接口"""
+    try:
+        workspace = await workspace_service.get_workspace(db, workspace_id)
+        if not workspace:
+            raise HTTPException(status_code=404, detail=f"ID为{workspace_id}的工作区不存在")
+        
+        interface = await workspace_service.get_workspace_interface(db, interface_id, current_user)
+        if not interface:
+            raise HTTPException(status_code=404, detail=f"ID为{interface_id}的接口不存在")
+        
+        updated_interface = await workspace_service.update_workspace_interface(db, interface_id, interface_update, current_user)
+        return success_response(data=updated_interface, message="接口更新成功")
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"更新工作区接口失败: {str(e)}")
+        return error_response(message=f"更新工作区接口失败: {str(e)}")
+
+
+@router.delete("/{workspace_id}/interfaces/{interface_id}", response_model=APIResponse)
+async def delete_workspace_interface(
+    workspace_id: int,
+    interface_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    """删除工作区接口"""
+    try:
+        workspace = await workspace_service.get_workspace(db, workspace_id)
+        if not workspace:
+            raise HTTPException(status_code=404, detail=f"ID为{workspace_id}的工作区不存在")
+        
+        interface = await workspace_service.get_workspace_interface(db, interface_id, current_user)
+        if not interface:
+            raise HTTPException(status_code=404, detail=f"ID为{interface_id}的接口不存在")
+        
+        await workspace_service.delete_workspace_interface(db, interface_id, current_user)
+        return success_response(message="接口已删除")
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"删除工作区接口失败: {str(e)}")
+        return error_response(message=f"删除工作区接口失败: {str(e)}") 

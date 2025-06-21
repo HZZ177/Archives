@@ -9,10 +9,11 @@ const { TextArea } = Input;
 
 interface ApiInterfaceFormProps {
   visible: boolean;
-  title: string;
+  title?: string; // 设为可选，因为使用自定义Modal时不需要
   initialValues?: Partial<ApiInterfaceCard>;
   onOk: (values: ApiInterfaceCard) => void;
   onCancel: () => void;
+  useCustomModal?: boolean; // 添加标记，表示是否使用自定义Modal
 }
 
 /**
@@ -24,7 +25,8 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
   title,
   initialValues,
   onOk,
-  onCancel
+  onCancel,
+  useCustomModal = false
 }) => {
   const [form] = Form.useForm();
 
@@ -53,6 +55,25 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
       console.error('表单验证失败:', error);
     }
   };
+  
+  // 监听自定义提交事件
+  React.useEffect(() => {
+    const handleCustomSubmit = () => {
+      handleOk();
+    };
+    
+    // 添加事件监听
+    if (useCustomModal) {
+      document.addEventListener('api-interface-form-submit', handleCustomSubmit);
+    }
+    
+    // 清理事件监听
+    return () => {
+      if (useCustomModal) {
+        document.removeEventListener('api-interface-form-submit', handleCustomSubmit);
+      }
+    };
+  }, [useCustomModal]);
 
   // 取消
   const handleCancel = () => {
@@ -87,6 +108,85 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
     }
   }, [visible, initialValues, form]);
 
+  // 表单内容组件
+  const FormContent = () => (
+    <Form
+      form={form}
+      layout="vertical"
+      initialValues={{
+        method: 'GET',
+        contentType: 'application/json',
+        requestParams: [],
+        responseParams: []
+      }}
+    >
+      {/* 基本信息 */}
+      <Form.Item
+        name="path"
+        label="接口地址"
+        rules={[{ required: true, message: '请输入接口地址' }]}
+      >
+        <Input placeholder="例如: /api/users" />
+      </Form.Item>
+
+      <Form.Item
+        name="method"
+        label="请求方法"
+        rules={[{ required: true, message: '请选择请求方法' }]}
+      >
+        <Radio.Group>
+          {HTTP_METHODS.map(method => (
+            <Radio.Button key={method} value={method}>{method}</Radio.Button>
+          ))}
+        </Radio.Group>
+      </Form.Item>
+
+      <Form.Item
+        name="contentType"
+        label="请求数据类型"
+      >
+        <Select placeholder="请选择请求数据类型">
+          {CONTENT_TYPES.map(type => (
+            <Option key={type} value={type}>{type}</Option>
+          ))}
+        </Select>
+      </Form.Item>
+
+      <Form.Item
+        name="description"
+        label="接口描述"
+      >
+        <TextArea rows={3} placeholder="请输入接口描述" />
+      </Form.Item>
+
+      {/* 参数信息（使用标签页分隔请求和响应参数） */}
+      <Tabs defaultActiveKey="request">
+        <TabPane tab="请求参数" key="request">
+          <Form.Item
+            name="requestParams"
+            initialValue={[]}
+          >
+            <ApiParamTable />
+          </Form.Item>
+        </TabPane>
+        <TabPane tab="响应参数" key="response">
+          <Form.Item
+            name="responseParams"
+            initialValue={[]}
+          >
+            <ApiParamTable />
+          </Form.Item>
+        </TabPane>
+      </Tabs>
+    </Form>
+  );
+
+  // 如果使用自定义Modal，只返回表单内容
+  if (useCustomModal) {
+    return <FormContent />;
+  }
+
+  // 否则返回带有Modal的完整组件
   return (
     <Modal
       title={title}
@@ -97,75 +197,7 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
       destroyOnClose
       maskClosable={false}
     >
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={{
-          method: 'GET',
-          contentType: 'application/json',
-          requestParams: [],
-          responseParams: []
-        }}
-      >
-        {/* 基本信息 */}
-        <Form.Item
-          name="path"
-          label="接口地址"
-          rules={[{ required: true, message: '请输入接口地址' }]}
-        >
-          <Input placeholder="例如: /api/users" />
-        </Form.Item>
-
-        <Form.Item
-          name="method"
-          label="请求方法"
-          rules={[{ required: true, message: '请选择请求方法' }]}
-        >
-          <Radio.Group>
-            {HTTP_METHODS.map(method => (
-              <Radio.Button key={method} value={method}>{method}</Radio.Button>
-            ))}
-          </Radio.Group>
-        </Form.Item>
-
-        <Form.Item
-          name="contentType"
-          label="请求数据类型"
-        >
-          <Select placeholder="请选择请求数据类型">
-            {CONTENT_TYPES.map(type => (
-              <Option key={type} value={type}>{type}</Option>
-            ))}
-          </Select>
-        </Form.Item>
-
-        <Form.Item
-          name="description"
-          label="接口描述"
-        >
-          <TextArea rows={3} placeholder="请输入接口描述" />
-        </Form.Item>
-
-        {/* 参数信息（使用标签页分隔请求和响应参数） */}
-        <Tabs defaultActiveKey="request">
-          <TabPane tab="请求参数" key="request">
-            <Form.Item
-              name="requestParams"
-              initialValue={[]}
-            >
-              <ApiParamTable />
-            </Form.Item>
-          </TabPane>
-          <TabPane tab="响应参数" key="response">
-            <Form.Item
-              name="responseParams"
-              initialValue={[]}
-            >
-              <ApiParamTable />
-            </Form.Item>
-          </TabPane>
-        </Tabs>
-      </Form>
+      <FormContent />
     </Modal>
   );
 };

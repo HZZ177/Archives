@@ -7,6 +7,7 @@ import {
   ModuleTreeResponse
 } from '../types/modules';
 import { APIResponse } from '../types/api';
+import { getWorkspaceTables } from './workspaceService';
 
 const API_MODULE_STRUCTURES = '/module-structures';
 const API_MODULE_CONTENTS = '/module-contents';
@@ -149,10 +150,69 @@ export const deleteModuleNode = async (nodeId: number): Promise<void> => {
 };
 
 // 模块内容API
-export const fetchModuleContent = async (moduleNodeId: number): Promise<ModuleContent> => {
+export const fetchModuleContent = async (
+  moduleNodeId: number, 
+  workspaceId?: number, 
+  cachedWorkspaceTables?: any[]
+): Promise<ModuleContent> => {
   try {
     const response = await request.get<APIResponse<ModuleContent>>(`${API_MODULE_CONTENTS}/by-node/${moduleNodeId}`);
-    return unwrapResponse<ModuleContent>(response.data)!;
+    const moduleContent = unwrapResponse<ModuleContent>(response.data)!;
+    
+    // 添加预加载逻辑，确保返回的模块内容包含 database_tables 属性
+    if (moduleContent && !('database_tables' in moduleContent)) {
+      console.log('模块内容中缺少 database_tables 属性，尝试获取关联表数据');
+      
+      try {
+        // 如果提供了缓存的工作区表数据，直接使用
+        if (cachedWorkspaceTables && cachedWorkspaceTables.length > 0) {
+          console.log('使用缓存的工作区表数据:', cachedWorkspaceTables.length);
+          (moduleContent as any).database_tables = cachedWorkspaceTables;
+          return moduleContent;
+        }
+        
+        // 获取模块所属的工作区ID
+        let targetWorkspaceId = workspaceId || null;
+        
+        // 如果没有传入工作区ID，尝试从其他地方获取
+        if (!targetWorkspaceId) {
+          // 1. 尝试从模块内容中获取工作区ID
+          if ((moduleContent as any).workspace_id) {
+            targetWorkspaceId = (moduleContent as any).workspace_id;
+          }
+          // 2. 尝试从模块节点中获取工作区ID
+          else {
+            const moduleNodeResponse = await request.get<APIResponse<ModuleStructureNode>>(`${API_MODULE_STRUCTURES}/${moduleNodeId}`);
+            const moduleNode = unwrapResponse<ModuleStructureNode>(moduleNodeResponse.data);
+            if (moduleNode && moduleNode.workspace_id) {
+              targetWorkspaceId = moduleNode.workspace_id;
+            }
+          }
+        }
+        
+        // 如果找到了工作区ID，获取该工作区的表数据
+        if (targetWorkspaceId) {
+          console.log(`找到工作区ID: ${targetWorkspaceId}，获取工作区表数据`);
+          const workspaceTables = await getWorkspaceTables(targetWorkspaceId);
+          if (workspaceTables && workspaceTables.length > 0) {
+            console.log('成功获取工作区表数据:', workspaceTables);
+            (moduleContent as any).database_tables = workspaceTables;
+          } else {
+            console.log('工作区中没有表数据，设置为空数组');
+            (moduleContent as any).database_tables = [];
+          }
+        } else {
+          console.log('未找到工作区ID，设置为空数组');
+          (moduleContent as any).database_tables = [];
+        }
+      } catch (error) {
+        console.error('获取关联表数据失败:', error);
+        // 设置为空数组，避免后续处理出错
+        (moduleContent as any).database_tables = [];
+      }
+    }
+    
+    return moduleContent;
   } catch (error: any) {
     if (error.response && error.response.status === 404) {
       // 返回一个初始化的内容对象，匹配ModuleContent接口

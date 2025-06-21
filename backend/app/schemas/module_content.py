@@ -33,7 +33,7 @@ class TableRelationship(BaseModel):
 
 class DatabaseTable(BaseModel):
     """数据库表模型"""
-    table_name: str
+    name: str
     schema_name: Optional[str] = None  # 模式名称
     description: Optional[str] = None  # 表描述
     columns: List[DatabaseTableColumn] = []
@@ -72,15 +72,79 @@ class GlossaryItem(BaseModel):
     explanation: str
 
 
+# 添加API参数模型，与前端ApiParam对应
+class ApiParam(BaseModel):
+    """API参数模型"""
+    name: str
+    type: str
+    required: bool = False
+    description: Optional[str] = None
+    example: Optional[str] = None
+    children: Optional[List['ApiParam']] = None
+
+
+# 添加工作区表引用模型
+class WorkspaceTableReference(BaseModel):
+    """工作区表引用模型"""
+    id: int
+
+
+# 添加工作区接口引用模型
+class WorkspaceInterfaceReference(BaseModel):
+    """工作区接口引用模型"""
+    id: int
+
+
+# 添加工作区表响应模型
+class WorkspaceTableResponse(BaseModel):
+    """工作区表响应模型"""
+    id: int
+    workspace_id: int
+    name: str
+    schema_name: Optional[str] = None
+    description: Optional[str] = None
+    columns_json: List[Dict[str, Any]] = []
+    relationships_json: Optional[Dict[str, Any]] = None
+    created_by: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# 添加工作区接口响应模型
+class WorkspaceInterfaceResponse(BaseModel):
+    """工作区接口响应模型"""
+    id: int
+    workspace_id: int
+    path: str
+    method: str
+    description: Optional[str] = None
+    content_type: Optional[str] = None
+    request_params_json: Optional[List[Dict[str, Any]]] = None
+    response_params_json: Optional[List[Dict[str, Any]]] = None
+    created_by: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class ModuleContentBase(BaseModel):
     """模块内容的基础模型"""
     overview_text: Optional[str] = None
     details_text: Optional[str] = None
-    database_tables_json: Optional[List[DatabaseTable]] = []
+    database_tables_json: Optional[List[DatabaseTable]] = []  # 旧格式，保留向后兼容
     related_module_ids_json: Optional[List[int]] = []
-    api_interfaces_json: Optional[List[ApiInterface]] = []
+    api_interfaces_json: Optional[List[ApiInterface]] = []  # 旧格式，保留向后兼容
     terminology_json: Optional[List[GlossaryItem]] = []
     table_relation_diagram: Optional[Dict[str, Any]] = None
+    
+    # 新增字段 - 引用工作区级别的表和接口
+    database_table_refs: Optional[List[int]] = []  # 工作区表ID列表
+    api_interface_refs: Optional[List[int]] = []  # 工作区接口ID列表
 
 
 class ModuleContentCreate(ModuleContentBase):
@@ -106,6 +170,10 @@ class ModuleContentResponse(ModuleContentBase):
     user_id: int
     created_at: datetime
     updated_at: datetime
+    
+    # 包含关联的工作区表和接口详情
+    database_tables: Optional[List[WorkspaceTableResponse]] = []  # 工作区表详情
+    api_interfaces: Optional[List[WorkspaceInterfaceResponse]] = []  # 工作区接口详情
 
     class Config:
-        orm_mode = True 
+        from_attributes = True 

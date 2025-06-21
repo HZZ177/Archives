@@ -35,7 +35,7 @@ export interface DatabaseTableColumn {
 
 // 数据库表类型
 export interface DatabaseTable {
-  table_name: string;
+  name: string;
   schema_name?: string; // 模式名称
   description?: string; // 表描述
   columns: DatabaseTableColumn[];
@@ -44,6 +44,7 @@ export interface DatabaseTable {
     type: 'one-to-one' | 'one-to-many' | 'many-to-many'; // 关系类型
     description?: string; // 关系描述
   }[];
+  workspace_table_id?: number; // 工作区表ID，用于引用工作区级别的表
 }
 
 // API接口参数类型
@@ -73,6 +74,7 @@ export interface ApiInterfaceCard {
   contentType: string;
   requestParams: ApiParam[];
   responseParams: ApiParam[];
+  workspace_interface_id?: number; // 工作区接口ID，用于引用工作区级别的接口
 }
 
 // API参数类型
@@ -141,8 +143,10 @@ export interface ModuleContentRequest {
   key_tech_items_json?: KeyTechItem[];
   details_text?: string;
   database_tables_json?: DatabaseTable[];
+  database_table_refs?: number[]; // 工作区表ID列表
   related_module_ids_json?: number[];
   api_interfaces_json?: ApiInterface[];
+  api_interface_refs?: number[]; // 工作区接口ID列表
   examples_json?: ExampleItem[];
   node_id: number;
   content: {

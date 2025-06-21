@@ -28,6 +28,8 @@ import {
   DatabaseOutlined,
   ApiOutlined,
   LinkOutlined,
+  ExpandOutlined,
+  CompressOutlined,
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -129,6 +131,7 @@ interface ModuleContentEditorProps {
   setSaving: (saving: boolean) => void;
   onSectionsUpdate: (filledKeys: Set<string>) => void;
   enabledSections: string[];  // 新增：启用的模块列表
+  enableWorkspaceResources?: boolean; // 是否启用工作区资源引用
 }
 
 const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHandle, ModuleContentEditorProps> = ({
@@ -140,6 +143,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
   setSaving: propSetSaving,
   onSectionsUpdate,
   enabledSections,
+  enableWorkspaceResources,
 }, ref) => {
   // 使用传递的props，或者提供默认值
   const isEditMode = propIsEditMode ?? false;
@@ -339,23 +343,37 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         setGlossaryItems([]);
       }
       
-      // 处理数据库表数据，兼容旧格式
+      // 处理数据库表数据，合并工作区表和JSON表
+      let allDatabaseTables: DatabaseTable[] = [];
+      
+      // 1. 处理工作区表（如果有）
+      if (moduleContent.database_tables && Array.isArray(moduleContent.database_tables)) {
+        const workspaceTables = moduleContent.database_tables.map((table: any) => ({
+          name: table.name,
+          schema_name: table.schema_name || '',
+          description: table.description || '',
+          columns: Array.isArray(table.columns_json) ? table.columns_json : [],
+          workspace_table_id: table.id // 保存工作区表ID
+        }));
+        allDatabaseTables = [...workspaceTables];
+      }
+      
+      // 2. 处理JSON表（如果有）
       if (moduleContent.database_tables_json && Array.isArray(moduleContent.database_tables_json)) {
-        let newDbTables: DatabaseTable[]; // Declare newDbTables
         // 检查是否为新格式（包含扩展字段）
         const isNewFormat = moduleContent.database_tables_json.length > 0 && 
                            ('nullable' in (moduleContent.database_tables_json[0].columns?.[0] || {}));
         
+        let jsonTables: DatabaseTable[] = [];
         if (isNewFormat) {
           // 如果是新格式，直接使用
-          newDbTables = moduleContent.database_tables_json;
-          setDatabaseTables(newDbTables);
+          jsonTables = moduleContent.database_tables_json;
         } else {
           // 如果是旧格式，转换为新格式
-          const convertedTables = moduleContent.database_tables_json.map((table: any) => ({
-            table_name: table.table_name,
-            schema_name: '',
-            description: '',
+          jsonTables = moduleContent.database_tables_json.map((table: any) => ({
+            name: table.table_name || table.name,
+            schema_name: table.schema_name || '',
+            description: table.description || '',
             columns: (table.columns || []).map((column: any) => ({
               field_name: column.field_name,
               field_type: column.field_type,
@@ -366,59 +384,95 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
               is_index: false
             }))
           }));
-          newDbTables = convertedTables;
-          setDatabaseTables(newDbTables);
         }
+        
+        // 合并表（排除已经包含在工作区表中的表）
+        const workspaceTableIds = new Set(allDatabaseTables.map(t => t.workspace_table_id));
+        const uniqueJsonTables = jsonTables.filter(table => 
+          !table.workspace_table_id || !workspaceTableIds.has(table.workspace_table_id)
+        );
+        
+        allDatabaseTables = [...allDatabaseTables, ...uniqueJsonTables];
+      }
+      
+      // 设置数据库表状态
+      setDatabaseTables(allDatabaseTables);
 
         // 根据是否为编辑模式，设置数据库表的初始折叠状态
         if (!isEditMode) {
           // 阅读模式下，默认全部折叠
-          setCollapsedTables(new Set(newDbTables.map((_, index) => index)));
+        setCollapsedTables(new Set(allDatabaseTables.map((_, index) => index)));
         } else {
           // 编辑模式下，默认全部展开
-          setCollapsedTables(new Set());
-        }
-      } else {
-        setDatabaseTables([]);
-        // 清空折叠表格索引
         setCollapsedTables(new Set());
       }
       
       setRelatedModuleIds(moduleContent.related_module_ids_json || []);
       
-      // 将现有接口数据转换为新的ApiInterfaceCard格式
+      // 处理接口数据，合并工作区接口和JSON接口
+      let allApiInterfaces: ApiInterfaceCard[] = [];
+      
+      // 1. 处理工作区接口（如果有）
+      if (moduleContent.api_interfaces && Array.isArray(moduleContent.api_interfaces)) {
+        const workspaceInterfaces = moduleContent.api_interfaces.map((iface: any) => ({
+          id: iface.id.toString(),
+          path: iface.path || '',
+          method: iface.method || 'GET',
+          description: iface.description || '',
+          contentType: iface.content_type || 'application/json',
+          requestParams: Array.isArray(iface.request_params_json) ? iface.request_params_json.map((param: any) => ({
+            name: param.param_name || param.name || '',
+            type: param.param_type || param.type || 'string',
+            required: param.required || false,
+            description: param.description || '',
+            example: param.example || ''
+          })) : [],
+          responseParams: Array.isArray(iface.response_params_json) ? iface.response_params_json.map((param: any) => ({
+            name: param.param_name || param.name || '',
+            type: param.param_type || param.type || 'string',
+            required: param.required || false,
+            description: param.description || '',
+            example: param.example || ''
+          })) : [],
+          workspace_interface_id: iface.id // 保存工作区接口ID
+        }));
+        allApiInterfaces = [...workspaceInterfaces];
+      }
+      
+      // 2. 处理JSON接口（如果有）
       if (moduleContent.api_interfaces_json && Array.isArray(moduleContent.api_interfaces_json)) {
         // 检查是否是新接口格式(ApiInterfaceCard)
         const isNewFormat = moduleContent.api_interfaces_json.length > 0 && 
                             'path' in moduleContent.api_interfaces_json[0];
                             
+        let jsonInterfaces: ApiInterfaceCard[] = [];
+                            
         if (isNewFormat) {
           // 如果是新格式，确保每个接口都有method字段
-          const safeInterfaces = moduleContent.api_interfaces_json.map((api: any) => ({
+          jsonInterfaces = moduleContent.api_interfaces_json.map((api: any) => ({
             ...api,
+            id: api.id || `api-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             method: api.method || 'GET', // 如果method缺失，设置默认值为GET
+            contentType: api.contentType || 'application/json',
             // 转换请求和响应参数格式，如果存在
             requestParams: api.request_params ? api.request_params.map((param: any) => ({
-              name: param.param_name,
-              type: param.param_type,
+              name: param.param_name || param.name || '',
+              type: param.param_type || param.type || 'string',
               required: param.required || false,
               description: param.description || '',
               example: param.example || ''
             })) : [],
             responseParams: api.response_params ? api.response_params.map((param: any) => ({
-              name: param.param_name,
-              type: param.param_type,
+              name: param.param_name || param.name || '',
+              type: param.param_type || param.type || 'string',
               required: param.required || false,
               description: param.description || '',
               example: param.example || ''
             })) : []
           }));
-          setApiInterfaces(safeInterfaces as unknown as ApiInterfaceCard[]);
-          // 确保API卡片收起状态
-          setExpandedApiCards([]);
         } else {
           // 旧接口格式(ApiInterface)，转换为新格式
-          const convertedInterfaces = moduleContent.api_interfaces_json.map((api: ApiInterface) => ({
+          jsonInterfaces = moduleContent.api_interfaces_json.map((api: ApiInterface) => ({
             id: api.id,
             path: `/api/${api.name.toLowerCase().replace(/\s+/g, '-')}`,
             method: api.type || 'GET', // 使用type字段作为method，如果type缺失，设置默认值为GET
@@ -428,13 +482,22 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
             requestParams: [],
             responseParams: []
           }));
-          setApiInterfaces(convertedInterfaces);
-          // 确保API卡片收起状态
-          setExpandedApiCards([]);
         }
-      } else {
-        setApiInterfaces([]);
-      }
+        
+        // 合并接口（排除已经包含在工作区接口中的接口）
+        const workspaceInterfaceIds = new Set(allApiInterfaces.map(i => i.workspace_interface_id));
+        const uniqueJsonInterfaces = jsonInterfaces.filter(iface => 
+          !iface.workspace_interface_id || !workspaceInterfaceIds.has(iface.workspace_interface_id)
+        );
+        
+        allApiInterfaces = [...allApiInterfaces, ...uniqueJsonInterfaces];
+        }
+      
+      // 设置接口状态
+      setApiInterfaces(allApiInterfaces);
+      
+      // 确保API卡片收起状态
+      setExpandedApiCards([]);
       
       // 创建适用于filteredContent的内容结构
       const contentSections = [
@@ -442,7 +505,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         { key: 'diagram', content: moduleContent.content?.diagram || {} },
         { key: 'terminology', content: glossaryItems.length > 0 ? glossaryItems : (moduleContent.terminology_text || '') },
         { key: 'keyTech', content: moduleContent.details_text || '' },
-        { key: 'database', content: databaseTables },
+        { key: 'database', content: allDatabaseTables },
         { key: 'tableRelation', content: moduleContent.table_relation_diagram || moduleContent.content?.diagram || {} },
         { key: 'related', content: relatedModuleIds },
         { key: 'interface', content: apiInterfaces }
@@ -457,7 +520,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
           diagram: moduleContent.content?.diagram || {},
           glossary: glossaryItems,
           key_tech: [],
-          database_tables: databaseTables,
+          database_tables: allDatabaseTables,
           related_modules: relatedModuleIds,
           interface_definitions: apiInterfaces
         },
@@ -474,7 +537,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
           diagram: moduleContent.content?.diagram || {},
           glossary: glossaryItems,
           key_tech: [],
-          database_tables: databaseTables,
+          database_tables: allDatabaseTables,
           related_modules: relatedModuleIds,
           interface_definitions: apiInterfaces
         },
@@ -657,14 +720,23 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         apiInterfaces
       });
       
-      // 构建保存数据对象，并转换 apiInterfaces 为 ApiInterface[] 类型
-      const contentData = {
-        overview_text: overviewText,
-        details_text: detailsText,
-        terminology_json: glossaryItems, // 添加术语表数据
-        database_tables_json: databaseTables,
-        related_module_ids_json: relatedModuleIds,
-        api_interfaces_json: apiInterfaces.map(card => ({
+      // 提取工作区表的ID列表
+      const workspaceTableIds = databaseTables
+        .filter(table => table.workspace_table_id)
+        .map(table => table.workspace_table_id as number);
+      
+      // 筛选出非工作区表（如果有的话）
+      const nonWorkspaceTables = databaseTables.filter(table => !table.workspace_table_id);
+      
+      // 提取工作区接口的ID列表
+      const workspaceInterfaceIds = apiInterfaces
+        .filter(iface => iface.workspace_interface_id)
+        .map(iface => iface.workspace_interface_id as number);
+      
+      // 筛选出非工作区接口（如果有的话）并转换为ApiInterface类型
+      const nonWorkspaceInterfaces = apiInterfaces
+        .filter(iface => !iface.workspace_interface_id)
+        .map(card => ({
           id: card.id,
           name: card.path || '',
           type: card.method || 'GET',
@@ -676,29 +748,40 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
             param_name: param.name,
             param_type: param.type,
             required: param.required,
-            description: param.description,
-            example: param.example
+            description: param.description || '',
+            example: param.example || ''
           })),
           response_params: (card.responseParams || []).map(param => ({
             param_name: param.name,
             param_type: param.type,
             required: param.required,
-            description: param.description,
-            example: param.example
+            description: param.description || '',
+            example: param.example || ''
           }))
-        })),
+        }));
+      
+      // 构建保存数据对象
+      const contentData = {
+        overview_text: overviewText,
+        details_text: detailsText,
+        terminology_json: glossaryItems, // 添加术语表数据
+        database_tables_json: nonWorkspaceTables, // 只保存非工作区表
+        database_table_refs: workspaceTableIds, // 保存工作区表的ID列表
+        related_module_ids_json: relatedModuleIds,
+        api_interfaces_json: nonWorkspaceInterfaces, // 只保存非工作区接口
+        api_interface_refs: workspaceInterfaceIds, // 保存工作区接口的ID列表
         // 添加必要的字段以符合ModuleContentRequest接口
         node_id: moduleNodeId,
         content: {
           overview: overviewText,
           diagram: {},
           key_tech: [],
-          database_tables: databaseTables,
+          database_tables: nonWorkspaceTables, // 只保存非工作区表
           related_modules: relatedModuleIds,
           interface_definitions: apiInterfaces,
           glossary: glossaryItems
         }
-      };
+      } as ModuleContentRequest;
       
       console.log('保存数据:', contentData);
       
@@ -788,20 +871,34 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
     };
   }, [content, enabledSections]);
 
+  // 处理部分内容更新
   const handleSectionUpdate = (sectionKey: keyof ModuleContent['content'], data: any) => {
-    console.log(`更新${sectionKey}部分数据:`, data);
-    setContent(prevContent => {
-      if (!prevContent) return null;
-      const newContent = {
-        ...prevContent,
-        content: {
-          ...prevContent.content,
-          [sectionKey]: data,
-        },
-      };
-      setHasUnsavedChanges(JSON.stringify(newContent) !== JSON.stringify(initialContent));
-      return newContent;
-    });
+    if (!content) return;
+    
+    // 创建内容副本
+    const newContent = { ...content };
+    
+    // 确保content.content存在
+    if (!newContent.content) {
+      newContent.content = {};
+    }
+    
+    // 更新特定部分
+    newContent.content[sectionKey] = data;
+    
+    // 更新本地状态
+    setContent(newContent);
+    setHasUnsavedChanges(true);
+    
+    // 同步更新对应的状态变量
+    if (sectionKey === 'database_tables') {
+      setDatabaseTables(data || []);
+    } else if (sectionKey === 'interface_definitions') {
+      setApiInterfaces(data || []);
+    }
+    
+    // 检查哪些部分已填充
+    checkFilledSections(newContent);
   };
   
   const checkFilledSections = (currentContent: ModuleContent) => {
@@ -823,6 +920,54 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
       setCollapsedTables(allTableIndexes);
     }
   }, [propIsEditMode, databaseTables]);
+
+  // 渲染数据库表部分
+  const renderDatabaseTablesSection = () => {
+    if (!enabledSections.includes('database')) return null;
+    
+    return (
+        <div className="section-content">
+          <DatabaseTablesSection 
+            tables={databaseTables} 
+            onChange={(tables) => handleSectionUpdate('database_tables', tables)}
+            collapsedTables={collapsedTables}
+            setCollapsedTables={setCollapsedTables}
+            isEditMode={isEditMode}
+            showActionButtons={false}
+            enableWorkspaceTableSelection={enableWorkspaceResources}
+            readOnlyInEditMode={true}
+            showWorkspaceTableSelectionInReadMode={isEditMode}
+            onDelete={(tableIndex) => {
+              const newTables = [...databaseTables];
+              newTables.splice(tableIndex, 1);
+              handleSectionUpdate('database_tables', newTables);
+            }}
+          />
+        </div>
+    );
+  };
+
+  // 渲染接口部分
+  const renderInterfaceSection = () => {
+    if (!enabledSections.includes('interface')) return null;
+    
+    return (
+        <div className="section-content">
+          <InterfaceSection 
+            interfaces={apiInterfaces} 
+            onChange={(interfaces) => handleSectionUpdate('interface_definitions', interfaces)}
+            expandedApiCards={expandedApiCards}
+            setExpandedApiCards={setExpandedApiCards}
+            enableWorkspaceInterfaceSelection={enableWorkspaceResources}
+            showActionButtons={isEditMode}
+            showAddButton={false}
+            showWorkspaceSelectButton={isEditMode}
+            isEditable={isEditMode}
+            showEditButton={false}
+          />
+        </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -962,16 +1107,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                         {config.title}
                       </Title>
                       <Divider className="section-divider" />
-                      <div className="section-content">
-                        <DatabaseTablesSection 
-                          tables={databaseTables} 
-                          onChange={setDatabaseTables}
-                          onValidationChange={handleValidationChange}
-                          isEditMode={isEditMode}
-                          collapsedTables={collapsedTables}
-                          setCollapsedTables={setCollapsedTables}
-                        />
-                      </div>
+                      {renderDatabaseTablesSection()}
                     </div>
                   );
                 
@@ -1026,54 +1162,12 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                 case 'interface':
                   return (
                     <div key={sectionKey} id="section-interface" className="content-section" ref={interfaceRef}>
-                      <div className="section-title-container api-section-header">
-                        <div className="section-title-with-button">
                           <Title level={4} className="section-title">
                             <span className="section-title-icon">{config.icon}</span>
                             {config.title}
                           </Title>
-                          {apiInterfaces.length > 0 && (
-                            <Button 
-                              size="small" 
-                              onClick={toggleAllApiCards}
-                              className="collapse-all-button"
-                            >
-                              {apiCardsCollapsed ? '全部展开' : '全部收起'}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
                       <Divider className="section-divider" />
-                      
-                      {isEditMode ? (
-                        <InterfaceSection 
-                          interfaces={apiInterfaces} 
-                          onChange={setApiInterfaces} 
-                          expandedApiCards={expandedApiCards}
-                          setExpandedApiCards={setExpandedApiCards}
-                        />
-                      ) : (
-                        <div className="section-content">
-                          {apiInterfaces.length > 0 ? (
-                            <Row gutter={[12, 12]} className="interface-card-grid">
-                              {apiInterfaces.map(api => (
-                                <Col xs={24} sm={24} md={24} lg={12} xl={12} key={api.id}>
-                                  <ApiInterfaceCardComponent
-                                    data={api}
-                                    onEdit={() => {}} // 阅读模式无需编辑功能
-                                    onDelete={() => {}} // 阅读模式无需删除功能
-                                    isEditable={false}
-                                    isExpanded={expandedApiCards.includes(api.id)}
-                                    onToggleExpand={handleApiCardToggle}
-                                    />
-                                </Col>
-                              ))}
-                            </Row>
-                          ) : (
-                            <div className="empty-content" onClick={handleEmptyContentClick}>点击"编辑"添加接口信息</div>
-                          )}
-                        </div>
-                      )}
+                      {renderInterfaceSection()}
                     </div>
                   );
                 

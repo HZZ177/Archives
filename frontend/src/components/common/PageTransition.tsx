@@ -15,6 +15,8 @@ const systemPages = [
   '/templates', // 模板列表
   '/documents', // 文档列表
   '/workspaces/manage', // 工作区管理
+  '/workspaces/tables', // 数据库表池
+  '/workspaces/interfaces', // 接口池
 ];
 
 // 检查当前路径是否为系统页面

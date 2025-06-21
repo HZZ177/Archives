@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Spin, Dropdown, Button, Space, message } from 'antd';
 import type { MenuProps } from 'antd';
 import { DownOutlined, SettingOutlined, AppstoreOutlined } from '@ant-design/icons';
-import { useWorkspaceContext } from '../../contexts/WorkspaceContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useUser } from '../../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../config/constants';
@@ -18,13 +18,16 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
     currentWorkspace, 
     workspaces, 
     loading, 
+    initializing,
+    isChangingWorkspace,
     setCurrentWorkspace
-  } = useWorkspaceContext();
+  } = useWorkspace();
   const { userState } = useUser();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
-  if (loading) {
+  // 如果正在初始化或加载中，显示加载指示器
+  if (initializing || loading) {
     return <Spin size="small" />;
   }
 
@@ -68,7 +71,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
   ];
 
   // 点击菜单项处理
-  const onClick: MenuProps['onClick'] = ({ key }) => {
+  const onClick: MenuProps['onClick'] = async ({ key }) => {
     // 如果点击的是管理按钮
     if (key === 'manage') {
       // 导航到工作区管理页面
@@ -83,16 +86,18 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
       // 检查是否是不同的工作区
       const isWorkspaceChanged = currentWorkspace.id !== workspace.id;
       
-      // 切换工作区
-      setCurrentWorkspace(workspace);
+      try {
+        // 等待工作区切换完成
+        await setCurrentWorkspace(workspace);
       
       // 如果工作区已更改，导航到首页
       if (isWorkspaceChanged) {
         console.log(`工作区已切换，导航到首页`);
-        // 使用timeout确保工作区状态更新后再导航
-        setTimeout(() => {
           navigate(ROUTES.HOME);
-        }, 100);
+        }
+      } catch (error) {
+        console.error('工作区切换失败:', error);
+        message.error('工作区切换失败，请稍后重试');
       }
     }
     setOpen(false);
@@ -112,6 +117,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
           }, 100);
         }
       }}
+      loading={isChangingWorkspace} // 在工作区切换过程中显示加载状态
     >
       <AppstoreOutlined style={{ marginRight: '6px', verticalAlign: 'middle', fontSize: '16px' }} />
       <span className="workspace-title">工作区</span>
@@ -142,8 +148,9 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
         trigger={['click']} 
         placement="bottomLeft"
         onOpenChange={setOpen}
-        open={open}
+        open={open && !isChangingWorkspace} // 在工作区切换过程中禁用下拉菜单
         className="workspace-selector-dropdown"
+        disabled={isChangingWorkspace} // 在工作区切换过程中禁用下拉菜单
       >
         {dropdownTrigger}
       </Dropdown>

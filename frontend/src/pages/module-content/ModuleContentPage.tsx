@@ -5,7 +5,7 @@ import { ModuleStructureNode } from '../../types/modules';
 import { fetchModuleNode, getModuleSectionConfig } from '../../apis/moduleService';
 import ModuleContentEditor, { ModuleContentEditorHandle } from './components/ModuleContentEditor';
 import SideNavigation from './components/SideNavigation';
-import { useWorkspaceContext } from '../../contexts/WorkspaceContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { Workspace } from '../../types/workspace';
 import './ModuleContentPage.css';
 
@@ -34,7 +34,7 @@ const ModuleContentPage: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [navItems, setNavItems] = useState(defaultNavItems);
-  const { currentWorkspace, workspaces, setCurrentWorkspace } = useWorkspaceContext();
+  const { currentWorkspace, workspaces, setCurrentWorkspace, isChangingWorkspace } = useWorkspace();
 
   // 加载模块配置
   useEffect(() => {
@@ -74,16 +74,21 @@ const ModuleContentPage: React.FC = () => {
         setModuleNode(node);
         
         // 检查模块所属的工作区ID，如果与当前工作区不同，则切换工作区
-        if (node.workspace_id && currentWorkspace?.id !== node.workspace_id) {
+        if (node.workspace_id && currentWorkspace?.id !== node.workspace_id && !isChangingWorkspace) {
           console.log(`模块(ID:${node.id})所属工作区(ID:${node.workspace_id})与当前工作区(ID:${currentWorkspace?.id})不同，正在切换工作区...`);
           
           // 查找模块所属的工作区
           const targetWorkspace = workspaces.find(w => w.id === node.workspace_id);
           
           if (targetWorkspace) {
+            try {
             // 切换到模块所属的工作区
-            setCurrentWorkspace(targetWorkspace);
+              await setCurrentWorkspace(targetWorkspace);
             console.log(`已切换到模块所属工作区: ${targetWorkspace.name}(ID:${targetWorkspace.id})`);
+            } catch (error) {
+              console.error(`切换到模块所属工作区失败:`, error);
+              message.error('切换工作区失败，请稍后重试');
+            }
           } else {
             console.warn(`未找到模块所属的工作区(ID:${node.workspace_id})，无法切换工作区`);
           }
@@ -98,7 +103,7 @@ const ModuleContentPage: React.FC = () => {
     };
     
     loadModuleNode();
-  }, [moduleId, navigate, currentWorkspace, workspaces, setCurrentWorkspace]);
+  }, [moduleId, navigate, currentWorkspace, workspaces, setCurrentWorkspace, isChangingWorkspace]);
 
   // 处理导航点击
   const handleNavClick = (key: string) => {
@@ -192,6 +197,7 @@ const ModuleContentPage: React.FC = () => {
                 setSaving={setSaving}
                 onSectionsUpdate={handleSectionsUpdate}
                 enabledSections={navItems.map(item => item.key)}
+                enableWorkspaceResources={true}
               />
             </div>
           </div>

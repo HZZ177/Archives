@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Input, Button, Checkbox, Card, Typography, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, Navigate } from 'react-router-dom';
@@ -13,6 +13,13 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { userState, login } = useUser();
   const navigate = useNavigate();
+
+  // 在组件挂载时清理localStorage和sessionStorage中与工作区相关的数据
+  useEffect(() => {
+    console.log('LoginPage: 清理localStorage和sessionStorage中的工作区数据');
+    localStorage.removeItem('currentWorkspace');
+    sessionStorage.removeItem('currentWorkspace');
+  }, []);
 
   // 如果已经登录，重定向到首页
   if (userState.isLoggedIn) {

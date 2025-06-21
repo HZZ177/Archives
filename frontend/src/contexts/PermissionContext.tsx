@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import axios from 'axios';
 import { API_BASE_URL } from '../config/constants';
 import { useUser } from './UserContext';
-import { useWorkspaceContext } from './WorkspaceContext';
+import { useWorkspace } from './WorkspaceContext';
 
 // 权限上下文类型
 interface PermissionContextType {
@@ -31,7 +31,7 @@ interface PermissionProviderProps {
  */
 export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children }) => {
   const { userState } = useUser();
-  const { currentWorkspace } = useWorkspaceContext();
+  const { currentWorkspace } = useWorkspace();
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   

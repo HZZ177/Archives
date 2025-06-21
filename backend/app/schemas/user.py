@@ -137,3 +137,12 @@ class ChangePasswordRequest(BaseModel):
     old_password: Optional[str] = None  # 旧密码，首次登录时可为空
     new_password: str  # 新密码
     is_first_login: Optional[bool] = False  # 是否首次登录（跳过旧密码验证）
+
+
+class UserSimpleRead(BaseModel):
+    """用于嵌套显示的简化用户信息模型"""
+    id: int
+    username: str
+
+    class Config:
+        from_attributes = True

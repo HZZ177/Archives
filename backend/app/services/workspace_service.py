@@ -5,9 +5,9 @@ from sqlalchemy import select
 
 from backend.app.core.logger import logger
 from backend.app.models.user import User
-from backend.app.models.workspace import Workspace
+from backend.app.models.workspace import Workspace, WorkspaceTable
 from backend.app.repositories.workspace_repository import workspace_repository
-from backend.app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate, WorkspaceAddUser, WorkspaceBatchAddUsers, WorkspaceBatchRemoveUsers
+from backend.app.schemas.workspace import WorkspaceCreate, WorkspaceUpdate, WorkspaceAddUser, WorkspaceBatchAddUsers, WorkspaceBatchRemoveUsers, WorkspaceTableCreate, WorkspaceTableUpdate, WorkspaceInterface, WorkspaceInterfaceCreate, WorkspaceInterfaceUpdate
 from backend.app.repositories.auth_repository import auth_repository
 
 
@@ -21,8 +21,7 @@ class WorkspaceService:
             await workspace_repository.reset_default_workspaces(db)
 
         # 创建工作区
-        workspace_data = workspace_in.dict()
-        workspace = await workspace_repository.create_workspace(db, workspace_data, current_user.id)
+        workspace = await workspace_repository.create(db, workspace_in, current_user.id)
         
         # 将创建者添加为工作区管理员(如果不是超级管理员，则添加为普通管理员，否则添加为所有者)
         await workspace_repository.add_user_to_workspace(
@@ -572,6 +571,106 @@ class WorkspaceService:
             "message": final_message, 
             "details": {"removed_count": removed_count, "skipped_superuser_ids": skipped_superuser_ids}
         }
+
+    async def get_workspace_tables(self, db: AsyncSession, workspace_id: int, current_user: User) -> List[WorkspaceTable]:
+        """获取工作区下的所有数据库表"""
+        # 移除工作区成员权限检查，允许所有用户访问工作区表
+        # 验证工作区存在
+        await self.get_workspace(db, workspace_id)
+        
+        return await workspace_repository.get_tables_by_workspace_id(db, workspace_id)
+
+    async def get_workspace_table(self, db: AsyncSession, table_id: int, current_user: User) -> WorkspaceTable:
+        """获取单个工作区数据库表"""
+        table = await workspace_repository.get_table_by_id(db, table_id)
+        if not table:
+            raise HTTPException(status_code=404, detail="数据库表不存在")
+        # 移除权限检查，允许所有用户访问表
+        return table
+
+    async def create_workspace_table(self, db: AsyncSession, workspace_id: int, table_create: WorkspaceTableCreate, current_user: User) -> WorkspaceTable:
+        """创建工作区数据库表"""
+        await self.get_workspace(db, workspace_id)
+        return await workspace_repository.create_workspace_table(db, table_create, current_user.id)
+
+    async def update_workspace_table(self, db: AsyncSession, table_id: int, table_update: WorkspaceTableUpdate, current_user: User) -> WorkspaceTable:
+        """更新工作区数据库表"""
+        table_obj = await workspace_repository.get_table_by_id(db, table_id)
+        if not table_obj:
+            raise HTTPException(status_code=404, detail="数据库表不存在")
+
+        # 移除工作区成员权限检查，允许所有用户更新数据库表
+            
+        return await workspace_repository.update_workspace_table(db, table_obj, table_update)
+
+    async def delete_workspace_table(self, db: AsyncSession, table_id: int, current_user: User):
+        """删除工作区数据库表"""
+        # 获取表信息，确保表存在
+        table = await workspace_repository.get_table_by_id(db, table_id)
+        if not table:
+            raise HTTPException(status_code=404, detail="数据库表不存在")
+            
+        # 移除管理员权限检查，允许所有用户删除数据库表
+        
+        await workspace_repository.delete_workspace_table(db, table_id)
+
+    async def is_user_in_workspace(self, db: AsyncSession, workspace_id: int, user_id: int, require_admin: bool = False) -> bool:
+        """检查用户是否在工作区中，并可选择是否要求管理员权限"""
+        user = await auth_repository.get_user_by_id(db, user_id)
+        if user.is_superuser:
+            return True
+        
+        access_level = await workspace_repository.get_user_access_level(db, workspace_id, user_id)
+        if not access_level:
+            return False
+        
+        if require_admin and access_level not in ['admin', 'owner']:
+            return False
+            
+        return True
+
+    async def get_workspace_interfaces(self, db: AsyncSession, workspace_id: int, current_user: User) -> List[WorkspaceInterface]:
+        """获取工作区下的所有接口"""
+        # 移除工作区成员权限检查，允许所有用户访问工作区接口
+        # 验证工作区存在
+        await self.get_workspace(db, workspace_id)
+        
+        return await workspace_repository.get_interfaces_by_workspace_id(db, workspace_id)
+
+    async def get_workspace_interface(self, db: AsyncSession, interface_id: int, current_user: User) -> WorkspaceInterface:
+        """获取单个工作区接口"""
+        interface = await workspace_repository.get_interface_by_id(db, interface_id)
+        if not interface:
+            raise HTTPException(status_code=404, detail="接口不存在")
+        # 移除权限检查，允许所有用户访问接口
+        return interface
+
+    async def create_workspace_interface(self, db: AsyncSession, workspace_id: int, interface_create: WorkspaceInterfaceCreate, current_user: User) -> WorkspaceInterface:
+        """创建工作区接口"""
+        # 移除管理员权限检查，允许所有用户创建接口
+        # 验证工作区存在
+        await self.get_workspace(db, workspace_id)
+        
+        interface_create.workspace_id = workspace_id
+        return await workspace_repository.create_workspace_interface(db, interface_create, current_user.id)
+
+    async def update_workspace_interface(self, db: AsyncSession, interface_id: int, interface_update: WorkspaceInterfaceUpdate, current_user: User) -> WorkspaceInterface:
+        """更新工作区接口"""
+        # 获取接口信息，确保接口存在
+        interface = await self.get_workspace_interface(db, interface_id, current_user)
+        
+        # 移除管理员权限检查，允许所有用户更新接口
+        
+        return await workspace_repository.update_workspace_interface(db, interface_id, interface_update)
+
+    async def delete_workspace_interface(self, db: AsyncSession, interface_id: int, current_user: User):
+        """删除工作区接口"""
+        # 获取接口信息，确保接口存在
+        interface = await self.get_workspace_interface(db, interface_id, current_user)
+        
+        # 移除管理员权限检查，允许所有用户删除接口
+        
+        await workspace_repository.delete_workspace_interface(db, interface_id)
 
 # 工作区服务实例
 workspace_service = WorkspaceService() 
