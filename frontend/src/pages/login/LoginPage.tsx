@@ -75,7 +75,7 @@ const LoginPage: React.FC = () => {
         <Card bordered={false} className={styles.loginCard}>
           <div className={styles.logoContainer}>
             <img src="/logo.svg" alt="Logo" className={styles.logo} />
-            <Title level={3}>资料管理系统</Title>
+            <Title level={3}>智源资料系统</Title>
           </div>
           <Form
             name="login"

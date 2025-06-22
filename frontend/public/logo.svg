@@ -1,7 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-  <rect x="10" y="10" width="80" height="80" rx="8" ry="8" fill="#1890ff" />
-  <rect x="20" y="25" width="30" height="6" rx="3" ry="3" fill="white" />
-  <rect x="20" y="40" width="60" height="6" rx="3" ry="3" fill="white" />
-  <rect x="20" y="55" width="50" height="6" rx="3" ry="3" fill="white" />
-  <rect x="20" y="70" width="35" height="6" rx="3" ry="3" fill="white" />
+  <!-- 背景圆形 -->
+  <circle cx="50" cy="50" r="45" fill="#f0f8ff" />
+  
+  <!-- 渐变定义 -->
+  <defs>
+    <linearGradient id="brain-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1890ff" />
+      <stop offset="100%" stop-color="#096dd9" />
+    </linearGradient>
+    <linearGradient id="data-flow-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1890ff" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#1890ff" stop-opacity="0.2" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 大脑外形 -->
+  <path d="M50,15 C35,15 25,25 25,40 C25,50 30,55 30,65 C30,75 40,85 50,85 C60,85 70,75 70,65 C70,55 75,50 75,40 C75,25 65,15 50,15 Z" 
+        fill="url(#brain-gradient)" />
+  
+  <!-- 大脑内部结构 -->
+  <path d="M50,20 C38,20 30,28 30,40 C30,48 34,52 34,60 C34,68 42,76 50,76 C58,76 66,68 66,60 C66,52 70,48 70,40 C70,28 62,20 50,20 Z" 
+        fill="#ffffff" fill-opacity="0.3" />
+  
+  <!-- 数据流线条 -->
+  <path d="M30,40 Q40,35 50,40 T70,40" stroke="url(#data-flow-gradient)" stroke-width="3" fill="none" />
+  <path d="M30,50 Q40,45 50,50 T70,50" stroke="url(#data-flow-gradient)" stroke-width="3" fill="none" />
+  <path d="M30,60 Q40,55 50,60 T70,60" stroke="url(#data-flow-gradient)" stroke-width="3" fill="none" />
+  
+  <!-- 光点效果 -->
+  <circle cx="40" cy="35" r="2" fill="#ffffff" />
+  <circle cx="60" cy="45" r="2" fill="#ffffff" />
+  <circle cx="45" cy="55" r="2" fill="#ffffff" />
+  <circle cx="55" cy="65" r="2" fill="#ffffff" />
+  
+  <!-- 外圈 -->
+  <circle cx="50" cy="50" r="45" fill="none" stroke="#1890ff" stroke-width="2" />
 </svg> 

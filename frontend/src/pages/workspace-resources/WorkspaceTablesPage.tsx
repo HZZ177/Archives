@@ -649,7 +649,8 @@ const WorkspaceTablesPage: React.FC = () => {
               value={sqlInput}
               onChange={(e) => setSqlInput(e.target.value)}
               placeholder="请输入要导入的SQL语句"
-              autoSize={{ minRows: 10, maxRows: 20 }}
+              autoSize={{ minRows: 20, maxRows: 30 }}
+              className="sql-import-textarea"
             />
           </div>
         </div>

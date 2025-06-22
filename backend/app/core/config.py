@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     VERSION: str = "0.1.0"
 
     # 项目信息
-    PROJECT_NAME: str = "资料管理系统"
-    PROJECT_DESCRIPTION: str = "内部资料管理系统API"
+    PROJECT_NAME: str = "智源资料系统"
+    PROJECT_DESCRIPTION: str = "智源资料系统API"
 
     # CORS设置
     CORS_ORIGINS: List[str] = [

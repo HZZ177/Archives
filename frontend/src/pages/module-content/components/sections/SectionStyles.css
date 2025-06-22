@@ -1872,6 +1872,16 @@
 .sql-import-textarea {
   font-family: 'Courier New', monospace;
   font-size: 14px;
+  min-height: 400px !important; /* 设置最小高度 */
+  line-height: 1.6 !important; /* 增加行高 */
+}
+
+/* SQL导入弹窗样式 - 应用到TextArea的textarea元素 */
+.sql-import-textarea textarea {
+  min-height: 400px !important;
+  padding: 12px !important;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 4px !important;
 }
 
 /* 响应式布局 */

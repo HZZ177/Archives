@@ -797,8 +797,18 @@ const MainLayout: React.FC = () => {
         }}
         width={collapsed ? 80 : siderWidth}
       >
-        <div style={{ height: 32, margin: 16, textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}>
-          {collapsed ? '档案' : '档案管理系统'}
+        <div style={{ height: 32, margin: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 'bold' }}>
+          <img 
+            src="/logo.svg" 
+            alt="Logo" 
+            style={{ 
+              height: '24px', 
+              width: '24px', 
+              marginRight: collapsed ? 0 : '8px',
+              flexShrink: 0
+            }} 
+          />
+          {!collapsed && <span>智源资料系统</span>}
         </div>
         <Menu
           theme="light"
