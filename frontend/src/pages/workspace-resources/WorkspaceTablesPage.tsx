@@ -275,6 +275,18 @@ const WorkspaceTablesPage: React.FC = () => {
     }
     
     try {
+      // 检查表名是否已存在
+      const isEdit = !!currentTable;
+      const existingTable = tables.find(t => 
+        t.name.toLowerCase() === editingTableData.name.toLowerCase() && 
+        (!isEdit || t.id !== currentTable?.id)
+      );
+      
+      if (existingTable) {
+        message.error(`工作区中已存在名为 '${editingTableData.name}' 的数据库表`);
+        return;
+      }
+      
       if (currentTable) {
         // 更新表
         const updateData: WorkspaceTableUpdate = {
@@ -422,6 +434,15 @@ const WorkspaceTablesPage: React.FC = () => {
       const parsedTable = parseSql(sqlInput.trim());
       if (!parsedTable) {
         message.error('SQL解析失败，请检查SQL语句格式');
+        setImportLoading(false);
+        return;
+      }
+      
+      // 检查表名是否已存在
+      const existingTable = tables.find(t => t.name.toLowerCase() === parsedTable.name.toLowerCase());
+      if (existingTable) {
+        message.error(`工作区中已存在名为 '${parsedTable.name}' 的数据库表`);
+        setImportLoading(false);
         return;
       }
       

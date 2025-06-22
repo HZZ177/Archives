@@ -1,5 +1,5 @@
 import React, { ChangeEvent, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Button, Input, Form, Table, Space, Select, Checkbox, Tooltip, Card, Tabs, Typography, Row, Col, message, Modal, Empty } from 'antd';
+import { Button, Input, Form, Table, Space, Select, Checkbox, Tooltip, Card, Tabs, Typography, Row, Col, message, Modal, Empty, Tag } from 'antd';
 import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined, LinkOutlined, KeyOutlined, ExclamationCircleOutlined, ImportOutlined, ExpandOutlined, CompressOutlined, DeleteOutlined, MinusOutlined, DownOutlined, UpOutlined, FileTextOutlined, DatabaseOutlined, MenuFoldOutlined, MenuUnfoldOutlined, NumberOutlined, CalendarOutlined, FieldStringOutlined, FieldTimeOutlined, FieldBinaryOutlined, SelectOutlined, EditOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { DatabaseTable, DatabaseTableColumn } from '../../../../types/modules';
@@ -1037,8 +1037,29 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
       selectedWorkspaceTableIds.includes(table.id)
     );
     
+    // 检查哪些表已经被导入（通过workspace_table_id判断）
+    const existingWorkspaceTableIds = new Set(
+      tables
+        .filter(table => table.workspace_table_id !== undefined)
+        .map(table => table.workspace_table_id)
+    );
+    
+    // 过滤出未导入的表
+    const newSelectedTables = selectedTables.filter(
+      table => !existingWorkspaceTableIds.has(table.id)
+    );
+    
+    // 如果所有选中的表都已导入，则提示用户
+    if (newSelectedTables.length === 0 && selectedTables.length > 0) {
+      Modal.info({
+        title: '提示',
+        content: '所选库表已全部导入，请选择其他库表。'
+      });
+      return;
+    }
+    
     // 将工作区表转换为模块内容表格式
-    const newTables = selectedTables.map(table => ({
+    const newTables = newSelectedTables.map(table => ({
       name: table.name,
       schema_name: table.schema_name || '',
       description: table.description || '',
@@ -1073,7 +1094,7 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
                 style={{ marginRight: 8 }}
                 className="database-action-button"
               >
-                从工作区选择表
+                从资源池导入库表
               </Button>
             )}
             
@@ -1296,7 +1317,7 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
     );
   };
 
-  // 修改renderEditMode函数，添加从工作区选择表的按钮
+  // 修改renderEditMode函数，添加从资源池导入库表的按钮
   const renderEditMode = () => {
     return (
       <div className="database-tables-section-content">
@@ -1317,7 +1338,7 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
                   style={{ marginRight: 8 }}
                   className="database-action-button"
                 >
-                  从工作区选择表
+                  从资源池导入库表
                 </Button>
               )}
               
@@ -1587,7 +1608,7 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
       
       {/* 工作区表选择对话框 - 移到组件主体部分，确保无论哪种渲染模式都能正确显示 */}
       <Modal
-        title="从工作区选择表"
+        title="从资源池导入库表"
         open={workspaceTableSelectVisible}
         onCancel={closeWorkspaceTableSelect}
         onOk={confirmWorkspaceTableSelect}
@@ -1596,35 +1617,70 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
         {workspaceTables.length === 0 ? (
           <Empty description="工作区中暂无可用的表" />
         ) : (
-          <Table
-            dataSource={workspaceTables}
-            rowKey="id"
-            pagination={false}
-            rowSelection={{
-              selectedRowKeys: selectedWorkspaceTableIds,
-              onChange: (selectedRowKeys) => {
-                setSelectedWorkspaceTableIds(selectedRowKeys as number[]);
-              }
-            }}
-            columns={[
-              {
-                title: '表名',
-                dataIndex: 'name',
-                key: 'name',
-              },
-              {
-                title: '描述',
-                dataIndex: 'description',
-                key: 'description',
-                render: (text) => text || '-'
-              },
-              {
-                title: '字段数',
-                key: 'columns_count',
-                render: (_, record) => record.columns_json?.length || 0
-              }
-            ]}
-          />
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontSize: '13px' }}>注: 已导入的库表将被禁用选择，无法重复导入</span>
+            </div>
+            <Table
+              dataSource={workspaceTables}
+              rowKey="id"
+              pagination={false}
+              rowSelection={{
+                selectedRowKeys: selectedWorkspaceTableIds,
+                onChange: (selectedRowKeys) => {
+                  setSelectedWorkspaceTableIds(selectedRowKeys as number[]);
+                },
+                getCheckboxProps: (record) => {
+                  // 检查该表是否已经被导入
+                  const existingWorkspaceTableIds = new Set(
+                    tables
+                      .filter(table => table.workspace_table_id !== undefined)
+                      .map(table => table.workspace_table_id)
+                  );
+                  const isImported = existingWorkspaceTableIds.has(record.id);
+                  
+                  return {
+                    disabled: isImported, // 禁用已导入的表选择
+                  };
+                }
+              }}
+              columns={[
+                {
+                  title: '表名',
+                  dataIndex: 'name',
+                  key: 'name',
+                },
+                {
+                  title: '描述',
+                  dataIndex: 'description',
+                  key: 'description',
+                  render: (text) => text || '-'
+                },
+                {
+                  title: '字段数',
+                  key: 'columns_count',
+                  render: (_, record) => record.columns_json?.length || 0
+                },
+                {
+                  title: '状态',
+                  key: 'status',
+                  render: (_, record) => {
+                    // 检查该表是否已经被导入
+                    const existingWorkspaceTableIds = new Set(
+                      tables
+                        .filter(table => table.workspace_table_id !== undefined)
+                        .map(table => table.workspace_table_id)
+                    );
+                    const isImported = existingWorkspaceTableIds.has(record.id);
+                    
+                    return isImported ? (
+                      <Tag color="green">已导入</Tag>
+                    ) : null;
+                  }
+                }
+              ]}
+            />
+          </>
         )}
       </Modal>
     </>

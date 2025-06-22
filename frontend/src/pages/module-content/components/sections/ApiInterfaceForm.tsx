@@ -50,7 +50,6 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
       console.log('表单提交数据:', completeValues);
       
       onOk(completeValues as ApiInterfaceCard);
-      form.resetFields();
     } catch (error) {
       console.error('表单验证失败:', error);
     }

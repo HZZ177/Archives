@@ -1086,10 +1086,12 @@ export const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ curre
           {/* 图例 */}
           <div className="module-graph-legend">
             <div className="legend-title">图例</div>
-            <div className="legend-row">
-              <span className="legend-dot legend-dot-blue"></span>
-              当前节点
-            </div>
+            {currentModuleId !== null && (
+              <div className="legend-row">
+                <span className="legend-dot legend-dot-blue"></span>
+                当前节点
+              </div>
+            )}
             <div className="legend-row">
               <span className="legend-dot legend-dot-green"></span>
               内容页
@@ -1102,10 +1104,12 @@ export const ModuleGraph = forwardRef<ModuleGraphRef, ModuleGraphProps>(({ curre
               <span className="legend-dot legend-dot-gray"></span>
               普通节点
             </div>
-            <div className="legend-row">
-              <span className="legend-line legend-line-blue"></span>
-              关联关系
-            </div>
+            {currentModuleId !== null && (
+              <div className="legend-row">
+                <span className="legend-line legend-line-blue"></span>
+                关联关系
+              </div>
+            )}
             <div className="legend-row">
               <span className="legend-line legend-line-gray"></span>
               层级关系

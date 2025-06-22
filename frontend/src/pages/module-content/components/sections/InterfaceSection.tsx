@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Empty, Row, Col, Modal, Table } from 'antd';
+import { Button, Empty, Row, Col, Modal, Table, Tag } from 'antd';
 import { PlusOutlined, SelectOutlined, ExpandOutlined, CompressOutlined } from '@ant-design/icons';
 import { ApiInterfaceCard } from '../../../../types/modules';
 import ApiInterfaceCardComponent from './ApiInterfaceCard';
@@ -177,8 +177,29 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
       selectedWorkspaceInterfaceIds.includes(iface.id)
     );
     
+    // 检查哪些接口已经被导入（通过workspace_interface_id判断）
+    const existingWorkspaceInterfaceIds = new Set(
+      interfaces
+        .filter(item => item.workspace_interface_id !== undefined)
+        .map(item => item.workspace_interface_id)
+    );
+    
+    // 过滤出未导入的接口
+    const newSelectedInterfaces = selectedInterfaces.filter(
+      iface => !existingWorkspaceInterfaceIds.has(iface.id)
+    );
+    
+    // 如果所有选中的接口都已导入，则提示用户
+    if (newSelectedInterfaces.length === 0 && selectedInterfaces.length > 0) {
+      Modal.info({
+        title: '提示',
+        content: '所选接口已全部导入，请选择其他接口。'
+      });
+      return;
+    }
+    
     // 将工作区接口转换为模块内容接口格式
-    const newInterfaces = selectedInterfaces.map(iface => ({
+    const newInterfaces = newSelectedInterfaces.map(iface => ({
       id: `workspace_interface_${iface.id}`,
       path: iface.path,
       method: iface.method as any,
@@ -244,7 +265,7 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
               style={{ marginRight: 8 }}
               className="database-action-button"
             >
-              从工作区选择接口
+              从资源池导入接口
             </Button>
           )}
           
@@ -300,7 +321,7 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
       
       {/* 工作区接口选择对话框 */}
       <Modal
-        title="从工作区选择接口"
+        title="从资源池导入接口"
         open={workspaceInterfaceSelectVisible}
         onCancel={closeWorkspaceInterfaceSelect}
         onOk={confirmWorkspaceInterfaceSelect}
@@ -309,35 +330,70 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
         {workspaceInterfaces.length === 0 ? (
           <Empty description="工作区中暂无可用的接口" />
         ) : (
-          <Table
-            dataSource={workspaceInterfaces}
-            rowKey="id"
-            pagination={false}
-            rowSelection={{
-              selectedRowKeys: selectedWorkspaceInterfaceIds,
-              onChange: (selectedRowKeys) => {
-                setSelectedWorkspaceInterfaceIds(selectedRowKeys as number[]);
-              }
-            }}
-            columns={[
-              {
-                title: '路径',
-                dataIndex: 'path',
-                key: 'path',
-              },
-              {
-                title: '方法',
-                dataIndex: 'method',
-                key: 'method',
-              },
-              {
-                title: '描述',
-                dataIndex: 'description',
-                key: 'description',
-                render: (text) => text || '-'
-              }
-            ]}
-          />
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ color: '#888', fontSize: '13px' }}>注: 已导入的接口将被禁用选择，无法重复导入</span>
+            </div>
+            <Table
+              dataSource={workspaceInterfaces}
+              rowKey="id"
+              pagination={false}
+              rowSelection={{
+                selectedRowKeys: selectedWorkspaceInterfaceIds,
+                onChange: (selectedRowKeys) => {
+                  setSelectedWorkspaceInterfaceIds(selectedRowKeys as number[]);
+                },
+                getCheckboxProps: (record) => {
+                  // 检查该接口是否已经被导入
+                  const existingWorkspaceInterfaceIds = new Set(
+                    interfaces
+                      .filter(item => item.workspace_interface_id !== undefined)
+                      .map(item => item.workspace_interface_id)
+                  );
+                  const isImported = existingWorkspaceInterfaceIds.has(record.id);
+                  
+                  return {
+                    disabled: isImported, // 禁用已导入的接口选择
+                  };
+                }
+              }}
+              columns={[
+                {
+                  title: '路径',
+                  dataIndex: 'path',
+                  key: 'path',
+                },
+                {
+                  title: '方法',
+                  dataIndex: 'method',
+                  key: 'method',
+                },
+                {
+                  title: '描述',
+                  dataIndex: 'description',
+                  key: 'description',
+                  render: (text) => text || '-'
+                },
+                {
+                  title: '状态',
+                  key: 'status',
+                  render: (_, record) => {
+                    // 检查该接口是否已经被导入
+                    const existingWorkspaceInterfaceIds = new Set(
+                      interfaces
+                        .filter(item => item.workspace_interface_id !== undefined)
+                        .map(item => item.workspace_interface_id)
+                    );
+                    const isImported = existingWorkspaceInterfaceIds.has(record.id);
+                    
+                    return isImported ? (
+                      <Tag color="green">已导入</Tag>
+                    ) : null;
+                  }
+                }
+              ]}
+            />
+          </>
         )}
       </Modal>
     </div>

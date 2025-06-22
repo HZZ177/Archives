@@ -627,8 +627,8 @@
 /* 数据库表模块样式 - 新版 */
 .database-tables-section {
   padding: 16px 0;
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: 100%; /* 修改为100%以适应父容器宽度 */
+  margin: 0;
 }
 
 /* 数据库表头部样式 */

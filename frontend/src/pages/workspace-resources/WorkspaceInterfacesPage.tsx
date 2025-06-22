@@ -111,6 +111,19 @@ const WorkspaceInterfacesPage: React.FC = () => {
     if (!currentWorkspace) return;
     
     try {
+      // 检查是否存在相同路径和方法的接口
+      const isEdit = !!currentInterface;
+      const existingInterface = interfaces.find(item => 
+        item.path.toLowerCase() === values.path.toLowerCase() && 
+        item.method.toLowerCase() === values.method.toLowerCase() &&
+        (!isEdit || item.id !== currentInterface?.id)
+      );
+      
+      if (existingInterface) {
+        message.error(`工作区中已存在路径为 '${values.path}' 且方法为 '${values.method}' 的接口`);
+        return;
+      }
+      
       if (currentInterface) {
         // 更新接口
         const updateData: WorkspaceInterfaceUpdate = {
