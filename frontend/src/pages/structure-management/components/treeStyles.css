@@ -538,10 +538,12 @@
 }
 
 /* 页面标题样式 */
-.page-header {
+.structure-page-header {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  align-items: center; /* 水平居中对齐 */
+  text-align: center; /* 文本居中对齐 */
 }
 
 .page-subtitle {
@@ -608,66 +610,163 @@
   overflow: auto; /* 确保内容溢出时可滚动 */
 }
 
-/* 节点详情面板样式 */
+/* 节点详情面板整体样式 - 现代化改进 */
 .node-detail-panel {
-  padding: 4px; /* 减少内边距 */
+  padding: 0;
 }
 
+/* 节点标题卡片 */
+.node-header-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.node-header-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* 节点标题行样式 */
 .node-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px; /* 减少底部间距 */
-  padding-bottom: 8px; /* 减少底部内边距 */
-  border-bottom: 1px solid #f0f0f0; /* 添加底部边框 */
+  padding: 4px 0;
 }
 
+/* 节点图标和标题组 */
 .node-icon-title {
   display: flex;
   align-items: center;
-  gap: 12px; /* 增加图标和标题间距 */
+  gap: 12px;
 }
 
-.node-icon {
-  font-size: 24px; /* 增大图标 */
+/* 节点类型图标 */
+.node-type-icon {
+  font-size: 28px;
+  border-radius: 50%;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.node-type-icon.content-page {
+  color: #1890ff;
+  background-color: rgba(24, 144, 255, 0.1);
+}
+
+.node-type-icon.structure-node {
+  color: #52c41a;
+  background-color: rgba(82, 196, 26, 0.1);
+}
+
+/* 节点标题 */
+.node-title {
+  margin: 0;
+  font-size: 20px;
+  color: #333;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 节点类型标签 */
+.node-type-tag {
+  margin-left: 8px;
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+/* 查看内容页面按钮 */
+.view-content-btn {
+  margin-right: 8px;
+}
+
+/* 详情卡片标题样式 */
+.card-title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: #333;
+}
+
+.card-title-with-icon .anticon {
+  font-size: 18px;
   color: #1890ff;
 }
 
-.node-title {
-  margin: 0;
-  font-size: 20px; /* 增大标题字号 */
-  color: #333;
-  font-weight: 500; /* 增加字重 */
+/* 详情部分 */
+.node-details-section {
+  margin-top: 16px;
 }
 
-/* 节点信息显示样式 */
+/* 分区标题样式 - 旧样式保留用于兼容 */
+.section-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1890ff;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(24, 144, 255, 0.3);
+}
+
+/* 新的信息分区标题样式 */
+.info-section-title {
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-section-title .info-icon {
+  margin-right: 8px;
+  color: #1890ff;
+  font-size: 16px;
+}
+
+.info-section-title span {
+  line-height: 1;
+}
+
+/* 基本信息样式 */
+.basic-info {
+  padding: 8px 0;
+}
+
+/* 节点信息样式 */
 .node-info {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px; /* 减少间距 */
-  margin: 16px 0; /* 减少外边距 */
-  background-color: #fff; /* 添加背景色 */
-  padding: 16px; /* 减少内边距 */
-  border-radius: 6px; /* 添加圆角 */
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03); /* 添加阴影 */
+  gap: 12px;
+  padding: 8px 0;
 }
 
 .info-item {
   display: flex;
   align-items: baseline;
-  padding: 8px 0; /* 添加上下内边距 */
-  transition: all 0.2s;
+  padding: 6px 0;
+  transition: all 0.2s ease;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.03);
 }
 
 .info-item:hover {
-  background-color: rgba(0, 0, 0, 0.01); /* 悬停效果 */
+  /* 移除鼠标悬停时的背景颜色效果 */
 }
 
 .info-item .label {
   font-weight: 500;
   color: #666;
-  margin-right: 12px; /* 增加右边距 */
-  min-width: 90px; /* 增加最小宽度 */
+  margin-right: 8px;
+  min-width: 70px;
 }
 
 .info-item .value {
@@ -675,74 +774,265 @@
   font-weight: 400;
 }
 
-/* 编辑表单样式 */
-.node-edit-form {
-  max-width: 600px;
-  margin: 30px auto;
-  background-color: #fff;
-  padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+/* 统计信息样式已合并到基本信息样式中 */
+
+/* 时间信息样式 */
+.time-info {
+  padding: 6px 0;
 }
 
-/* 空详情面板提示 */
+.time-item {
+  display: flex;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.03);
+}
+
+.time-item:last-child {
+  border-bottom: none;
+}
+
+.time-label {
+  font-weight: 500;
+  color: #666;
+  margin-right: 8px;
+  min-width: 70px;
+}
+
+.time-value {
+  color: #333;
+  font-weight: 400;
+}
+
+/* 内容页面卡片样式 */
+.content-page-card {
+  margin-top: 16px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #f9f9ff 0%, #f0f5ff 100%);
+  padding-bottom: 16px;
+}
+
+/* 模块状态卡片样式 */
+.module-status-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 8px;
+}
+
+.module-completion-status {
+  background-color: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 8px;
+}
+
+.completion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.completion-title {
+  font-weight: 500;
+  color: #333;
+}
+
+.completion-percentage {
+  font-weight: 600;
+  color: #1890ff;
+}
+
+.module-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.module-status-card {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+}
+
+.module-status-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+}
+
+.module-status-card.has-content {
+  border-left: 3px solid #1890ff;
+}
+
+.module-status-card.no-content {
+  border-left: 3px solid #d9d9d9;
+  opacity: 0.85;
+}
+
+.module-icon {
+  font-size: 24px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1890ff;
+}
+
+.module-info {
+  flex: 1;
+}
+
+.module-name {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.module-status {
+  font-size: 12px;
+  color: #666;
+}
+
+.status-filled {
+  color: #1890ff;
+}
+
+.status-empty {
+  color: #999;
+}
+
+.status-icon {
+  margin-right: 4px;
+}
+
+.status-icon.filled {
+  color: #1890ff;
+}
+
+.status-icon.empty {
+  color: #999;
+}
+
+.module-status-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  gap: 12px;
+}
+
+.loading-text {
+  color: #666;
+  margin-top: 8px;
+}
+
+.module-status-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: #999;
+  gap: 12px;
+}
+
+.content-action {
+  text-align: center;
+  margin-top: 16px;
+}
+
+/* 子节点列表样式 */
+.children-card {
+  margin-top: 16px;
+  background: linear-gradient(135deg, #f9fffa 0%, #f0fff0 100%);
+}
+
+.children-list {
+  padding: 8px 0;
+}
+
+.child-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+}
+
+.child-item:hover {
+  background-color: rgba(0, 0, 0, 0.01);
+  transform: translateX(4px);
+}
+
+.child-item:last-child {
+  border-bottom: none;
+}
+
+.child-icon {
+  font-size: 16px;
+}
+
+.child-icon.content {
+  color: #1890ff;
+}
+
+.child-icon.folder {
+  color: #52c41a;
+}
+
+.child-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #333;
+}
+
+.more-children {
+  text-align: center;
+  color: #999;
+  padding: 8px 0;
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* 编辑表单卡片样式 */
+.edit-form-card {
+  margin-top: 16px;
+  background-color: #fff;
+}
+
+.node-edit-form {
+  max-width: 100%;
+  padding: 8px;
+}
+
+/* 空详情面板样式 */
 .empty-detail-panel {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   height: 100%;
-  color: #999;
-  font-size: 16px;
-  flex-direction: column;
+  padding: 48px 0;
+  color: #aaa;
+  text-align: center;
 }
 
 .empty-detail-message {
-  text-align: center;
-  padding: 120px 0;
-  color: rgba(0, 0, 0, 0.45);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.empty-detail-message p {
   margin-top: 16px;
   font-size: 16px;
-  opacity: 0.7;
+  color: #999;
 }
-
-/* 占位内容样式 */
-.placeholder-message {
-  text-align: center;
-  padding: 40px 0;
-  background-color: rgba(0, 0, 0, 0.02);
-  border-radius: 4px;
-  margin: 24px 0;
-}
-
-/* 内容页面相关内容 */
-.content-page-section {
-  margin-top: 32px;
-}
-
-.content-placeholder {
-  background-color: #f9f9f9;
-  padding: 20px;
-  border-radius: 6px;
-  border-left: 4px solid #1890ff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
-}
-
-.content-placeholder ul {
-  margin-top: 12px;
-  padding-left: 24px;
-}
-
-.content-placeholder li {
-  margin-bottom: 6px;
-  color: #555;
-} 
 
 /* 拖拽指示线样式增强 */
 .ant-tree .ant-tree-node-content-wrapper.ant-tree-node-content-wrapper-open.drop-target::before,

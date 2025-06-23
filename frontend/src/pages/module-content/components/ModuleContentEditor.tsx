@@ -832,8 +832,13 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
       case 'overview':
         return !!overviewText && overviewText.trim().length > 0;
       case 'terminology':
-        return !!filteredContent?.sections.find(s => s.key === 'terminology')?.content && 
-               filteredContent.sections.find(s => s.key === 'terminology')?.content.toString().trim().length > 0;
+        // 直接检查glossaryItems数组是否有内容，而不是依赖于filteredContent.sections
+        console.log('术语表内容检查:', {
+          glossaryItems,
+          hasItems: Array.isArray(glossaryItems) && glossaryItems.length > 0,
+          filteredContentCheck: !!filteredContent?.sections.find(s => s.key === 'terminology')?.content
+        });
+        return Array.isArray(glossaryItems) && glossaryItems.length > 0;
       case 'keyTech':
         return !!detailsText && detailsText.trim().length > 0;
       case 'database':
@@ -1189,6 +1194,14 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                   );
                 
                 case 'terminology':
+                  // 添加调试日志，记录术语表状态
+                  console.log('术语表渲染状态:', {
+                    isEditMode,
+                    glossaryItems,
+                    hasContentResult: hasContent(sectionKey),
+                    itemsCount: glossaryItems.length
+                  });
+                  
                   return (
                     <div key={sectionKey} id="section-terminology" className="content-section" ref={terminologyRef}>
                       <Title level={4} className="section-title">

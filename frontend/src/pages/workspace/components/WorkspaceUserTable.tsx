@@ -129,8 +129,8 @@ const WorkspaceUserTable: React.FC<WorkspaceUserTableProps> = ({
             type="link"
             danger
             onClick={() => handleRemoveUser(record)}
-            disabled={actionLoading || record.is_superuser}
-            title={record.is_superuser ? "超级管理员不能被移除" : ""}
+            disabled={actionLoading}
+            title=""
           >
             移除
           </Button>

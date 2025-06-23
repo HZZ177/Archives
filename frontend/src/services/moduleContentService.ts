@@ -1,5 +1,16 @@
 import { apiClient } from '../utils/apiClient';
-import { ModuleContent, ReferencedTable, ReferencedInterface } from '../types/modules';
+import { ModuleContent, DatabaseTable } from '../types/modules';
+import { WorkspaceTable } from '../types/workspace';
+import { WorkspaceInterface } from '../types/workspace';
+
+// 定义缺少的类型
+interface ReferencedTable extends WorkspaceTable {
+  // 添加可能的额外属性
+}
+
+interface ReferencedInterface extends WorkspaceInterface {
+  // 添加可能的额外属性
+}
 
 const BASE_URL = '/api/v1/module-contents';
 

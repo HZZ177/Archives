@@ -30,20 +30,29 @@ export interface WorkspaceUser {
 export interface WorkspaceTable {
   id: number;
   workspace_id: number;
-  table_name: string;
+  name: string;
   schema_name?: string;
   description?: string;
-  columns_json: any[];
+  columns_json: DatabaseTableColumn[];
   relationships_json?: any[];
-  user_id: number;
   created_by: number;
   created_at: string;
   updated_at: string;
 }
 
 // 工作区数据库表详情
-export interface WorkspaceTableDetail extends WorkspaceTable {
+export interface WorkspaceTableDetail {
+  id: number;
+  workspace_id: number;
+  name: string;
+  schema_name?: string;
+  description?: string;
+  columns_json: DatabaseTableColumn[];
+  relationships_json?: any[];
   columns: any[]; // 转换后的字段信息
+  created_by: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // 工作区接口
@@ -54,9 +63,8 @@ export interface WorkspaceInterface {
   method: string;
   description?: string;
   content_type?: string;
-  request_params_json?: any[];
-  response_params_json?: any[];
-  user_id: number;
+  request_params_json?: ApiParam[];
+  response_params_json?: ApiParam[];
   created_by: number;
   created_at: string;
   updated_at: string;
@@ -138,20 +146,6 @@ export interface BatchRemoveUsersFromWorkspaceRequest {
   user_ids: number[];
 }
 
-// 工作区表类型
-export interface WorkspaceTable {
-  id: number;
-  workspace_id: number;
-  name: string;
-  schema_name?: string;
-  description?: string;
-  columns_json: DatabaseTableColumn[];
-  relationships_json?: any[];
-  created_by: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface WorkspaceTableRead extends WorkspaceTable {
   creator?: UserSimple;
 }
@@ -173,21 +167,6 @@ export interface WorkspaceTableUpdate {
   description?: string;
   columns_json?: DatabaseTableColumn[];
   relationships_json?: any[];
-}
-
-// 工作区接口类型
-export interface WorkspaceInterface {
-  id: number;
-  workspace_id: number;
-  path: string;
-  method: string;
-  description?: string;
-  content_type?: string;
-  request_params_json?: ApiParam[];
-  response_params_json?: ApiParam[];
-  created_by: number;
-  created_at: string;
-  updated_at: string;
 }
 
 // 创建工作区接口请求

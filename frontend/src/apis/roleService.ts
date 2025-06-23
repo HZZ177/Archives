@@ -47,8 +47,28 @@ export const updateRole = async (
 
 // 删除角色
 export const deleteRole = async (roleId: number): Promise<{ success: boolean; message?: string }> => {
-  await request.post<APIResponse<void>>(`/roles/delete/${roleId}`);
-  return { success: true };
+  try {
+    const response = await request.post<APIResponse<void>>(`/roles/delete/${roleId}`);
+    // 检查响应中的success字段
+    if (response.data && response.data.success === false) {
+      return {
+        success: false,
+        message: response.data.message || '删除角色失败'
+      };
+    }
+    return { 
+      success: true,
+      message: '角色删除成功' 
+    };
+  } catch (error: any) {
+    // 捕获异常情况
+    console.error('删除角色请求失败:', error);
+    const errorMsg = error.response?.data?.message || '删除角色失败';
+    return {
+      success: false,
+      message: errorMsg
+    };
+  }
 };
 
 // 获取角色权限

@@ -24,7 +24,7 @@ import {
   ReloadOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons';
-import { useWorkspaceContext } from '../../contexts/WorkspaceContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { getWorkspaceTables, deleteTable } from '../../services/workspaceTableService';
 import { WorkspaceTable } from '../../types/workspace';
 import TableForm from './components/TableForm';
@@ -33,7 +33,7 @@ const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
 const WorkspaceTablesPage: React.FC = () => {
-  const { currentWorkspace } = useWorkspaceContext();
+  const { currentWorkspace } = useWorkspace();
   const [tables, setTables] = useState<WorkspaceTable[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -71,7 +71,7 @@ const WorkspaceTablesPage: React.FC = () => {
 
   // 过滤表格数据
   const filteredTables = tables.filter(table => 
-    table.table_name.toLowerCase().includes(searchText.toLowerCase()) ||
+    table.name.toLowerCase().includes(searchText.toLowerCase()) ||
     (table.description && table.description.toLowerCase().includes(searchText.toLowerCase()))
   );
 
@@ -111,8 +111,8 @@ const WorkspaceTablesPage: React.FC = () => {
   const columns = [
     {
       title: '表名',
-      dataIndex: 'table_name',
-      key: 'table_name',
+      dataIndex: 'name',
+      key: 'name',
       render: (text: string) => (
         <Space>
           <DatabaseOutlined style={{ color: '#1890ff' }} />
@@ -135,7 +135,7 @@ const WorkspaceTablesPage: React.FC = () => {
     {
       title: '字段数',
       key: 'columns_count',
-      render: (_, record: WorkspaceTable) => (
+      render: (_: any, record: WorkspaceTable) => (
         <Tag color="blue">{record.columns_json.length}</Tag>
       )
     },

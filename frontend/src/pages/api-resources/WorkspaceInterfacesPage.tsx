@@ -25,7 +25,7 @@ import {
   ReloadOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons';
-import { useWorkspaceContext } from '../../contexts/WorkspaceContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { getWorkspaceInterfaces, deleteInterface } from '../../services/workspaceInterfaceService';
 import { WorkspaceInterface } from '../../types/workspace';
 import InterfaceForm from './components/InterfaceForm';
@@ -34,7 +34,7 @@ const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
 const WorkspaceInterfacesPage: React.FC = () => {
-  const { currentWorkspace } = useWorkspaceContext();
+  const { currentWorkspace } = useWorkspace();
   const [interfaces, setInterfaces] = useState<WorkspaceInterface[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');

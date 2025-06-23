@@ -86,7 +86,7 @@ const TableForm: React.FC<TableFormProps> = ({
           
           // 设置表单初始值
           form.setFieldsValue({
-            table_name: detail.table_name,
+            table_name: detail.name,
             schema_name: detail.schema_name,
             description: detail.description,
             columns: detail.columns || []
@@ -128,7 +128,7 @@ const TableForm: React.FC<TableFormProps> = ({
       
       // 准备提交数据
       const tableData = {
-        table_name: values.table_name,
+        name: values.table_name,
         schema_name: values.schema_name,
         description: values.description,
         columns_json: values.columns.map((column: any) => ({
@@ -360,7 +360,7 @@ const TableForm: React.FC<TableFormProps> = ({
       layout="vertical"
       onFinish={handleSubmit}
       initialValues={{
-        table_name: initialValues?.table_name || '',
+        table_name: initialValues?.name || '',
         schema_name: initialValues?.schema_name || '',
         description: initialValues?.description || '',
       }}

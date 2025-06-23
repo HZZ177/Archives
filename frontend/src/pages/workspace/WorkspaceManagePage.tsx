@@ -109,6 +109,7 @@ const WorkspaceManagePage: React.FC = () => {
           email: item.email || item.user?.email,
           is_superuser: item.is_superuser || false, // Ensure it's always boolean
           role: role || 'member',
+          access_level: item.access_level || 'read', // 添加缺失的access_level属性
           // The nested 'user' object is no longer strictly necessary for WorkspaceUserTable if info is top-level
           // user: item.user || { id: item.user_id, username: item.username || `用户 ${item.user_id}`, email: item.email }
         } as WorkspaceUser;

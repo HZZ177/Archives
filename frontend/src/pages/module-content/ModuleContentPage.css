@@ -7,7 +7,7 @@
   overflow-x: hidden; /* 防止整个页面水平溢出 */
 }
 
-.page-header {
+.module-page-header {
   display: flex;
   justify-content: center;
   padding: 16px 24px;
@@ -16,7 +16,7 @@
   /* 移除grid相关样式 */
 }
 
-.page-header .module-title {
+.module-page-header .module-title {
   text-align: center;
   margin-bottom: 0 !important;
 }

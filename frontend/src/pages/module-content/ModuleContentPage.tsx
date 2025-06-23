@@ -168,7 +168,7 @@ const ModuleContentPage: React.FC = () => {
     <div className="module-content-page">
       {moduleNode && (
         <>
-          <div className="page-header">
+          <div className="module-page-header">
             <Title level={4} className="module-title">
               {moduleNode.name}
             </Title>

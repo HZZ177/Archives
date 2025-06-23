@@ -1,8 +1,6 @@
 import request, { unwrapResponse } from '../utils/request';
 import { 
   Workspace, 
-  WorkspaceCreateRequest, 
-  WorkspaceUpdateRequest,
   WorkspaceListResponse,
   WorkspaceUser,
   WorkspaceUserListResponse,

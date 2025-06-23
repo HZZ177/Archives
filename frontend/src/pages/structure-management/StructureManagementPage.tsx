@@ -126,7 +126,7 @@ const StructureManagementPage: React.FC = React.memo(() => {
     <div className="structure-management-container">
       <Card 
         title={
-          <div className="page-header">
+          <div className="structure-page-header">
             <Title level={4} style={{ margin: 0 }}>结构管理</Title>
             <span className="page-subtitle">管理文档结构和内容</span>
           </div>
@@ -155,6 +155,7 @@ const StructureManagementPage: React.FC = React.memo(() => {
                 node={selectedNode}
                 loading={nodeLoading}
                 onNodeUpdated={handleNodeUpdated}
+                treeData={modules} // 传递完整的树数据
               />
             </div>
           </Col>
