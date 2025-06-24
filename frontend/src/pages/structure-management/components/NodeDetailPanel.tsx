@@ -326,6 +326,15 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             (!!moduleContent.content?.glossary && moduleContent.content.glossary.length > 0) ||
             (Array.isArray((moduleContent as any).terminology_json) && (moduleContent as any).terminology_json.length > 0);
           return hasGlossary;
+        },
+        getCount: () => {
+          let count = 0;
+          if (!!moduleContent.content?.glossary && Array.isArray(moduleContent.content.glossary)) {
+            count = moduleContent.content.glossary.length;
+          } else if (Array.isArray((moduleContent as any).terminology_json)) {
+            count = (moduleContent as any).terminology_json.length;
+          }
+          return count;
         }
       },
       {
@@ -350,6 +359,15 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             (!!moduleContent.content?.database_tables && moduleContent.content.database_tables.length > 0) ||
             (Array.isArray((moduleContent as any).database_tables) && (moduleContent as any).database_tables.length > 0);
           return hasDbTables;
+        },
+        getCount: () => {
+          let count = 0;
+          if (!!moduleContent.content?.database_tables && Array.isArray(moduleContent.content.database_tables)) {
+            count = moduleContent.content.database_tables.length;
+          } else if (Array.isArray((moduleContent as any).database_tables)) {
+            count = (moduleContent as any).database_tables.length;
+          }
+          return count;
         }
       },
       {
@@ -414,6 +432,15 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             (Array.isArray(moduleContent.content?.related_modules) && moduleContent.content.related_modules.length > 0) ||
             (Array.isArray((moduleContent as any).related_module_ids_json) && (moduleContent as any).related_module_ids_json.length > 0);
           return hasRelatedModules;
+        },
+        getCount: () => {
+          let count = 0;
+          if (Array.isArray(moduleContent.content?.related_modules)) {
+            count = moduleContent.content.related_modules.length;
+          } else if (Array.isArray((moduleContent as any).related_module_ids_json)) {
+            count = (moduleContent as any).related_module_ids_json.length;
+          }
+          return count;
         }
       },
       {
@@ -426,6 +453,15 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             (!!moduleContent.content?.interface_definitions && moduleContent.content.interface_definitions.length > 0) ||
             (Array.isArray((moduleContent as any).api_interfaces) && (moduleContent as any).api_interfaces.length > 0);
           return hasInterfaces;
+        },
+        getCount: () => {
+          let count = 0;
+          if (!!moduleContent.content?.interface_definitions && Array.isArray(moduleContent.content.interface_definitions)) {
+            count = moduleContent.content.interface_definitions.length;
+          } else if (Array.isArray((moduleContent as any).api_interfaces)) {
+            count = (moduleContent as any).api_interfaces.length;
+          }
+          return count;
         }
       }
     ];
@@ -470,6 +506,11 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
         <div className="module-cards-grid">
           {filteredModuleTypes.map(module => {
             const hasContent = module.hasContent();
+            // 显示数量的模块列表
+            const countableModules = ['terminology', 'database', 'related', 'interface'];
+            const showCount = countableModules.includes(module.key) && hasContent && module.getCount;
+            const count = showCount ? module.getCount() : 0;
+            
             return (
               <div 
                 key={module.key} 
@@ -479,7 +520,14 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
                   {module.icon}
                 </div>
                 <div className="module-info">
-                  <div className="module-name">{module.name}</div>
+                  <div className="module-name">
+                    {module.name}
+                    {showCount && count > 0 && (
+                      <span style={{ marginLeft: '4px', fontSize: '12px', color: '#1890ff' }}>
+                        ({count})
+                      </span>
+                    )}
+                  </div>
                   <div className="module-status">
                     {hasContent ? (
                       <span className="status-filled">
