@@ -613,6 +613,7 @@
 /* 节点详情面板整体样式 - 现代化改进 */
 .node-detail-panel {
   padding: 0;
+  font-size: 13px;
 }
 
 /* 节点标题卡片 */
@@ -702,7 +703,7 @@
 
 /* 详情部分 */
 .node-details-section {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 /* 分区标题样式 - 旧样式保留用于兼容 */
@@ -807,33 +808,33 @@
 
 /* 内容页面卡片样式 */
 .content-page-card {
-  margin-top: 16px;
-  margin-bottom: 16px;
+  margin-top: 12px;
+  margin-bottom: 12px;
   background: linear-gradient(135deg, #f9f9ff 0%, #f0f5ff 100%);
-  padding-bottom: 16px;
+  padding-bottom: 12px;
 }
 
 /* 模块状态卡片样式 */
 .module-status-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding-bottom: 8px;
+  gap: 10px;
+  padding-bottom: 6px;
 }
 
 .module-completion-status {
   background-color: rgba(255, 255, 255, 0.7);
   border-radius: 8px;
-  padding: 12px 16px;
+  padding: 10px 14px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .completion-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .completion-title {
@@ -848,15 +849,15 @@
 
 .module-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+  margin-bottom: 3px;
 }
 
 .module-status-card {
   display: flex;
   align-items: center;
-  padding: 12px;
+  padding: 8px 10px;
   border-radius: 6px;
   background-color: rgba(255, 255, 255, 0.9);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
@@ -878,8 +879,8 @@
 }
 
 .module-icon {
-  font-size: 24px;
-  margin-right: 12px;
+  font-size: 20px;
+  margin-right: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -893,11 +894,12 @@
 .module-name {
   font-weight: 500;
   color: #333;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  font-size: 13px;
 }
 
 .module-status {
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
 }
 

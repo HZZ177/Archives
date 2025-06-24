@@ -602,7 +602,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
                 }
                 className="content-page-card"
                 bordered={false}
-                style={{ marginTop: 16 }}
+                style={{ marginTop: 10 }}
               >
                 {renderModuleStatusCards()}
               </Card>
