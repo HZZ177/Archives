@@ -266,8 +266,6 @@ const MainLayout: React.FC = () => {
   // 在组件挂载时记录日志，包括组件挂载原因
   useEffect(() => {
     const currentPath = location.pathname;
-    console.log(`MainLayout: 组件挂载 - 当前路径: ${currentPath}, 上一路径: ${previousPath}`);
-    console.trace('组件挂载调用栈');
     
     // 记录组件挂载时的路由路径
     previousPath = currentPath;
@@ -275,14 +273,11 @@ const MainLayout: React.FC = () => {
     // 组件卸载时执行清理，记录卸载日志
     return () => {
       const unmountPath = location.pathname;
-      console.log(`MainLayout: 组件卸载 - 卸载时路径: ${unmountPath}, 挂载时路径: ${currentPath}`);
-      console.trace('组件卸载调用栈');
     };
   }, []); // 仅在组件挂载和卸载时执行
 
   // 刷新用户模块树 - 使用ModuleContext的fetchModules方法
   const refreshModuleTree = useCallback(async () => {
-    console.log('MainLayout: 刷新模块树 (通过ModuleContext)');
     await fetchModules();
   }, [fetchModules]);
 
@@ -291,7 +286,6 @@ const MainLayout: React.FC = () => {
 
   // 获取用户模块 - 确保模块已加载
   useEffect(() => {
-    console.log('MainLayout: 组件挂载，初始化加载模块树 (通过ModuleContext)');
     if (userModules.length === 0 && !modulesLoading) {
       refreshModuleTree();
     }
@@ -319,7 +313,6 @@ const MainLayout: React.FC = () => {
       try {
         const workspaceId = currentWorkspace?.id;
         const pagePaths = await fetchUserPagePermissions(workspaceId);
-        console.log('获取到用户页面权限:', pagePaths);
         setUserPermissions(Array.isArray(pagePaths) ? pagePaths : []);
       } catch (error) {
         console.error('获取用户权限失败:', error);
@@ -453,10 +446,6 @@ const MainLayout: React.FC = () => {
     // 获取用户模块菜单项
     const userModuleMenuItems = userModules.map(module => convertModuleToMenuItem(module));
     
-    // 调试日志
-    console.log('用户模块树:', userModules);
-    console.log('转换后的模块菜单项:', userModuleMenuItems);
-    
     // 只有当存在用户模块菜单项时，才添加分割线
     const dividerItem: MenuDivider[] = userModuleMenuItems.length > 0 ? [
       {
@@ -470,7 +459,6 @@ const MainLayout: React.FC = () => {
       // 合并静态菜单项、分割线和用户自定义模块菜单项
       const allMenuItems = [...staticMenuItems, ...dividerItem, ...userModuleMenuItems];
       setFilteredMenuItems(allMenuItems);
-      console.log('超级管理员菜单项:', JSON.stringify(allMenuItems, null, 2));
       return;
     }
 
@@ -502,7 +490,6 @@ const MainLayout: React.FC = () => {
     }
     
     setFilteredMenuItems(finalMenuItems);
-    console.log('普通用户菜单项:', JSON.stringify(finalMenuItems, null, 2));
   }, [userModules, userPermissions, userState.currentUser]);
 
   // 用户菜单
@@ -824,8 +811,6 @@ const MainLayout: React.FC = () => {
             if (info.key === location.pathname) {
               return;
             }
-            
-            console.log('菜单点击: 导航到', info.key);
             
             // 在导航前预加载目标组件
             try {

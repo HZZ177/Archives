@@ -100,14 +100,10 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             
             // 额外获取业务流程图数据
             try {
-              console.log('获取业务流程图数据...');
               const diagramResponse = await getDiagram(node.id, 'business');
               if (diagramResponse && diagramResponse.data && diagramResponse.data.diagram_data) {
-                console.log('业务流程图数据获取成功');
                 // 将业务流程图数据存储在moduleContent对象中
                 (content as any).diagram_data = diagramResponse.data.diagram_data;
-              } else {
-                console.log('未找到业务流程图数据');
               }
             } catch (diagramError) {
               console.error('获取业务流程图数据失败:', diagramError);
@@ -115,14 +111,10 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             
             // 额外获取表关联关系图数据
             try {
-              console.log('获取表关联关系图数据...');
               const tableRelationResponse = await getDiagram(node.id, 'tableRelation');
               if (tableRelationResponse && tableRelationResponse.data && tableRelationResponse.data.diagram_data) {
-                console.log('表关联关系图数据获取成功');
                 // 将表关联关系图数据存储在moduleContent对象中
                 (content as any).table_relation_diagram_data = tableRelationResponse.data.diagram_data;
-              } else {
-                console.log('未找到表关联关系图数据');
               }
             } catch (tableRelationError) {
               console.error('获取表关联关系图数据失败:', tableRelationError);
@@ -185,10 +177,8 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
     
     if (nodeWithFullChildren && nodeWithFullChildren.children && nodeWithFullChildren.children.length > 0) {
       const count = countAllChildren(nodeWithFullChildren);
-      console.log(`节点ID ${node.id} 的子节点总数: ${count}`);
       return count;
     } else {
-      console.log(`节点ID ${node.id} 的子节点总数: 0 (无子节点或未在树中找到节点)`);
       return 0;
     }
   }, [node?.id, treeData]);
@@ -220,8 +210,6 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
     }
     
     // 定义模块类型及其图标和检查函数 - 统一使用蓝色系图标，与系统中的实际模块保持一致
-    // 添加调试信息，帮助排查问题
-    console.log('模块内容数据结构:', moduleContent);
     
     const moduleTypes = [
       {
@@ -233,11 +221,6 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
           const hasOverview = 
             (!!moduleContent.overview_text && moduleContent.overview_text.trim().length > 0) || 
             (!!moduleContent.content?.overview && moduleContent.content.overview.trim().length > 0);
-          console.log('功能概述内容检查:', hasOverview, 
-            '内容长度:', 
-            moduleContent.overview_text ? moduleContent.overview_text.trim().length : 0,
-            moduleContent.content?.overview ? moduleContent.content.overview.trim().length : 0
-          );
           return hasOverview;
         }
       },
@@ -270,13 +253,6 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
           // 只有当存在未删除的元素时，才认为有内容
           const hasDiagram = nonDeletedElements > 0;
           
-          console.log('业务流程图内容检查:', {
-            hasDiagram,
-            totalElements: diagramElements?.length || 0,
-            nonDeletedElements,
-            deletedElements: (diagramElements?.length || 0) - nonDeletedElements
-          });
-          
           return hasDiagram;
         }
       },
@@ -289,7 +265,6 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
           const hasGlossary = 
             (!!moduleContent.content?.glossary && moduleContent.content.glossary.length > 0) ||
             (Array.isArray((moduleContent as any).terminology_json) && (moduleContent as any).terminology_json.length > 0);
-          console.log('名称解释内容检查:', hasGlossary, moduleContent.content?.glossary, (moduleContent as any).terminology_json);
           return hasGlossary;
         }
       },
@@ -302,7 +277,6 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
           const hasKeyTech = 
             (!!(moduleContent as any).details_text && (moduleContent as any).details_text.trim().length > 10) ||
             (Array.isArray(moduleContent.content?.key_tech) && moduleContent.content.key_tech.length > 0);
-          console.log('功能详解内容检查:', hasKeyTech, (moduleContent as any).details_text, moduleContent.content?.key_tech);
           return hasKeyTech;
         }
       },
@@ -315,7 +289,6 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
           const hasDbTables = 
             (!!moduleContent.content?.database_tables && moduleContent.content.database_tables.length > 0) ||
             (Array.isArray((moduleContent as any).database_tables) && (moduleContent as any).database_tables.length > 0);
-          console.log('数据库表内容检查:', hasDbTables, moduleContent.content?.database_tables, (moduleContent as any).database_tables);
           return hasDbTables;
         }
       },
@@ -368,14 +341,6 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
           // 只有当存在未删除的元素时，才认为有内容
           const hasTableRelation = nonDeletedElements > 0;
           
-          console.log('表关联关系图内容检查:', {
-            hasTableRelation,
-            totalElements: tableRelationElements?.length || 0,
-            nonDeletedElements,
-            deletedElements: (tableRelationElements?.length || 0) - nonDeletedElements,
-            dataSource: tableRelationElements ? '找到了元素' : '未找到元素'
-          });
-          
           return hasTableRelation;
         }
       },
@@ -388,7 +353,6 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
           const hasRelatedModules = 
             (Array.isArray(moduleContent.content?.related_modules) && moduleContent.content.related_modules.length > 0) ||
             (Array.isArray((moduleContent as any).related_module_ids_json) && (moduleContent as any).related_module_ids_json.length > 0);
-          console.log('关联模块内容检查:', hasRelatedModules, moduleContent.content?.related_modules, (moduleContent as any).related_module_ids_json);
           return hasRelatedModules;
         }
       },
@@ -401,7 +365,6 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
           const hasInterfaces = 
             (!!moduleContent.content?.interface_definitions && moduleContent.content.interface_definitions.length > 0) ||
             (Array.isArray((moduleContent as any).api_interfaces) && (moduleContent as any).api_interfaces.length > 0);
-          console.log('涉及接口内容检查:', hasInterfaces, moduleContent.content?.interface_definitions, (moduleContent as any).api_interfaces);
           return hasInterfaces;
         }
       }

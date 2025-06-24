@@ -70,10 +70,7 @@ request.interceptors.request.use(
         // 如果请求中没有显式设置workspace_id，则添加
         if (!config.params.workspace_id) {
           config.params.workspace_id = workspaceId;
-          console.log(`自动添加工作区ID(${workspaceId})到请求:`, config.url);
         }
-      } else {
-        console.log(`URL已指定特定工作区，不自动添加workspace_id参数:`, config.url);
       }
       
       // 同时添加请求头，以防后端从请求头获取

@@ -46,9 +46,6 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
         responseParams: values.responseParams || []
       };
       
-      // 提交前日志记录
-      console.log('表单提交数据:', completeValues);
-      
       onOk(completeValues as ApiInterfaceCard);
     } catch (error) {
       console.error('表单验证失败:', error);
@@ -94,8 +91,6 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
       };
       form.setFieldsValue(formValues);
       
-      // 调试日志
-      console.log('初始化表单值:', formValues);
     } else if (visible) {
       // 默认值
       form.setFieldsValue({

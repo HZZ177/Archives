@@ -137,16 +137,7 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
     if (sourceId === destId && dragIndex === dropIndex) return;
 
     try {
-      // 只在开发环境下输出调试日志
-      if (process.env.NODE_ENV === 'development') {
-        console.log('拖拽完成:', {
-          draggedId: result.draggableId,
-          sourceId,
-          destId,
-          dragIndex,
-          dropIndex
-        });
-      }
+      // 开发环境下的调试代码已移除
       
       // 找到被拖动的节点及其父节点
       const { node: draggedNode, parent: sourceParent, siblings: sourceSiblings } = findNodeAndParent(localTreeData, parseInt(result.draggableId));
@@ -255,16 +246,7 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
         // 1. 同一父节点下的拖拽总是有效的（同级排序）
         const isValidDrop = sourceId === destId;
         
-        // 移除生产环境中的调试日志
-        if (process.env.NODE_ENV === 'development') {
-          console.log('拖拽状态更新:', {
-            sourceId,
-            destId,
-            draggedNodeId,
-            isValidDrop,
-            draggedNodeParentId: sourceParent?.id || 'root'
-          });
-        }
+        // 开发环境下的调试代码已移除
         
         setIsValidDrop(isValidDrop);
       }, 100), // 100ms的节流，避免过于频繁的状态更新

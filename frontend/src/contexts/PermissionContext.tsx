@@ -48,7 +48,6 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
       
       // 超级管理员拥有所有权限，可以设置一个通配符或返回所有路径
       if (userState.currentUser?.is_superuser) {
-        console.log('PermissionContext: 超级管理员权限加载');
         // 使用通配符表示拥有所有权限
         const allPermissions = ['/*'];
         setUserPermissions(allPermissions);
@@ -57,7 +56,6 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
       }
       
       // 普通用户加载权限
-      console.log('PermissionContext: 加载用户权限，工作区ID:', workspaceId);
       const params = workspaceId ? { workspace_id: workspaceId } : {};
       const response = await axios.get(`${API_BASE_URL}/permissions/user/pages`, {
         headers: {
@@ -76,8 +74,6 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
         permissions = response.data;
       }
       
-      console.log('PermissionContext: 获取到权限列表', permissions);
-      
       setUserPermissions(permissions);
       setLoading(false);
       return permissions;
@@ -92,7 +88,6 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
   const hasPermission = useCallback((path: string): boolean => {
     // 路径为空或不是以/开头，视为无效路径
     if (!path || !path.startsWith('/')) {
-      console.log(`PermissionContext: 无效路径 "${path}"`);
       return false;
     }
     
@@ -104,7 +99,6 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     
     // 如果权限中包含通配符，表示拥有所有权限
     if (userPermissions.includes('/*')) {
-      console.log(`PermissionContext: 通配符权限匹配 - 路径: ${path}`);
       return true;
     }
     
@@ -112,7 +106,6 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     const hasAccess = userPermissions.some(permission => {
       // 精确匹配
       if (path === permission) {
-        console.log(`PermissionContext: 精确匹配成功 - 路径: ${path}, 权限: ${permission}`);
         return true;
       }
       
@@ -129,16 +122,11 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
       
       // 模块页面特殊处理 - 保留这部分逻辑，因为模块内容页面有特殊需求
       if (permission.includes('/module-content/') && path.includes('/module-content/')) {
-        console.log(`PermissionContext: 模块内容页面匹配 - 路径: ${path}, 权限: ${permission}`);
         return true;
       }
       
       return false;
     });
-    
-    if (!hasAccess) {
-      console.log(`PermissionContext: 权限匹配失败 - 路径: ${path}, 当前权限列表:`, userPermissions);
-    }
     
     return hasAccess;
   }, [userPermissions]);
@@ -147,7 +135,6 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
   useEffect(() => {
     if (userState.isLoggedIn) {
       const workspaceId = currentWorkspace?.id;
-      console.log('PermissionContext: 用户登录状态或工作区变化，重新加载权限，工作区ID:', workspaceId);
       refreshPermissions(workspaceId);
     } else {
       setUserPermissions([]);
@@ -160,7 +147,6 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
     const handleWorkspaceChange = () => {
       if (userState.isLoggedIn) {
         const workspaceId = currentWorkspace?.id;
-        console.log('PermissionContext: 监听到工作区变更事件，重新加载权限，工作区ID:', workspaceId);
         refreshPermissions(workspaceId);
       }
     };

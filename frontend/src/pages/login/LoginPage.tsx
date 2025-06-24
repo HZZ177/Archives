@@ -16,14 +16,12 @@ const LoginPage: React.FC = () => {
 
   // 在组件挂载时清理localStorage和sessionStorage中与工作区相关的数据
   useEffect(() => {
-    console.log('LoginPage: 清理localStorage和sessionStorage中的工作区数据');
     localStorage.removeItem('currentWorkspace');
     sessionStorage.removeItem('currentWorkspace');
   }, []);
 
   // 如果已经登录，重定向到首页
   if (userState.isLoggedIn) {
-    console.log('用户已登录，重定向到首页');
     return <Navigate to={ROUTES.HOME} replace />;
   }
 
@@ -31,14 +29,11 @@ const LoginPage: React.FC = () => {
   const handleLogin = async (values: LoginParams) => {
     try {
       setLoading(true);
-      console.log('LoginPage: 提交登录请求');
       await login(values);
-      console.log('LoginPage: 登录成功，准备跳转');
       message.success('登录成功');
       
       // 添加短暂延迟，等待权限加载完成
       setTimeout(() => {
-        console.log('LoginPage: 延迟后跳转到首页');
         navigate(ROUTES.HOME, { replace: true });
       }, 300);
     } catch (error: any) {

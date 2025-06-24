@@ -47,7 +47,7 @@ export const invalidateWorkspaceCache = () => {
   workspaceCache.default = null;
   workspaceCache.timestamp = 0;
   workspaceCache.loading = false;
-  console.log('工作区缓存已清空');
+
 };
 
 /**

@@ -12,17 +12,10 @@ import './styles/global.css';
 import { preloadCriticalComponents } from './utils/preloadRegistry';
 
 const App: React.FC = () => {
-  console.log('App组件渲染');
-  
   // 在App组件挂载时预加载关键组件
   useEffect(() => {
-    console.log('App组件挂载，启动预加载关键组件');
     // 预加载关键组件
     preloadCriticalComponents();
-    
-    return () => {
-      console.log('App组件卸载');
-    };
   }, []);
   
   return (

@@ -1002,16 +1002,6 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
 
   // 打开工作区表选择对话框
   const openWorkspaceTableSelect = () => {
-    console.log('打开工作区表选择对话框', {
-      workspaceTables: workspaceTables.length,
-      currentWorkspace: currentWorkspace?.id,
-      isEditMode,
-      enableWorkspaceTableSelection,
-      readOnlyInEditMode,
-      showWorkspaceTableSelectionInReadMode,
-      workspaceTableSelectVisible: workspaceTableSelectVisible
-    });
-    
     // 直接设置状态，显示工作区表选择对话框
     setWorkspaceTableSelectVisible(true);
   };
@@ -1587,16 +1577,6 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
     </div>
   );
 };
-
-  // 添加调试日志
-  console.log('DatabaseTablesSection渲染状态:', {
-    isEditMode,
-    readOnlyInEditMode,
-    workspaceTableSelectVisible,
-    tablesCount: tables.length,
-    workspaceTablesCount: workspaceTables.length,
-    renderMode: isEditMode && !readOnlyInEditMode ? 'editMode' : 'readMode'
-  });
 
   // 渲染主要内容
   const mainContent = isEditMode && !readOnlyInEditMode ? renderEditMode() : renderReadMode();

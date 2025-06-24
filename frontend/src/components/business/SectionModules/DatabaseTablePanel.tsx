@@ -37,12 +37,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
   onRefresh,
   onTableDetailClick
 }) => {
-  console.log('DatabaseTablePanel 渲染:', {
-    tablesCount: databaseTables.length,
-    tables: databaseTables,
-    collapsed,
-    isEditable
-  });
+
 
   const handleCollapsedPanelClick = () => {
     if (collapsed) {
@@ -159,7 +154,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
                                 // 确保 columns 属性存在
                                 columns: table.columns || (table as any).columns_json || []
                               };
-                              console.log('处理后的表数据:', processedTable);
+
                               onTableDetailClick(processedTable);
                             }
                           }}

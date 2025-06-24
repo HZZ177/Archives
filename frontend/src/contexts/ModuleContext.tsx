@@ -36,7 +36,6 @@ export const ModuleProvider: React.FC<ModuleProviderProps> = ({ children }) => {
       // 尝试从sessionStorage获取缓存数据
       const cachedModules = sessionStorage.getItem('userModules');
       if (cachedModules) {
-        console.log('ModuleContext: 从sessionStorage初始化模块树数据');
         return JSON.parse(cachedModules);
       }
     } catch (error) {
@@ -51,32 +50,27 @@ export const ModuleProvider: React.FC<ModuleProviderProps> = ({ children }) => {
   const fetchModules = useCallback(async (forceRefresh = false): Promise<ModuleStructureNode[]> => {
     // 如果用户未登录，不执行请求
     if (!userState.isLoggedIn) {
-      console.log('ModuleContext: 用户未登录，跳过模块树获取');
       return [];
     }
     
     // 如果已经在加载中，直接返回现有模块
     if (loading) {
-      console.log('ModuleContext: 正在加载中，返回现有模块');
       return modules;
     }
     
     try {
       setLoading(true);
-      console.log(`ModuleContext: 开始获取模块树 (强制刷新: ${forceRefresh})`);
       
       const data = await fetchModuleTree(undefined, forceRefresh);
       const newModules = Array.isArray(data) ? data : data.items || [];
       
       // 只有当数据确实变化时才更新状态
       if (JSON.stringify(newModules) !== JSON.stringify(modules)) {
-        console.log('ModuleContext: 模块树数据已更新');
         setModules(newModules);
         
         // 保存到sessionStorage中
         try {
           sessionStorage.setItem('userModules', JSON.stringify(newModules));
-          console.log('ModuleContext: 模块树数据已保存到sessionStorage');
         } catch (error) {
           console.error('ModuleContext: 保存模块树到sessionStorage失败:', error);
         }
@@ -86,7 +80,6 @@ export const ModuleProvider: React.FC<ModuleProviderProps> = ({ children }) => {
         setLastUpdated(now);
         return newModules;
       } else {
-        console.log('ModuleContext: 模块树数据未变化，跳过更新');
         return modules;
       }
     } catch (error) {
@@ -101,7 +94,6 @@ export const ModuleProvider: React.FC<ModuleProviderProps> = ({ children }) => {
   useEffect(() => {
     // 只有用户已登录且模块树为空时才获取
     if (userState.isLoggedIn && modules.length === 0) {
-      console.log('ModuleContext: 初始模块树为空且用户已登录，自动获取');
       fetchModules();
     }
   }, [fetchModules, modules.length, userState.isLoggedIn]);
@@ -109,7 +101,6 @@ export const ModuleProvider: React.FC<ModuleProviderProps> = ({ children }) => {
   // 监听刷新事件
   useEffect(() => {
     const handleRefreshEvent = () => {
-      console.log('ModuleContext: 收到全局刷新事件');
       fetchModules(true);
     };
     
@@ -126,7 +117,6 @@ export const ModuleProvider: React.FC<ModuleProviderProps> = ({ children }) => {
   useEffect(() => {
     // 当用户退出登录时，清空模块缓存
     if (!userState.isLoggedIn) {
-      console.log('ModuleContext: 用户已退出登录，清空模块树数据');
       setModules([]);
       sessionStorage.removeItem('userModules');
     }

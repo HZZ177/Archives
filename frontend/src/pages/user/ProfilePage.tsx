@@ -50,7 +50,6 @@ const ProfilePage: React.FC = () => {
   }, [userState.currentUser, updateUserInfo]);
 
   const handleProfileUpdateFinish = async (values: { username: string; email?: string; mobile?: string }) => {
-    console.log('Form values for update:', values);
     if (!currentUser || !currentUser.id) {
       message.error('无法更新：用户信息不完整。');
       return;

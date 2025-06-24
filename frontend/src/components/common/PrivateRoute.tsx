@@ -24,18 +24,8 @@ const PrivateRoute: React.FC<PrivateRouteProps> = React.memo(({ children }) => {
   const isSamePath = lastCheckedPath === currentPath;
   
   if (!isSamePath) {
-    console.log(`PrivateRoute: 路径变更 - 从 ${lastCheckedPath} 到 ${currentPath}`);
     setLastCheckedPath(currentPath);
   }
-  
-  // 添加组件生命周期日志
-  useEffect(() => {
-    console.log(`PrivateRoute: 组件挂载 - 路径: ${location.pathname}`);
-    
-    return () => {
-      console.log(`PrivateRoute: 组件卸载 - 路径: ${location.pathname}`);
-    };
-  }, []); // 仅在组件挂载和卸载时执行
   
   // 判断用户是否已登录
   if (!userState.isLoggedIn) {
@@ -45,13 +35,11 @@ const PrivateRoute: React.FC<PrivateRouteProps> = React.memo(({ children }) => {
   
   // 特殊路径始终允许访问，避免无限重定向
   if (currentPath === '/no-permission') {
-    console.log('PrivateRoute: 访问无权限页面，直接通过');
     return <>{children}</>;
-        }
+  }
 
   // 等待权限加载完成
   if (permissionLoading) {
-    console.log('PrivateRoute: 权限加载中，显示加载指示器');
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <Spin tip="验证权限中..." />
@@ -62,18 +50,8 @@ const PrivateRoute: React.FC<PrivateRouteProps> = React.memo(({ children }) => {
   // 检查用户是否有权限访问当前页面
   const authorized = hasPermission(currentPath);
   
-  // 权限检查结束后打印详细调试信息
-  console.log(`PrivateRoute: 权限检查完成 - 路径: ${currentPath}, 权限: ${authorized ? '有权限' : '无权限'}, 权限列表:`, userPermissions);
-  console.log(`PrivateRoute: 当前用户是否是超级管理员: ${userState.currentUser?.is_superuser ? '是' : '否'}`);
-  
   // 无权限访问
   if (!authorized) {
-    console.log(`PrivateRoute: 无访问权限 - 路径: ${currentPath}, 用户权限列表:`, userPermissions);
-    console.log(`PrivateRoute: 路径匹配检查:`, userPermissions.map(perm => ({
-      permission: perm,
-      exactMatch: perm === currentPath,
-      prefixMatch: currentPath.startsWith(`${perm}/`)
-    })));
     return <Navigate to="/no-permission" replace />;
   }
   

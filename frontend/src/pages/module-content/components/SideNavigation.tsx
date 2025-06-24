@@ -32,7 +32,7 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
   onCancel,
 }) => {
   useEffect(() => {
-    console.log('SideNavigation rendered:', { items, activeKey });
+    // Component initialization
   }, [items, activeKey]);
 
   // 确保至少有一个可见元素

@@ -18,8 +18,7 @@ interface DatabaseTableDetailProps {
 }
 
 const DatabaseTableDetail: React.FC<DatabaseTableDetailProps> = ({ table, simple = false }) => {
-  // 添加调试日志
-  console.log('DatabaseTableDetail 接收到的表数据:', table);
+
   
   // 确保表名存在
   const tableName = table?.table_name || table?.name || '未命名表';

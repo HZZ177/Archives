@@ -75,16 +75,13 @@ const ModuleContentPage: React.FC = () => {
         
         // 检查模块所属的工作区ID，如果与当前工作区不同，则切换工作区
         if (node.workspace_id && currentWorkspace?.id !== node.workspace_id && !isChangingWorkspace) {
-          console.log(`模块(ID:${node.id})所属工作区(ID:${node.workspace_id})与当前工作区(ID:${currentWorkspace?.id})不同，正在切换工作区...`);
-          
           // 查找模块所属的工作区
           const targetWorkspace = workspaces.find(w => w.id === node.workspace_id);
           
           if (targetWorkspace) {
             try {
-            // 切换到模块所属的工作区
+              // 切换到模块所属的工作区
               await setCurrentWorkspace(targetWorkspace);
-            console.log(`已切换到模块所属工作区: ${targetWorkspace.name}(ID:${targetWorkspace.id})`);
             } catch (error) {
               console.error(`切换到模块所属工作区失败:`, error);
               message.error('切换工作区失败，请稍后重试');

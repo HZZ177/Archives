@@ -306,19 +306,10 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
       setLoading(true);
       // 使用 any 类型避免类型检查错误
       const moduleContent: any = await fetchModuleContent(moduleNodeId);
-      console.log('模块内容数据:', moduleContent);
       
       // 初始化各部分状态
       setOverviewText(moduleContent.overview_text || '');
       setDetailsText(moduleContent.details_text || '');
-      
-      // 添加调试日志，确认数据加载
-      console.log('加载数据状态:', {
-        overview_text: moduleContent.overview_text,
-        details_text: moduleContent.details_text,
-        overviewText,
-        detailsText
-      });
       
       // 处理术语表数据
       if (moduleContent.terminology_json && Array.isArray(moduleContent.terminology_json)) {
@@ -710,15 +701,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
     try {
       setSaving(true);
       
-      // 添加调试日志，确认保存前的数据
-      console.log('保存前数据检查:', {
-        overviewText,
-        detailsText,
-        glossaryItems,
-        databaseTables,
-        relatedModuleIds,
-        apiInterfaces
-      });
+
       
       // 提取工作区表的ID列表
       const workspaceTableIds = databaseTables
@@ -783,7 +766,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         }
       } as ModuleContentRequest;
       
-      console.log('保存数据:', contentData);
+
       
       const result = await saveModuleContent(moduleNodeId, contentData);
       if (result) {
@@ -794,7 +777,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         if (diagramData) {
           try {
             await updateDiagram(moduleNodeId, diagramData, 'business');
-            console.log('业务流程图保存成功');
+
           } catch (error) {
             console.error('业务流程图保存失败:', error);
           }
@@ -805,7 +788,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         if (tableRelationData) {
           try {
             await updateDiagram(moduleNodeId, tableRelationData, 'tableRelation');
-            console.log('表关联关系图保存成功');
+
           } catch (error) {
             console.error('表关联关系图保存失败:', error);
           }
@@ -833,11 +816,6 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         return !!overviewText && overviewText.trim().length > 0;
       case 'terminology':
         // 直接检查glossaryItems数组是否有内容，而不是依赖于filteredContent.sections
-        console.log('术语表内容检查:', {
-          glossaryItems,
-          hasItems: Array.isArray(glossaryItems) && glossaryItems.length > 0,
-          filteredContentCheck: !!filteredContent?.sections.find(s => s.key === 'terminology')?.content
-        });
         return Array.isArray(glossaryItems) && glossaryItems.length > 0;
       case 'keyTech':
         return !!detailsText && detailsText.trim().length > 0;
@@ -1024,7 +1002,6 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                         <OverviewSection 
                           value={overviewText} 
                           onChange={(value) => {
-                            console.log('功能概述更新:', value);
                             setOverviewText(value); // 更新overviewText状态
                             const updatedSections = filteredContent.sections.map(section =>
                               section.key === 'overview' ? { ...section, content: value } : section
@@ -1079,7 +1056,6 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                         <OverviewSection 
                           value={detailsText} 
                           onChange={(value) => {
-                            console.log('功能详解更新:', value);
                             setDetailsText(value); // 更新detailsText状态
                             const updatedSections = filteredContent.sections.map(section =>
                               section.key === 'keyTech' ? { ...section, content: value } : section
@@ -1194,13 +1170,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                   );
                 
                 case 'terminology':
-                  // 添加调试日志，记录术语表状态
-                  console.log('术语表渲染状态:', {
-                    isEditMode,
-                    glossaryItems,
-                    hasContentResult: hasContent(sectionKey),
-                    itemsCount: glossaryItems.length
-                  });
+
                   
                   return (
                     <div key={sectionKey} id="section-terminology" className="content-section" ref={terminologyRef}>

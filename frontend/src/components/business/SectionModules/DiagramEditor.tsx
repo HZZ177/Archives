@@ -13,15 +13,10 @@ import styles from './DiagramEditor.module.css';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 
 // 调试工具函数
-const DEBUG = true; // 设置为 false 可以禁用所有调试输出
+const DEBUG = false; // 设置为 false 禁用所有调试输出
 function debug(message: string, data?: any) {
   if (!DEBUG) return;
-  const timestamp = new Date().toISOString().split('T')[1].split('.')[0]; // 获取时:分:秒
-  if (data) {
-    console.log(`[${timestamp}] [DiagramEditor] ${message}`, data);
-  } else {
-    console.log(`[${timestamp}] [DiagramEditor] ${message}`);
-  }
+  // 调试输出已被禁用
 }
 
 interface DiagramEditorProps {
@@ -56,10 +51,8 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
 
   // 在 useEffect 中添加日志
   useEffect(() => {
-    console.log('DiagramEditor 组件加载，参数:', { moduleId, isEditable, diagramType });
     loadDiagramData();
     if (diagramType === 'tableRelation') {
-      console.log('检测到表关系图类型，准备加载数据库表');
       loadDatabaseTables();
     }
   }, [moduleId, diagramType]); // 添加diagramType作为依赖项
@@ -67,37 +60,31 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   // 加载数据库表数据
   const loadDatabaseTables = async () => {
     try {
-      console.log('开始加载数据库表数据，moduleId:', moduleId, '图表类型:', diagramType);
       const moduleContent = await fetchModuleContent(
         moduleId, 
         workspace.currentWorkspace?.id,
         workspace.workspaceTables
       );
-      console.log('获取到模块内容:', moduleContent);
       
       // 尝试从多个可能的路径获取数据库表
       let tables = null;
       
       // 1. 尝试从关联表查询返回的完整表对象获取（新的存储方式）
       if (moduleContent && (moduleContent as any).database_tables && Array.isArray((moduleContent as any).database_tables)) {
-        console.log('从 moduleContent.database_tables 找到数据库表:', (moduleContent as any).database_tables);
         tables = (moduleContent as any).database_tables;
       }
       // 2. 尝试从新的路径获取
       else if (moduleContent && moduleContent.content && moduleContent.content.database_tables) {
-        console.log('从 content.database_tables 找到数据库表:', moduleContent.content.database_tables);
         tables = moduleContent.content.database_tables;
       } 
       // 3. 尝试从旧的路径获取
       else if (moduleContent && (moduleContent as any).database_tables_json) {
-        console.log('从 database_tables_json 找到数据库表:', (moduleContent as any).database_tables_json);
         tables = (moduleContent as any).database_tables_json;
       }
       
       if (tables && tables.length > 0) {
         setDatabaseTables(tables);
       } else {
-        console.log('未找到数据库表数据，moduleContent结构:', moduleContent);
         // 清空数据库表，显示空状态
         setDatabaseTables([]);
       }
@@ -109,7 +96,6 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
 
   // 刷新数据库表数据
   const refreshDatabaseTables = useCallback(async () => {
-    console.log('刷新数据库表数据');
     message.loading({ content: '正在刷新数据库表...', key: 'refreshTables' });
     try {
       await loadDatabaseTables();
@@ -124,7 +110,6 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   useEffect(() => {
     // 仅当进入编辑模式且为表关系图类型时自动刷新数据库表
     if (isEditable && diagramType === 'tableRelation') {
-      console.log('进入编辑模式，自动刷新数据库表');
       refreshDatabaseTables();
     }
   }, [isEditable, diagramType, refreshDatabaseTables]); // 依赖于isEditable、diagramType和refreshDatabaseTables
@@ -247,13 +232,6 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
         editingTextElement: null, // 确保没有处于编辑状态的文本元素
       };
       
-      console.log('同步预览画布数据，状态:', { 
-        zoom: appState.zoom?.value, 
-        scrollX: appState.scrollX, 
-        scrollY: appState.scrollY,
-        viewModeEnabled: appState.viewModeEnabled
-      });
-      
       previewApiRef.current.updateScene({
         elements: diagramData.elements,
         appState: appState
@@ -273,7 +251,6 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
 
   // 处理弹窗打开
   const handlePreviewOpen = useCallback(() => {
-    console.log('打开预览弹窗，编辑模式:', isEditable);
     setPreviewVisible(true);
     
     // 在弹窗打开时同步数据到预览画布
@@ -284,17 +261,12 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
 
   // 处理弹窗关闭
   const handlePreviewClose = useCallback(() => {
-    console.log('关闭预览弹窗，编辑模式:', isEditable);
-    
     // 只在编辑模式下同步数据到主画布
     if (isEditable && previewApiRef.current) {
-      console.log('编辑模式：同步预览画布数据到主画布');
       const elements = previewApiRef.current.getSceneElementsIncludingDeleted();
       const state = previewApiRef.current.getAppState();
       setDiagramData({ elements: elements as ExcalidrawElement[], state });
       setTimeout(syncMainData, 100);
-    } else {
-      console.log('阅读模式：不同步预览画布数据到主画布');
     }
     
     setPreviewVisible(false);
@@ -483,13 +455,12 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
       const container = isPreview ? previewContainerRef : containerRef;
       
       if (!api.current) {
-        console.error(`${isPreview ? '预览' : '主'}画布 API 引用不可用`);
         debug(`${isPreview ? '预览' : '主'}画布 API 引用不可用`);
         return;
       }
       
       try {
-        console.log(`处理${isPreview ? '预览' : '主'}画布拖放开始`);
+    
         const tableData = JSON.parse(event.dataTransfer.getData('application/json'));
         debug('解析的表数据', tableData);
         
@@ -498,7 +469,6 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
         const rect = container.current?.getBoundingClientRect();
         if (!rect) {
           console.error('无法获取容器边界矩形');
-          debug('无法获取容器边界矩形');
           return;
         }
         
@@ -644,15 +614,6 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
     </MainMenu>
   ), []);
 
-  // 在 render 部分添加日志
-  console.log('渲染 DiagramEditor，状态:', { 
-    databaseTablesCount: databaseTables.length,
-    isTableRelation: diagramType === 'tableRelation',
-    isEditable,
-    shouldShowPanel: diagramType === 'tableRelation' && isEditable,
-    sidebarCollapsed
-  });
-
   return (
     <div className={styles.diagramEditorContainer}>
       {/* 数据库表侧边面板 - 仅在表关系图类型和编辑模式下显示 */}
@@ -665,8 +626,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           isEditable={isEditable}
           onRefresh={refreshDatabaseTables}
           onTableDetailClick={(table) => {
-            console.log('查看表详情按钮点击，表数据结构:', table);
-            console.log('表字段:', table.columns);
+            
             setSelectedTable(table);
             setDetailModalVisible(true);
           }}

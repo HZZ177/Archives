@@ -23,7 +23,7 @@ const authAPI = {
         },
       });
 
-      console.log('Login response:', response.data);
+
 
       // 登录响应需要特殊处理，不使用unwrapResponse
       // 验证响应是否成功
@@ -47,7 +47,7 @@ const authAPI = {
       const userResponse = await request.get<APIResponse<User>>('/auth/profile');
       const userInfo = unwrapResponse<User>(userResponse.data);
       
-      console.log('User info response:', userInfo);
+
       
       // 存储用户信息
       localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(userInfo));

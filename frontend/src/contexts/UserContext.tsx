@@ -40,10 +40,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // 只有当有token但没有用户信息时，才需要刷新
       if (userState.token && (!userState.currentUser || Object.keys(userState.currentUser).length === 0)) {
         try {
-          console.log('正在刷新用户信息...');
           const userInfo = await authAPI.getCurrentUser();
           updateUserInfo(userInfo);
-          console.log('用户信息刷新成功');
         } catch (error: any) {
           console.error('刷新用户信息失败:', error);
           // 如果获取用户信息失败，可能是token已失效
@@ -61,9 +59,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // 登录
   const login = async (params: LoginParams): Promise<void> => {
     try {
-      console.log('UserContext: 开始登录流程');
       const result = await authAPI.login(params);
-      console.log('UserContext: 登录成功，获取到结果', result);
       
       // 更新状态
       setUserState({
@@ -82,8 +78,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       // token 和用户信息已经在 authAPI.login 中存储到 localStorage
-      
-      console.log('UserContext: 状态更新完成');
       
       // 如果需要修改密码，显示提示
       if (result.need_change_password) {

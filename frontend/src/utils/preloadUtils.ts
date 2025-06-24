@@ -14,7 +14,6 @@ export const preloadComponent = async (lazyComponent: React.LazyExoticComponent<
     const componentPromise = (lazyComponent as any)._payload?._result;
     if (componentPromise) {
       await componentPromise;
-      console.log('组件预加载成功:', (componentPromise as any).displayName || '未命名组件');
     }
   } catch (error) {
     console.warn('组件预加载失败:', error);
@@ -38,16 +37,12 @@ export const preloadComponentsWithLowPriority = (components: React.LazyExoticCom
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
     // @ts-ignore
     window.requestIdleCallback(() => {
-      preloadComponents(components).then(() => {
-        console.log('低优先级组件预加载完成');
-      });
+      preloadComponents(components);
     });
   } else {
     // 降级为setTimeout
     setTimeout(() => {
-      preloadComponents(components).then(() => {
-        console.log('低优先级组件预加载完成 (setTimeout降级)');
-      });
+      preloadComponents(components);
     }, 2000); // 延迟2秒执行，避免与应用初始化竞争资源
   }
 };

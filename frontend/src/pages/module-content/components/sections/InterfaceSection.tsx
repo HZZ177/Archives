@@ -127,21 +127,16 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
       responseParams: values.responseParams || []
     };
     
-    // 调试日志
-    console.log('提交的接口数据:', completeValues);
-    
     if (currentInterface) {
       // 编辑现有接口
       const updatedInterfaces = interfaces.map(item => 
         item.id === currentInterface.id ? { ...completeValues, id: item.id } : item
       );
-      console.log('更新后的接口列表:', updatedInterfaces);
       onChange(updatedInterfaces);
     } else {
       // 添加新接口
       const newId = `api_${Date.now()}`;
       const newInterfaces = [...interfaces, { ...completeValues, id: newId }];
-      console.log('添加后的接口列表:', newInterfaces);
       onChange(newInterfaces);
     }
     setFormVisible(false);

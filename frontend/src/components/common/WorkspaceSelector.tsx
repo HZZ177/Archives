@@ -92,7 +92,6 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({ showManage = true
       
       // 如果工作区已更改，导航到首页
       if (isWorkspaceChanged) {
-        console.log(`工作区已切换，导航到首页`);
           navigate(ROUTES.HOME);
         }
       } catch (error) {

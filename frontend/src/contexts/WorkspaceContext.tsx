@@ -36,13 +36,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   // 尝试从localStorage或sessionStorage恢复当前工作区
   const getSavedWorkspace = (): Workspace | null => {
     try {
-      console.log('WorkspaceContext: 尝试从存储中恢复工作区...');
-      
       // 优先从sessionStorage读取（会话级存储）
         const sessionWorkspace = sessionStorage.getItem('currentWorkspace');
         if (sessionWorkspace) {
         const parsed = JSON.parse(sessionWorkspace);
-        console.log('WorkspaceContext: 从sessionStorage恢复工作区:', parsed);
         return parsed;
       }
 
@@ -50,11 +47,9 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       const localWorkspace = localStorage.getItem('currentWorkspace');
       if (localWorkspace) {
         const parsed = JSON.parse(localWorkspace);
-        console.log('WorkspaceContext: 从localStorage恢复工作区:', parsed);
         return parsed;
       }
       
-      console.log('WorkspaceContext: 未找到保存的工作区');
       return null;
       } catch (error) {
       console.error('WorkspaceContext: 恢复保存的工作区失败:', error);
@@ -63,7 +58,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   };
 
   const savedWorkspace = getSavedWorkspace();
-  console.log('WorkspaceContext: 初始化时的工作区状态:', savedWorkspace ? `ID:${savedWorkspace.id}, 名称:${savedWorkspace.name}` : '无');
   
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(savedWorkspace);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -80,19 +74,16 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const handleSetCurrentWorkspace = useCallback(async (workspace: Workspace | null): Promise<void> => {
     // 如果已经在切换工作区，则忽略此次请求
     if (isChangingWorkspace) {
-      console.log('工作区切换操作正在进行中，忽略新的切换请求');
       return;
     }
     
     // 如果要切换的工作区与当前工作区相同，则不执行切换
     if (workspace?.id === currentWorkspace?.id) {
-      console.log(`当前已是工作区: ${workspace?.name}(ID:${workspace?.id})，无需切换`);
       return;
     }
     
     try {
       setIsChangingWorkspace(true);
-      console.log(`开始切换工作区: ${workspace?.name}(ID:${workspace?.id})`);
       
     // 仅更新UI状态，不设置为默认工作区
     setCurrentWorkspace(workspace);
@@ -113,14 +104,11 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       });
       window.dispatchEvent(workspaceChangeEvent);
       
-      console.log(`已切换到工作区: ${workspace?.name}(ID:${workspace?.id})，已触发数据刷新事件`);
-      
       // 确保状态更新完成
       return new Promise<void>(resolve => {
         // 使用setTimeout确保状态更新已经应用
         setTimeout(() => {
           setIsChangingWorkspace(false);
-          console.log(`工作区切换完成: ${workspace?.name}(ID:${workspace?.id})`);
           resolve();
         }, 300); // 增加延迟，确保状态更新完成
       });
@@ -135,12 +123,10 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const loadWorkspaces = useCallback(async () => {
     // 如果用户未登录，不执行请求
     if (!userState.isLoggedIn || !userState.token) {
-      console.log('WorkspaceContext: 用户未登录，跳过加载工作区');
       setInitializing(false); // 确保初始化完成
       return;
     }
     
-    console.log('WorkspaceContext: 开始加载工作区列表和默认工作区...');
     setLoading(true);
     setError(null);
     try {
@@ -150,34 +136,26 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         fetchDefaultWorkspace()
       ]);
       
-      console.log(`WorkspaceContext: 已加载 ${workspacesData.length} 个工作区`);
-      console.log('WorkspaceContext: 默认工作区:', defaultWorkspaceData ? `ID:${defaultWorkspaceData.id}, 名称:${defaultWorkspaceData.name}` : '无');
-      
       setWorkspaces(workspacesData);
       setDefaultWorkspaceState(defaultWorkspaceData);
       
       // 如果已经从localStorage恢复了工作区，则验证它是否在可用工作区列表中
       if (currentWorkspace) {
-        console.log(`WorkspaceContext: 验证恢复的工作区(ID:${currentWorkspace.id})是否在可用工作区列表中...`);
         const workspaceExists = workspacesData.some(w => w.id === currentWorkspace.id);
         if (!workspaceExists) {
-          console.log(`WorkspaceContext: 恢复的工作区(ID:${currentWorkspace.id})不在可用工作区列表中，切换到默认工作区`);
           if (defaultWorkspaceData) {
             await handleSetCurrentWorkspace(defaultWorkspaceData);
           }
         } else {
-          console.log(`WorkspaceContext: 已从存储中恢复工作区: ${currentWorkspace.name}(ID:${currentWorkspace.id})`);
           // 确保从存储中恢复的工作区信息是最新的
           const freshWorkspace = workspacesData.find(w => w.id === currentWorkspace.id);
           if (freshWorkspace && (freshWorkspace.name !== currentWorkspace.name || freshWorkspace.color !== currentWorkspace.color)) {
-            console.log(`WorkspaceContext: 恢复的工作区信息已更新，刷新工作区状态`);
             await handleSetCurrentWorkspace(freshWorkspace);
           }
         }
       } 
       // 如果当前没有选择工作区，则设置默认工作区为当前工作区
       else if (defaultWorkspaceData) {
-        console.log(`WorkspaceContext: 当前没有选择工作区，设置默认工作区(ID:${defaultWorkspaceData.id})为当前工作区`);
         await handleSetCurrentWorkspace(defaultWorkspaceData);
       }
     } catch (err) {
@@ -187,7 +165,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     } finally {
       setLoading(false);
       setInitializing(false); // 确保初始化完成
-      console.log('WorkspaceContext: 工作区初始化完成');
     }
   }, [userState.isLoggedIn, userState.token, currentWorkspace, handleSetCurrentWorkspace]);
 
@@ -211,7 +188,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     // 增强安全检查，确保用户已登录
     if (!userState.isLoggedIn || !userState.token) {
-      console.log('WorkspaceContext: 用户未登录，跳过加载工作区表数据');
       return;
     }
     
@@ -219,7 +195,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     try {
       const tables = await getWorkspaceTables(workspaceId);
       setWorkspaceTables(tables);
-      console.log(`已加载工作区(ID:${workspaceId})的表数据:`, tables.length);
     } catch (error) {
       console.error(`加载工作区(ID:${workspaceId})表数据失败:`, error);
     } finally {
@@ -231,7 +206,6 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   const refreshWorkspaceTables = useCallback(async () => {
     // 确保用户已登录
     if (!userState.isLoggedIn || !userState.token) {
-      console.log('WorkspaceContext: 用户未登录，跳过刷新工作区表数据');
       return;
     }
     
@@ -249,46 +223,50 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       // 清空表数据
       setWorkspaceTables([]);
     }
-  }, [currentWorkspace?.id, loadWorkspaceTables, userState.isLoggedIn, userState.token]);
+  }, [userState.isLoggedIn, userState.token, currentWorkspace?.id, loadWorkspaceTables]);
 
   // 设置默认工作区
   const setAsDefaultWorkspace = async (workspace: Workspace) => {
-    if (!userState.currentUser) return;
+    if (!userState.currentUser) return Promise.reject(new Error('用户未登录'));
     
     try {
-      // 设置为用户默认工作区
       await setDefaultWorkspace(userState.currentUser.id, workspace.id);
-      message.success('默认工作区设置成功');
-    } catch (err) {
-      console.error('设置默认工作区失败:', err);
-      message.error('设置默认工作区失败，请稍后重试');
+      setDefaultWorkspaceState(workspace);
+      message.success(`已将 ${workspace.name} 设为默认工作区`);
+      return Promise.resolve();
+    } catch (error) {
+      console.error('设置默认工作区失败:', error);
+      message.error('设置默认工作区失败');
+      return Promise.reject(error);
     }
   };
 
-  const value = {
-        currentWorkspace,
-        workspaces,
+  // 上下文值
+  const contextValue: WorkspaceContextType = {
+    currentWorkspace,
+    workspaces,
     defaultWorkspace,
-        loading,
+    loading,
     initializing,
-        error,
+    error,
     workspaceTables,
     loadingTables,
     refreshWorkspaceTables,
-        setCurrentWorkspace: handleSetCurrentWorkspace,
-        setAsDefaultWorkspace,
-        refreshWorkspaces,
-    isChangingWorkspace
+    setCurrentWorkspace: handleSetCurrentWorkspace,
+    setAsDefaultWorkspace,
+    refreshWorkspaces,
+    isChangingWorkspace,
   };
 
+  // 渲染提供者组件
   return (
-    <WorkspaceContext.Provider value={value}>
+    <WorkspaceContext.Provider value={contextValue}>
       {children}
     </WorkspaceContext.Provider>
   );
 };
 
-// 自定义钩子，用于访问工作区上下文
+// 自定义Hook，用于访问工作区上下文
 export const useWorkspace = (): WorkspaceContextType => {
   const context = useContext(WorkspaceContext);
   if (context === undefined) {

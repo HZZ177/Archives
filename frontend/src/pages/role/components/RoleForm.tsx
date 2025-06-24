@@ -185,14 +185,12 @@ const RoleForm: React.FC<RoleFormProps> = ({
     // 记录当前角色ID
     const currentRoleId = role?.id || null;
     roleIdRef.current = currentRoleId;
-    console.log('加载权限数据，角色ID:', currentRoleId);
     
     try {
       setLoading(true);
       
       // 获取权限树
       const permissionsData = await fetchPermissionTree();
-      console.log('权限树数据:', permissionsData);
       setPermissions(permissionsData);
       
       // 分离系统权限和模块权限
@@ -228,7 +226,6 @@ const RoleForm: React.FC<RoleFormProps> = ({
       // 查找首页权限
       findHomePagePermission([...systemPermissions, ...modulePermissions]);
       setHomePagePermissionId(homePageId);
-      console.log('首页权限ID:', homePageId);
       
       // 渲染系统权限树
       const renderedSystemTreeData = renderPermissionTree(systemPermissions);
@@ -245,9 +242,6 @@ const RoleForm: React.FC<RoleFormProps> = ({
         // 使用角色中的权限数据
         const rolePermissions = role.permissions.map(perm => perm.id) || [];
         initialCheckedKeys = rolePermissions.map(id => id.toString());
-        console.log('角色已有权限IDs:', initialCheckedKeys);
-      } else {
-        console.log('创建新角色或角色无权限数据');
       }
       
       // 确保首页权限ID在选中列表中
@@ -255,7 +249,6 @@ const RoleForm: React.FC<RoleFormProps> = ({
         initialCheckedKeys.push(homePageId);
       }
       
-      console.log('最终设置的checkedKeys:', initialCheckedKeys);
       setCheckedKeys(initialCheckedKeys);
       
       setLoading(false);
@@ -350,9 +343,9 @@ const RoleForm: React.FC<RoleFormProps> = ({
   useEffect(() => {
     loadPermissionData();
     
-    // 如果角色ID变更，重新加载数据
+    // 组件卸载时的清理工作
     return () => {
-      console.log('RoleForm组件卸载');
+      // 清理工作
     };
   }, [role?.id, resetKey]); // 依赖role?.id而不是整个role对象，以及resetKey
   
@@ -431,8 +424,6 @@ const RoleForm: React.FC<RoleFormProps> = ({
 
   // 处理权限选择
   const handleCheck: CustomOnCheckFn = (checked, info, sourceKey?: string) => {
-    console.log('当前选择操作来源:', sourceKey || 'system');
-    
     // 获取当前操作节点的key
     const nodeKey = info?.node?.key?.toString() || '';
     
@@ -441,8 +432,6 @@ const RoleForm: React.FC<RoleFormProps> = ({
       ? checked.map((key: React.Key) => key.toString())
       : checked.checked.map((key: React.Key) => key.toString());
       
-    console.log(`节点 ${nodeKey} 状态变化, 当前树选中节点:`, currentChecked);
-    
     // 创建全局选中状态的副本
     let newCheckedKeys = [...checkedKeys].map(key => key.toString());
     
@@ -468,8 +457,6 @@ const RoleForm: React.FC<RoleFormProps> = ({
     if (homePagePermissionId && !newCheckedKeys.includes(homePagePermissionId)) {
       newCheckedKeys.push(homePagePermissionId);
     }
-    
-    console.log('更新后的选中列表:', newCheckedKeys);
     
     // 更新选中状态
     setCheckedKeys(newCheckedKeys);

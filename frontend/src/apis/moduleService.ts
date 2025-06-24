@@ -34,7 +34,6 @@ export const invalidateModuleTreeCache = () => {
   moduleTreeCache.timestamp = 0;
   moduleTreeCache.loading = false;
   moduleTreeCache.pendingPromise = null;
-  console.log('模块树缓存已清空');
 };
 
 // 模块结构树API
@@ -50,27 +49,15 @@ export const fetchModuleTree = async (parentId?: number, forceRefresh = false): 
 
   // 如果缓存有效，直接返回缓存数据
   if (isCacheValid && moduleTreeCache.data) {
-    console.log(`使用模块树缓存数据，缓存时间：${new Date(moduleTreeCache.timestamp).toLocaleTimeString()}，强制刷新：${forceRefresh}`);
     return moduleTreeCache.data;
-  }
-
-  // 记录无效缓存原因
-  if (forceRefresh) {
-    console.log('模块树缓存：强制刷新，忽略现有缓存');
-  } else if (!moduleTreeCache.data) {
-    console.log('模块树缓存：缓存为空，需要获取新数据');
-  } else if (now - moduleTreeCache.timestamp >= CACHE_TTL) {
-    console.log(`模块树缓存：缓存已过期（${Math.floor((now - moduleTreeCache.timestamp)/1000)}秒前），需要刷新`);
   }
 
   // 如果已经在加载中，复用同一个请求
   if (moduleTreeCache.loading && moduleTreeCache.pendingPromise) {
-    console.log('复用模块树正在进行的请求');
     return moduleTreeCache.pendingPromise;
   }
 
   // 发起新请求
-  console.log(`发起新的模块树请求，forceRefresh=${forceRefresh}`);
   moduleTreeCache.loading = true;
 
   const fetchPromise = async (): Promise<ModuleTreeResponse> => {
@@ -111,7 +98,6 @@ export const fetchModuleTree = async (parentId?: number, forceRefresh = false): 
       moduleTreeCache.loading = false;
       moduleTreeCache.pendingPromise = null;
       
-      console.log(`模块树数据已更新到缓存，时间：${new Date(moduleTreeCache.timestamp).toLocaleTimeString()}`);
       return moduleTreeCache.data;
     } catch (error) {
       // 请求失败，重置加载状态
@@ -161,12 +147,9 @@ export const fetchModuleContent = async (
     
     // 添加预加载逻辑，确保返回的模块内容包含 database_tables 属性
     if (moduleContent && !('database_tables' in moduleContent)) {
-      console.log('模块内容中缺少 database_tables 属性，尝试获取关联表数据');
-      
       try {
         // 如果提供了缓存的工作区表数据，直接使用
         if (cachedWorkspaceTables && cachedWorkspaceTables.length > 0) {
-          console.log('使用缓存的工作区表数据:', cachedWorkspaceTables.length);
           (moduleContent as any).database_tables = cachedWorkspaceTables;
           return moduleContent;
         }
@@ -192,17 +175,13 @@ export const fetchModuleContent = async (
         
         // 如果找到了工作区ID，获取该工作区的表数据
         if (targetWorkspaceId) {
-          console.log(`找到工作区ID: ${targetWorkspaceId}，获取工作区表数据`);
           const workspaceTables = await getWorkspaceTables(targetWorkspaceId);
           if (workspaceTables && workspaceTables.length > 0) {
-            console.log('成功获取工作区表数据:', workspaceTables);
             (moduleContent as any).database_tables = workspaceTables;
           } else {
-            console.log('工作区中没有表数据，设置为空数组');
             (moduleContent as any).database_tables = [];
           }
         } else {
-          console.log('未找到工作区ID，设置为空数组');
           (moduleContent as any).database_tables = [];
         }
       } catch (error) {

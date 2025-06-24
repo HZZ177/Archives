@@ -23,14 +23,10 @@ const StructureManagementPage: React.FC = React.memo(() => {
   // 节点加载状态
   const [nodeLoading, setNodeLoading] = useState<boolean>(false);
 
-  // 添加组件生命周期日志
+  // 组件生命周期
   useEffect(() => {
-    console.log('StructureManagementPage: 组件挂载');
-    console.trace('StructureManagementPage挂载调用栈');
-    
     return () => {
-      console.log('StructureManagementPage: 组件卸载');
-      console.trace('StructureManagementPage卸载调用栈');
+      // 清理工作
     };
   }, []); // 仅在组件挂载和卸载时执行
 
@@ -39,7 +35,6 @@ const StructureManagementPage: React.FC = React.memo(() => {
     try {
       setLoading(true);
       // 明确使用ModuleContext，避免不必要的请求
-      console.log('StructureManagementPage: 加载模块树 (通过ModuleContext)');
       await fetchModules(true); // 强制刷新数据，不使用缓存
       setLoading(false);
       
@@ -77,7 +72,6 @@ const StructureManagementPage: React.FC = React.memo(() => {
 
   // 节点更新后的处理
   const handleNodeUpdated = () => {
-    console.log('StructureManagementPage: 节点已更新，重新加载模块树');
     // 由于节点已更新，需要强制刷新模块树缓存
     const refreshWithForce = async () => {
       try {
@@ -107,7 +101,6 @@ const StructureManagementPage: React.FC = React.memo(() => {
   useEffect(() => {
     // 处理工作区变更事件
     const handleWorkspaceChange = () => {
-      console.log('StructureManagementPage: 检测到工作区变更，重新加载模块树');
       loadModuleTree();
     };
     
