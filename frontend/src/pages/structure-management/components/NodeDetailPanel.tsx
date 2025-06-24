@@ -28,7 +28,7 @@ import {
   ClockCircleOutlined
 } from '@ant-design/icons';
 import { ModuleStructureNode, ModuleStructureNodeRequest, ModuleContent } from '../../../types/modules';
-import { updateModuleNode, fetchModuleContent, getDiagram } from '../../../apis/moduleService';
+import { updateModuleNode, fetchModuleContent, getDiagram, getModuleSectionConfig } from '../../../apis/moduleService';
 import { useModules } from '../../../contexts/ModuleContext';
 import { refreshModuleTreeEvent } from '../../../layouts/MainLayout';
 import { Link } from 'react-router-dom';
@@ -56,7 +56,64 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
   const [loadingCreator, setLoadingCreator] = useState<boolean>(false);
   const [moduleContent, setModuleContent] = useState<ModuleContent | null>(null);
   const [loadingContent, setLoadingContent] = useState<boolean>(false);
+  const [enabledModules, setEnabledModules] = useState<{[key: string]: boolean}>({});
+  const [loadingModuleConfig, setLoadingModuleConfig] = useState<boolean>(false);
   const { fetchModules } = useModules();
+
+  // 加载模块配置信息
+  const loadModuleConfig = async () => {
+    try {
+      setLoadingModuleConfig(true);
+      
+      // 尝试从localStorage获取缓存的模块配置
+      const cachedConfig = localStorage.getItem('moduleSections');
+      let enabledModulesMap: {[key: string]: boolean} = {};
+      
+      if (cachedConfig) {
+        try {
+          const parsedConfig = JSON.parse(cachedConfig);
+          // 转换为 key -> enabled 的映射
+          parsedConfig.forEach((section: any) => {
+            enabledModulesMap[section.section_key] = section.is_enabled;
+          });
+        } catch (e) {
+          console.error('解析缓存的模块配置失败:', e);
+        }
+      }
+      
+      // 如果缓存为空或解析失败，从API获取
+      if (Object.keys(enabledModulesMap).length === 0) {
+        const response = await getModuleSectionConfig();
+        if (response.data && response.data.data) {
+          response.data.data.forEach((section: any) => {
+            enabledModulesMap[section.section_key] = section.is_enabled;
+          });
+        }
+      }
+      
+      setEnabledModules(enabledModulesMap);
+    } catch (error) {
+      console.error('加载模块配置失败:', error);
+      // 加载失败时，默认所有模块都启用
+      setEnabledModules({
+        overview: true,
+        diagram: true,
+        terminology: true,
+        keyTech: true,
+        database: true,
+        tableRelation: true,
+        related: true,
+        interface: true
+      });
+    } finally {
+      setLoadingModuleConfig(false);
+    }
+  };
+
+  // 组件挂载时加载模块配置
+  useEffect(() => {
+    loadModuleConfig();
+  }, []);
 
   // 当节点变化时，重置表单和编辑状态
   useEffect(() => {
@@ -191,11 +248,14 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
   
   // 渲染模块状态卡片
   const renderModuleStatusCards = () => {
-    if (loadingContent) {
+    if (loadingContent || loadingModuleConfig) {
       return (
         <div className="module-status-loading">
           <Spin indicator={<LoadingOutlined spin />} />
-          <span className="loading-text">加载模块内容...</span>
+          <span className="loading-text">
+            {loadingContent && loadingModuleConfig ? '加载中...' : 
+             loadingContent ? '加载模块内容...' : '加载模块配置...'}
+          </span>
         </div>
       );
     }
@@ -370,31 +430,45 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
       }
     ];
     
-    // 计算已填写的模块数量
-    const filledModules = moduleTypes.filter(module => module.hasContent()).length;
-    const totalModules = moduleTypes.length;
-    const completionPercentage = Math.round((filledModules / totalModules) * 100);
+    // 根据启用状态过滤模块类型
+    const filteredModuleTypes = moduleTypes.filter(module => {
+      // 如果模块在enabledModules中未定义，默认为启用
+      return enabledModules[module.key] !== false;
+    });
+    
+    // 只计算已启用模块的填充情况
+    const filledModules = filteredModuleTypes.filter(module => module.hasContent()).length;
+    const totalModules = filteredModuleTypes.length;
+    const completionPercentage = totalModules > 0 
+      ? Math.round((filledModules / totalModules) * 100)
+      : 0;
     
     return (
       <div className="module-status-container">
         <div className="module-completion-status">
-          <div className="completion-header">
+          <div className="completion-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span className="completion-title">内容完成度</span>
-            <span className="completion-percentage">{completionPercentage}%</span>
+            <span style={{ fontSize: '11px', color: '#999' }}>仅展示和计算工作区已启用的模块</span>
           </div>
-          <Progress 
-            percent={completionPercentage} 
-            size="small" 
-            status={completionPercentage === 100 ? "success" : "active"} 
-            strokeColor={{
-              '0%': '#108ee9',
-              '100%': '#87d068',
-            }}
-          />
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <Progress 
+                percent={completionPercentage} 
+                size="small"
+                format={percent => ''}
+                status={completionPercentage === 100 ? "success" : "active"} 
+                strokeColor={{
+                  '0%': '#108ee9',
+                  '100%': '#87d068',
+                }}
+              />
+            </div>
+            <span style={{ marginLeft: '8px', color: '#1890ff', fontWeight: 500 }}>{completionPercentage}%</span>
+          </div>
         </div>
         
         <div className="module-cards-grid">
-          {moduleTypes.map(module => {
+          {filteredModuleTypes.map(module => {
             const hasContent = module.hasContent();
             return (
               <div 
