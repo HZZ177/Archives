@@ -593,10 +593,12 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
                         <span>统计信息</span>
                       </div>
                       <div className="basic-info">
-                        <div className="info-item">
-                          <span className="label">子节点总数:</span>
-                          <span className="value">{childrenCount}</span>
-                        </div>
+                        {!node.is_content_page && (
+                          <div className="info-item">
+                            <span className="label">子节点总数:</span>
+                            <span className="value">{childrenCount}</span>
+                          </div>
+                        )}
                         <div className="info-item">
                           <span className="label">创建者:</span>
                           <span className="value">{loadingCreator ? '加载中...' : (creator ? creator.username : '未知')}</span>
