@@ -18,7 +18,7 @@ interface ApiInterfaceFormProps {
 
 /**
  * API接口表单组件
- * 用于添加和编辑接口信息
+ * 用于添加和编辑接口信息，支持嵌套参数结构
  */
 const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
   visible,
@@ -159,6 +159,7 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
           <Form.Item
             name="requestParams"
             initialValue={[]}
+            extra="支持嵌套参数结构，可以添加object或array类型的参数，并为其添加子参数"
           >
             <ApiParamTable />
           </Form.Item>
@@ -167,8 +168,9 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
           <Form.Item
             name="responseParams"
             initialValue={[]}
+            extra="支持嵌套参数结构，可以添加object或array类型的参数，并为其添加子参数"
           >
-            <ApiParamTable />
+            <ApiParamTable isResponse={true} />
           </Form.Item>
         </TabPane>
       </Tabs>

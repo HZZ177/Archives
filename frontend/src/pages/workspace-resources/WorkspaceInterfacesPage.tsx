@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Typography, Spin, Empty, message, Modal, Input } from 'antd';
-import { PlusOutlined, ApiOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, ApiOutlined, SearchOutlined, ImportOutlined } from '@ant-design/icons';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { usePermission } from '../../contexts/PermissionContext';
 import { getWorkspaceInterfaces, createWorkspaceInterface, updateWorkspaceInterface, deleteWorkspaceInterface } from '../../apis/workspaceService';
@@ -13,6 +13,7 @@ import './WorkspaceResourcesPage.css';
 // 复用内容页面中的接口组件
 import InterfaceSection from '../module-content/components/sections/InterfaceSection';
 import ApiInterfaceForm from '../module-content/components/sections/ApiInterfaceForm';
+import InterfaceImportModal from './components/InterfaceImportModal';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -25,6 +26,9 @@ const WorkspaceInterfacesPage: React.FC = () => {
   const [formVisible, setFormVisible] = useState<boolean>(false);
   const [currentInterface, setCurrentInterface] = useState<WorkspaceInterface | null>(null);
   const [expandedApiCards, setExpandedApiCards] = useState<string[]>([]);
+  
+  // 添加导入相关状态
+  const [importModalVisible, setImportModalVisible] = useState<boolean>(false);
   
   // 搜索相关状态
   const [searchKeyword, setSearchKeyword] = useState<string>('');
@@ -162,6 +166,11 @@ const WorkspaceInterfacesPage: React.FC = () => {
     }
   };
 
+  // 打开导入接口弹窗
+  const handleImport = () => {
+    setImportModalVisible(true);
+  };
+
   // 渲染接口列表
   const renderInterfaceList = () => {
     if (loading) {
@@ -243,14 +252,24 @@ const WorkspaceInterfacesPage: React.FC = () => {
               style={{ width: '100%', maxWidth: '600px' }}
               prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
             />
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />} 
-              onClick={handleAddInterface}
-              disabled={!currentWorkspace}
-            >
-              添加接口
-            </Button>
+            <div>
+              <Button 
+                icon={<ImportOutlined />} 
+                onClick={handleImport}
+                disabled={!currentWorkspace}
+                style={{ marginRight: 8 }}
+              >
+                导入接口
+              </Button>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />} 
+                onClick={handleAddInterface}
+                disabled={!currentWorkspace}
+              >
+                添加接口
+              </Button>
+            </div>
           </div>
         )}
         
@@ -302,6 +321,14 @@ const WorkspaceInterfacesPage: React.FC = () => {
           useCustomModal={true}
         />
       </Modal>
+      
+      {/* 添加导入接口Modal */}
+      <InterfaceImportModal
+        visible={importModalVisible}
+        onCancel={() => setImportModalVisible(false)}
+        workspaceId={currentWorkspace?.id}
+        onSuccess={loadInterfaces}
+      />
     </div>
   );
 };

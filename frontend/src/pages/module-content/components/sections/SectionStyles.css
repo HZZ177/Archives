@@ -479,9 +479,11 @@
 
 .api-param-row {
   display: flex;
-  padding: 8px;
+  flex-wrap: nowrap;
+  padding: 8px; /* 恢复原有的内边距 */
   border-bottom: 1px solid #f0f0f0;
-  width: 100%;
+  width: 100%; /* 恢复原有的宽度设置 */
+  align-items: center; /* 添加垂直居中对齐 */
 }
 
 /* 添加交替背景色 */
@@ -495,14 +497,16 @@
 
 /* 统一表格列样式，添加文本溢出处理 */
 .api-param-name {
-  flex: 2;
+  flex: 3; /* 增加参数名称列的比例 */
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 0 8px;
-  min-width: 80px;
+  min-width: 120px; /* 增加最小宽度 */
   border-right: 1px solid #f0f0f0;
+  display: flex; /* 添加flex布局 */
+  align-items: center; /* 添加垂直居中对齐 */
 }
 
 .api-param-type {
@@ -514,6 +518,9 @@
   min-width: 60px;
   padding: 0 8px;
   border-right: 1px solid #f0f0f0;
+  display: flex; /* 添加flex布局 */
+  align-items: center; /* 添加垂直居中对齐 */
+  justify-content: center; /* 水平居中 */
 }
 
 .api-param-required {
@@ -522,6 +529,9 @@
   min-width: 50px;
   padding: 0 8px;
   border-right: 1px solid #f0f0f0;
+  display: flex; /* 添加flex布局 */
+  align-items: center; /* 添加垂直居中对齐 */
+  justify-content: center; /* 水平居中 */
 }
 
 .api-param-desc {
@@ -532,15 +542,35 @@
   white-space: nowrap;
   min-width: 100px;
   border-right: 1px solid #f0f0f0;
+  display: flex; /* 添加flex布局 */
+  align-items: center; /* 添加垂直居中对齐 */
 }
 
 .api-param-example {
-  flex: 2;
+  flex: 1; /* 减小示例值列的比例 */
   padding: 0 8px;
-  min-width: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 60px; /* 减小最小宽度，刚好容纳按钮 */
+  display: flex; /* 添加flex布局 */
+  align-items: center; /* 添加垂直居中对齐 */
+  justify-content: center; /* 水平居中 */
+}
+
+/* 添加示例值弹窗内容样式 */
+.example-content {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.example-code {
+  background-color: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 /* 响应式调整 */
@@ -583,8 +613,8 @@
   
   /* 调整列宽 */
   .api-param-name {
-    flex: 2;
-    min-width: 60px;
+    flex: 3; /* 增加参数名称列的比例 */
+    min-width: 120px; /* 增加最小宽度 */
     padding: 0 4px;
   }
   
@@ -2477,7 +2507,7 @@
   transition: opacity 500ms cubic-bezier(0.23, 1, 0.32, 1), 
               max-height 600ms cubic-bezier(0.23, 1, 0.32, 1), 
               transform 500ms cubic-bezier(0.23, 1, 0.32, 1);
-} 
+}
 
 /* 接口卡片图标按钮样式 */
 .api-card-icon-buttons {
@@ -2495,3 +2525,260 @@
 }
 
 /* 其他样式保持不变 */
+
+/* 嵌套参数相关样式 */
+.expand-icon-placeholder {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+}
+
+.expand-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  margin-right: 4px;
+  cursor: pointer;
+  color: #1890ff;
+}
+
+.param-expand-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  margin-right: 4px;
+  cursor: pointer;
+  color: #1890ff;
+}
+
+.param-expand-icon:hover {
+  color: #40a9ff;
+}
+
+.api-param-name .has-children {
+  font-weight: 500;
+}
+
+.child-param-row {
+  background-color: #fafafa;
+  border-top: 1px dashed #f0f0f0;
+  /* 移除可能影响对齐的属性 */
+}
+
+.param-children {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.child-param-table {
+  margin-left: 20px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  border-left: 1px dashed #f0f0f0;
+}
+
+.empty-children {
+  padding: 8px 0 8px 20px;
+  color: #999;
+  font-style: italic;
+}
+
+.api-param-body {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* 更新现有样式，添加支持嵌套参数 */
+.api-param-name {
+  display: flex;
+  align-items: center;
+  width: 20%;
+  padding: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-right: 1px solid #f0f0f0;
+  word-break: break-all;
+}
+
+.api-param-table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.api-param-table {
+  width: 100%;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* 树形参数表格相关样式 */
+.api-param-row {
+  display: flex;
+  flex-wrap: nowrap;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.api-param-row:last-child {
+  border-bottom: none;
+}
+
+.api-param-row:hover {
+  background-color: #f5f5f5;
+}
+
+/* 表单中嵌套参数相关样式 */
+.child-form-item {
+  border-left: 1px solid #f0f0f0;
+  padding-left: 12px;
+  margin-left: 12px;
+}
+
+.add-child-param-button {
+  margin-top: 8px;
+  margin-left: 16px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .api-param-row {
+    flex-wrap: wrap;
+  }
+  
+  .api-param-name, 
+  .api-param-type, 
+  .api-param-required,
+  .api-param-desc,
+  .api-param-example {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .api-param-header {
+    display: none;
+  }
+  
+  .api-param-name::before {
+    content: "参数名: ";
+    color: #999;
+    font-weight: normal;
+  }
+  
+  .api-param-type::before {
+    content: "类型: ";
+    color: #999;
+  }
+  
+  .api-param-required::before {
+    content: "必填: ";
+    color: #999;
+  }
+  
+  .api-param-desc::before {
+    content: "描述: ";
+    color: #999;
+  }
+  
+  .api-param-example::before {
+    content: "示例值: ";
+    color: #999;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ApiParamTable 样式修复 */
+.nested-param-table {
+  margin: 8px 0;
+}
+
+.nested-param-row {
+  background-color: #fdfdfd;
+}
+
+/* 修复参数名列中，默认展开图标与输入框的对齐问题 */
+.ant-table-cell.param-name-cell {
+  display: flex;
+  align-items: center;
+}
+
+/* 表头居中 */
+.api-param-table-container .ant-table-thead > tr > th {
+  text-align: center;
+}
+
+/* 单独处理被设为flex布局的"参数名"表头的居中 */
+.api-param-table-container .ant-table-thead > tr > th.param-name-cell {
+  justify-content: center;
+}
+
+/* 参数表格操作按钮样式 */
+.param-action-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.param-action-buttons .ant-space {
+  display: flex;
+  justify-content: center;
+}
+
+/* 展开按钮样式 */
+.ant-table-row-expand-icon {
+  width: 17px;
+  height: 17px;
+  display: inline-block;
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 2px;
+  outline: none;
+  transition: all 0.3s;
+  position: relative;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.ant-table-row-expand-icon::before,
+.ant-table-row-expand-icon::after {
+  content: '';
+  position: absolute;
+  background-color: #333;
+}
+
+.ant-table-row-expand-icon::before {
+  width: 9px;
+  height: 1px;
+  top: 7px;
+  left: 3px;
+}
+
+.ant-table-row-expand-icon::after {
+  width: 1px;
+  height: 9px;
+  top: 3px;
+  left: 7px;
+  transition: transform 0.3s;
+}
+
+.ant-table-row-expand-icon-collapsed::after {
+  transform: rotate(0deg);
+}
+
+.ant-table-row-expand-icon-expanded::after {
+  transform: rotate(90deg);
+}

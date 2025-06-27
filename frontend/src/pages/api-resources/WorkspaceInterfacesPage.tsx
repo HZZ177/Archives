@@ -23,12 +23,14 @@ import {
   SearchOutlined, 
   ApiOutlined,
   ReloadOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  ImportOutlined
 } from '@ant-design/icons';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { getWorkspaceInterfaces, deleteInterface } from '../../services/workspaceInterfaceService';
 import { WorkspaceInterface } from '../../types/workspace';
 import InterfaceForm from './components/InterfaceForm';
+import InterfaceImportModal from './components/InterfaceImportModal';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -41,6 +43,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [currentInterface, setCurrentInterface] = useState<WorkspaceInterface | null>(null);
   const [modalTitle, setModalTitle] = useState('添加接口');
+  const [importModalVisible, setImportModalVisible] = useState(false);
 
   // 加载工作区接口
   const loadInterfaces = async () => {
@@ -202,6 +205,11 @@ const WorkspaceInterfacesPage: React.FC = () => {
     },
   ];
 
+  // 处理导入按钮点击
+  const handleImport = () => {
+    setImportModalVisible(true);
+  };
+
   // 渲染页面内容
   const renderContent = () => {
     if (!currentWorkspace) {
@@ -233,13 +241,21 @@ const WorkspaceInterfacesPage: React.FC = () => {
               刷新
             </Button>
           </Space>
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
-            onClick={handleAdd}
-          >
-            添加接口
-          </Button>
+          <Space>
+            <Button 
+              icon={<ImportOutlined />}
+              onClick={handleImport}
+            >
+              导入接口
+            </Button>
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />} 
+              onClick={handleAdd}
+            >
+              添加接口
+            </Button>
+          </Space>
         </div>
         
         <Table
@@ -286,6 +302,14 @@ const WorkspaceInterfacesPage: React.FC = () => {
           />
         )}
       </Modal>
+
+      {/* 导入接口Modal */}
+      <InterfaceImportModal
+        visible={importModalVisible}
+        onCancel={() => setImportModalVisible(false)}
+        workspaceId={currentWorkspace?.id}
+        onSuccess={loadInterfaces}
+      />
     </div>
   );
 };
