@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Empty, Row, Col, Modal, Table, Tag } from 'antd';
-import { PlusOutlined, SelectOutlined, ExpandOutlined, CompressOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Button, Empty, Row, Col, Modal, Table, Tag, Input, Pagination, Spin, message } from 'antd';
+import { PlusOutlined, SelectOutlined, ExpandOutlined, CompressOutlined, SearchOutlined } from '@ant-design/icons';
 import { ApiInterfaceCard } from '../../../../types/modules';
 import ApiInterfaceCardComponent from './ApiInterfaceCard';
 import ApiInterfaceForm from '../sections/ApiInterfaceForm';
@@ -8,6 +8,9 @@ import './SectionStyles.css';
 import { useWorkspace } from '../../../../contexts/WorkspaceContext';
 import { getWorkspaceInterfaces } from '../../../../apis/workspaceService';
 import { WorkspaceInterface } from '../../../../types/workspace';
+import { debounce } from '../../../../utils/throttle';
+
+const { Search } = Input;
 
 interface InterfaceSectionProps {
   interfaces: ApiInterfaceCard[];
@@ -51,21 +54,82 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
   const [workspaceInterfaceSelectVisible, setWorkspaceInterfaceSelectVisible] = useState<boolean>(false);
   const [selectedWorkspaceInterfaceIds, setSelectedWorkspaceInterfaceIds] = useState<number[]>([]);
   
+  // 添加分页相关状态
+  const [interfacePagination, setInterfacePagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  });
+  
+  // 添加搜索相关状态
+  const [interfaceSearchKeyword, setInterfaceSearchKeyword] = useState<string>('');
+  
+  // 添加加载状态
+  const [interfacesLoading, setInterfacesLoading] = useState<boolean>(false);
+  
   // 获取工作区接口列表
   useEffect(() => {
     if (currentWorkspace && enableWorkspaceInterfaceSelection) {
-      const fetchWorkspaceInterfaces = async () => {
-        try {
-          const interfaces = await getWorkspaceInterfaces(currentWorkspace.id);
-          setWorkspaceInterfaces(interfaces);
-        } catch (error) {
-          console.error('获取工作区接口失败:', error);
-        }
-      };
-      
       fetchWorkspaceInterfaces();
     }
   }, [currentWorkspace, enableWorkspaceInterfaceSelection]);
+
+  // 获取工作区接口，支持分页和搜索
+  const fetchWorkspaceInterfaces = async (
+    page = interfacePagination.current,
+    pageSize = interfacePagination.pageSize,
+    search = interfaceSearchKeyword
+  ) => {
+    if (!currentWorkspace) return;
+    
+    try {
+      setInterfacesLoading(true);
+      console.log('获取工作区接口列表，参数:', { page, pageSize, search });
+      
+      // 使用分页参数和搜索关键词调用API
+      const result = await getWorkspaceInterfaces(
+        currentWorkspace.id, 
+        page, 
+        pageSize, 
+        search
+      );
+      
+      console.log('获取到的工作区接口列表:', result);
+      
+      // 更新接口数据和分页信息
+      setWorkspaceInterfaces(result.items || []);
+      setInterfacePagination({
+        current: result.page || 1,
+        pageSize: result.page_size || 10,
+        total: result.total || 0
+      });
+    } catch (error) {
+      console.error('获取工作区接口失败:', error);
+      setWorkspaceInterfaces([]);
+      // 重置分页信息
+      setInterfacePagination({
+        current: 1,
+        pageSize: 10,
+        total: 0
+      });
+    } finally {
+      setInterfacesLoading(false);
+    }
+  };
+
+  // 使用useMemo创建debounced版本的搜索函数
+  const debouncedFetch = useMemo(() => {
+    return debounce((searchVal: string) => {
+      fetchWorkspaceInterfaces(1, interfacePagination.pageSize, searchVal);
+    }, 500);
+  }, [currentWorkspace, interfacePagination.pageSize]);
+
+  // 处理搜索输入变化
+  const handleInterfaceSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setInterfaceSearchKeyword(value);
+    debouncedFetch(value);
+  };
 
   // 处理接口的展开/收起状态
   const handleToggleExpand = (id: string, expanded: boolean) => {
@@ -136,6 +200,17 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
     } else {
       // 添加新接口
       const newId = `api_${Date.now()}`;
+      
+      // 检查是否已存在相同路径和方法的接口（本地检查，作为补充）
+      const isDuplicate = interfaces.some(item => 
+        item.path === completeValues.path && item.method === completeValues.method
+      );
+      
+      if (isDuplicate) {
+        message.error(`已存在路径为 '${completeValues.path}' 且方法为 '${completeValues.method}' 的接口`);
+        return;
+      }
+      
       const newInterfaces = [...interfaces, { ...completeValues, id: newId }];
       onChange(newInterfaces);
     }
@@ -145,11 +220,22 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
   // 打开工作区接口选择对话框
   const openWorkspaceInterfaceSelect = () => {
     setWorkspaceInterfaceSelectVisible(true);
+    // 重置搜索和分页状态
+    setInterfaceSearchKeyword('');
+    setInterfacePagination({
+      current: 1,
+      pageSize: 10,
+      total: 0
+    });
+    // 打开弹窗时自动加载第一页数据
+    fetchWorkspaceInterfaces(1, 10, '');
   };
 
   // 关闭工作区接口选择对话框
   const closeWorkspaceInterfaceSelect = () => {
     setWorkspaceInterfaceSelectVisible(false);
+    // 清空选择状态
+    setSelectedWorkspaceInterfaceIds([]);
   };
 
   // 全部展开/折叠接口卡片
@@ -166,11 +252,31 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
   };
 
   // 确认选择工作区接口
-  const confirmWorkspaceInterfaceSelect = () => {
+  const confirmWorkspaceInterfaceSelect = async () => {
+    console.log('确认选择工作区接口，当前工作区接口数据:', workspaceInterfaces);
+    console.log('已选择的接口ID:', selectedWorkspaceInterfaceIds);
+    
+    // 确保workspaceInterfaces是数组
+    if (!Array.isArray(workspaceInterfaces) || workspaceInterfaces.length === 0) {
+      console.log('工作区接口不是数组或为空，关闭对话框');
+      closeWorkspaceInterfaceSelect();
+      return;
+    }
+
+    // 如果没有选择任何接口，提示用户
+    if (selectedWorkspaceInterfaceIds.length === 0) {
+      Modal.info({
+        title: '提示',
+        content: '请至少选择一个接口进行导入'
+      });
+      return;
+    }
+
     // 获取选中的工作区接口
     const selectedInterfaces = workspaceInterfaces.filter(iface => 
       selectedWorkspaceInterfaceIds.includes(iface.id)
     );
+    console.log('选中的工作区接口:', selectedInterfaces);
     
     // 检查哪些接口已经被导入（通过workspace_interface_id判断）
     const existingWorkspaceInterfaceIds = new Set(
@@ -178,14 +284,17 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
         .filter(item => item.workspace_interface_id !== undefined)
         .map(item => item.workspace_interface_id)
     );
+    console.log('已存在的工作区接口ID:', [...existingWorkspaceInterfaceIds]);
     
     // 过滤出未导入的接口
     const newSelectedInterfaces = selectedInterfaces.filter(
       iface => !existingWorkspaceInterfaceIds.has(iface.id)
     );
+    console.log('新选中的工作区接口:', newSelectedInterfaces);
     
     // 如果所有选中的接口都已导入，则提示用户
     if (newSelectedInterfaces.length === 0 && selectedInterfaces.length > 0) {
+      console.log('所有选中的接口都已导入，显示提示');
       Modal.info({
         title: '提示',
         content: '所选接口已全部导入，请选择其他接口。'
@@ -204,13 +313,28 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
       responseParams: iface.response_params_json || [],
       workspace_interface_id: iface.id // 添加工作区接口ID以便后续引用
     }));
+    console.log('转换后的新接口:', newInterfaces);
     
     // 更新接口列表
     onChange([...interfaces, ...newInterfaces]);
     
+    // 显示成功提示
+    Modal.success({
+      title: '导入成功',
+      content: `成功导入 ${newInterfaces.length} 个接口`,
+      okText: '确定'
+    });
+    
     // 清空选择状态并关闭对话框
     setSelectedWorkspaceInterfaceIds([]);
     closeWorkspaceInterfaceSelect();
+    
+    // 重置搜索和分页状态，以便下次打开时显示第一页
+    setInterfaceSearchKeyword('');
+    setInterfacePagination(prev => ({
+      ...prev,
+      current: 1
+    }));
   };
 
   // 渲染接口卡片网格
@@ -225,7 +349,7 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
     }
 
     return (
-      <Row gutter={[12, 12]} className="interface-card-grid">
+      <Row gutter={[8, 8]} className="interface-card-grid">
         {interfaces.map(item => (
           <Col xs={24} sm={24} md={24} lg={12} xl={12} key={item.id}>
             <ApiInterfaceCardComponent
@@ -241,6 +365,134 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
         ))}
       </Row>
     );
+  };
+
+  // 准备表格列定义
+  const tableColumns = [
+    {
+      title: '路径',
+      dataIndex: 'path',
+      key: 'path',
+    },
+    {
+      title: '方法',
+      dataIndex: 'method',
+      key: 'method',
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      render: (text: string) => text || '-'
+    },
+    {
+      title: '状态',
+      key: 'status',
+      render: (_: any, record: WorkspaceInterface) => {
+        // 检查该接口是否已经被导入
+        const existingWorkspaceInterfaceIds = new Set(
+          interfaces
+            .filter(item => item.workspace_interface_id !== undefined)
+            .map(item => item.workspace_interface_id)
+        );
+        const isImported = existingWorkspaceInterfaceIds.has(record.id);
+        
+        return isImported ? (
+          <Tag color="green">已导入</Tag>
+        ) : null;
+      }
+    }
+  ];
+
+  // 安全的行选择配置
+  const safeRowSelection = {
+    selectedRowKeys: selectedWorkspaceInterfaceIds,
+    onChange: (selectedRowKeys: React.Key[]) => {
+      setSelectedWorkspaceInterfaceIds(selectedRowKeys as number[]);
+    },
+    getCheckboxProps: (record: WorkspaceInterface) => {
+      // 检查该接口是否已经被导入
+      const existingWorkspaceInterfaceIds = new Set(
+        interfaces
+          .filter(item => item.workspace_interface_id !== undefined)
+          .map(item => item.workspace_interface_id)
+      );
+      const isImported = existingWorkspaceInterfaceIds.has(record.id);
+      
+      return {
+        disabled: isImported, // 禁用已导入的接口选择
+      };
+    }
+  };
+
+  // 确保工作区接口数据是数组
+  const safeWorkspaceInterfaces = Array.isArray(workspaceInterfaces) ? workspaceInterfaces : [];
+  
+  // 渲染工作区接口选择对话框内容
+  const renderWorkspaceInterfaceModalContent = () => {
+    return (
+      <>
+        <div style={{ marginBottom: 16 }}>
+          <Search
+            placeholder="搜索接口路径或描述"
+            value={interfaceSearchKeyword}
+            onChange={handleInterfaceSearchInputChange}
+            style={{ width: '100%' }}
+            enterButton
+            allowClear
+          />
+        </div>
+        
+        {interfacesLoading ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <Spin tip="加载中..." />
+          </div>
+        ) : safeWorkspaceInterfaces.length === 0 ? (
+          <Empty 
+            description={
+              interfaceSearchKeyword 
+                ? `没有找到与"${interfaceSearchKeyword}"相关的接口` 
+                : "工作区中暂无可用的接口"
+            } 
+          />
+        ) : (
+          <>
+            <Table
+              dataSource={safeWorkspaceInterfaces}
+              rowKey="id"
+              pagination={false}
+              rowSelection={safeRowSelection}
+              columns={tableColumns}
+              size="small"
+              loading={interfacesLoading}
+            />
+            
+            {/* 分页控件 */}
+            {interfacePagination.total > 0 && (
+              <div style={{ marginTop: 16, textAlign: 'right' }}>
+                <Pagination
+                  current={interfacePagination.current}
+                  pageSize={interfacePagination.pageSize}
+                  total={interfacePagination.total}
+                  onChange={handleInterfacePageChange}
+                  showSizeChanger
+                  showQuickJumper
+                  showTotal={(total) => `共 ${total} 条数据`}
+                  size="small"
+                />
+              </div>
+            )}
+          </>
+        )}
+      </>
+    );
+  };
+
+  // 处理分页变化
+  const handleInterfacePageChange = (page: number, pageSize?: number) => {
+    const newPageSize = pageSize || interfacePagination.pageSize;
+    setInterfacePagination({ ...interfacePagination, current: page, pageSize: newPageSize });
+    fetchWorkspaceInterfaces(page, newPageSize, interfaceSearchKeyword);
   };
 
   return (
@@ -320,76 +572,16 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
         open={workspaceInterfaceSelectVisible}
         onCancel={closeWorkspaceInterfaceSelect}
         onOk={confirmWorkspaceInterfaceSelect}
-        width={800}
+        width={900}
+        okButtonProps={{ 
+          disabled: selectedWorkspaceInterfaceIds.length === 0 || interfacesLoading,
+          loading: interfacesLoading
+        }}
+        okText="导入选中接口"
+        cancelText="取消"
+        destroyOnClose
       >
-        {workspaceInterfaces.length === 0 ? (
-          <Empty description="工作区中暂无可用的接口" />
-        ) : (
-          <>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontSize: '13px' }}>注: 已导入的接口将被禁用选择，无法重复导入</span>
-            </div>
-            <Table
-              dataSource={workspaceInterfaces}
-              rowKey="id"
-              pagination={false}
-              rowSelection={{
-                selectedRowKeys: selectedWorkspaceInterfaceIds,
-                onChange: (selectedRowKeys) => {
-                  setSelectedWorkspaceInterfaceIds(selectedRowKeys as number[]);
-                },
-                getCheckboxProps: (record) => {
-                  // 检查该接口是否已经被导入
-                  const existingWorkspaceInterfaceIds = new Set(
-                    interfaces
-                      .filter(item => item.workspace_interface_id !== undefined)
-                      .map(item => item.workspace_interface_id)
-                  );
-                  const isImported = existingWorkspaceInterfaceIds.has(record.id);
-                  
-                  return {
-                    disabled: isImported, // 禁用已导入的接口选择
-                  };
-                }
-              }}
-              columns={[
-                {
-                  title: '路径',
-                  dataIndex: 'path',
-                  key: 'path',
-                },
-                {
-                  title: '方法',
-                  dataIndex: 'method',
-                  key: 'method',
-                },
-                {
-                  title: '描述',
-                  dataIndex: 'description',
-                  key: 'description',
-                  render: (text) => text || '-'
-                },
-                {
-                  title: '状态',
-                  key: 'status',
-                  render: (_, record) => {
-                    // 检查该接口是否已经被导入
-                    const existingWorkspaceInterfaceIds = new Set(
-                      interfaces
-                        .filter(item => item.workspace_interface_id !== undefined)
-                        .map(item => item.workspace_interface_id)
-                    );
-                    const isImported = existingWorkspaceInterfaceIds.has(record.id);
-                    
-                    return isImported ? (
-                      <Tag color="green">已导入</Tag>
-                    ) : null;
-                  }
-                }
-              ]}
-            />
-          </>
-        )}
+        {renderWorkspaceInterfaceModalContent()}
       </Modal>
     </div>
   );

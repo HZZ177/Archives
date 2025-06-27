@@ -1,6 +1,6 @@
-import React, { ChangeEvent, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Button, Input, Form, Table, Space, Select, Checkbox, Tooltip, Card, Tabs, Typography, Row, Col, message, Modal, Empty, Tag } from 'antd';
-import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined, LinkOutlined, KeyOutlined, ExclamationCircleOutlined, ImportOutlined, ExpandOutlined, CompressOutlined, DeleteOutlined, MinusOutlined, DownOutlined, UpOutlined, FileTextOutlined, DatabaseOutlined, MenuFoldOutlined, MenuUnfoldOutlined, NumberOutlined, CalendarOutlined, FieldStringOutlined, FieldTimeOutlined, FieldBinaryOutlined, SelectOutlined, EditOutlined } from '@ant-design/icons';
+import React, { ChangeEvent, useState, useEffect, forwardRef, useImperativeHandle, useMemo } from 'react';
+import { Button, Input, Form, Table, Space, Select, Checkbox, Tooltip, Card, Tabs, Typography, Row, Col, message, Modal, Empty, Tag, Pagination, Spin } from 'antd';
+import { MinusCircleOutlined, PlusOutlined, InfoCircleOutlined, LinkOutlined, KeyOutlined, ExclamationCircleOutlined, ImportOutlined, ExpandOutlined, CompressOutlined, DeleteOutlined, MinusOutlined, DownOutlined, UpOutlined, FileTextOutlined, DatabaseOutlined, MenuFoldOutlined, MenuUnfoldOutlined, NumberOutlined, CalendarOutlined, FieldStringOutlined, FieldTimeOutlined, FieldBinaryOutlined, SelectOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { DatabaseTable, DatabaseTableColumn } from '../../../../types/modules';
 import './SectionStyles.css';
@@ -8,11 +8,13 @@ import { CSSTransition } from 'react-transition-group';
 import { useWorkspace } from '../../../../contexts/WorkspaceContext';
 import { getWorkspaceTables } from '../../../../apis/workspaceService';
 import { WorkspaceTable } from '../../../../types/workspace';
+import { debounce } from '../../../../utils/throttle';
 
 const { TextArea } = Input;
 const { Option } = Select;
 const { TabPane } = Tabs;
 const { Text } = Typography;
+const { Search } = Input;
 
 export interface ValidationHandle {
   validate: () => boolean;
@@ -407,21 +409,90 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
   const [selectedWorkspaceTableIds, setSelectedWorkspaceTableIds] = useState<number[]>([]);
   const { currentWorkspace } = useWorkspace();
   
+  // 新增状态用于分页和搜索
+  const [tablesLoading, setTablesLoading] = useState<boolean>(false);
+  const [tablesPagination, setTablesPagination] = useState<{
+    current: number;
+    pageSize: number;
+    total: number;
+  }>({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  });
+  const [tableSearchKeyword, setTableSearchKeyword] = useState<string>('');
+  const [tableSearchInputValue, setTableSearchInputValue] = useState<string>('');
+  
   // 获取工作区表列表
   useEffect(() => {
     if (isEditMode && currentWorkspace && enableWorkspaceTableSelection) {
-      const fetchWorkspaceTables = async () => {
-        try {
-          const tables = await getWorkspaceTables(currentWorkspace.id);
-          setWorkspaceTables(tables);
-    } catch (error) {
-          console.error('获取工作区表失败:', error);
-        }
-      };
-      
       fetchWorkspaceTables();
     }
   }, [currentWorkspace, isEditMode, enableWorkspaceTableSelection]);
+
+  // 获取工作区表，支持分页和搜索
+  const fetchWorkspaceTables = async (
+    page = tablesPagination.current,
+    pageSize = tablesPagination.pageSize,
+    search = tableSearchKeyword
+  ) => {
+    if (!currentWorkspace) return;
+    
+    try {
+      setTablesLoading(true);
+      console.log('获取工作区表列表，参数:', { page, pageSize, search });
+      
+      // 使用分页参数和搜索关键词调用API
+      const result = await getWorkspaceTables(
+        currentWorkspace.id, 
+        page, 
+        pageSize, 
+        search
+      );
+      
+      console.log('获取到的工作区表列表:', result);
+      
+      // 更新状态
+      if (Array.isArray(result.items)) {
+        setWorkspaceTables(result.items);
+        setTablesPagination({
+          ...tablesPagination,
+          current: result.page,
+          total: result.total
+        });
+      } else {
+        console.error('获取到的工作区表列表格式不正确:', result);
+        setWorkspaceTables([]);
+      }
+    } catch (error) {
+      console.error('获取工作区表失败:', error);
+      setWorkspaceTables([]);
+    } finally {
+      setTablesLoading(false);
+    }
+  };
+  
+  const debouncedFetchTables = useMemo(() => {
+    return debounce((searchVal: string) => {
+      fetchWorkspaceTables(1, tablesPagination.pageSize, searchVal);
+    }, 500);
+  }, [currentWorkspace, tablesPagination.pageSize]);
+
+  const handleTableSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setTableSearchKeyword(value);
+    debouncedFetchTables(value);
+  };
+
+  const handleTablePageChange = (page: number, pageSize?: number) => {
+    const newPageSize = pageSize || tablesPagination.pageSize;
+    setTablesPagination(prev => ({
+      ...prev,
+      current: page,
+      pageSize: newPageSize
+    }));
+    fetchWorkspaceTables(page, newPageSize);
+  };
 
   const toggleCollapse = (tableIndex: number) => {
     setCollapsedTables(prev => {
@@ -1002,24 +1073,136 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
 
   // 打开工作区表选择对话框
   const openWorkspaceTableSelect = () => {
-    // 直接设置状态，显示工作区表选择对话框
     setWorkspaceTableSelectVisible(true);
+    // 重置搜索和分页状态
+    setTableSearchKeyword('');
+    setTableSearchInputValue('');
+    setTablesPagination({
+      current: 1,
+      pageSize: 10,
+      total: 0
+    });
+    // 打开弹窗时自动加载第一页数据
+    fetchWorkspaceTables(1, 10, '');
   };
 
   // 关闭工作区表选择对话框
   const closeWorkspaceTableSelect = () => {
     setWorkspaceTableSelectVisible(false);
+    // 清空选择状态
+    setSelectedWorkspaceTableIds([]);
   };
-
-  // 处理工作区表选择
-  const handleWorkspaceTableSelect = (tableId: number, selected: boolean) => {
-    if (selected) {
-      setSelectedWorkspaceTableIds(prev => [...prev, tableId]);
-    } else {
-      setSelectedWorkspaceTableIds(prev => prev.filter(id => id !== tableId));
-    }
+  
+  // 渲染工作区表选择对话框内容
+  const renderWorkspaceTableModalContent = () => {
+    return (
+      <>
+        <div style={{ marginBottom: 16 }}>
+          <Search
+            placeholder="搜索库表名称或描述"
+            value={tableSearchKeyword}
+            onChange={handleTableSearchInputChange}
+            style={{ width: '100%' }}
+            enterButton
+            allowClear
+          />
+        </div>
+        
+        <div style={{ marginBottom: 12 }}>
+          <span style={{ color: '#888', fontSize: '13px' }}>注: 已导入的库表将被禁用选择，无法重复导入</span>
+        </div>
+        
+        {/* 表格内容 */}
+        {tablesLoading ? (
+          <div style={{ textAlign: 'center', padding: '30px 0' }}>
+            <Spin tip="加载中..." />
+          </div>
+        ) : (
+          <>
+            {!Array.isArray(workspaceTables) || workspaceTables.length === 0 ? (
+              <Empty description="工作区中暂无可用的表" />
+            ) : (
+              <Table
+                dataSource={workspaceTables}
+                rowKey="id"
+                pagination={false}
+                rowSelection={{
+                  selectedRowKeys: selectedWorkspaceTableIds,
+                  onChange: (selectedRowKeys) => {
+                    setSelectedWorkspaceTableIds(selectedRowKeys as number[]);
+                  },
+                  getCheckboxProps: (record) => {
+                    // 检查该表是否已经被导入
+                    const existingWorkspaceTableIds = new Set(
+                      tables
+                        .filter(table => table.workspace_table_id !== undefined)
+                        .map(table => table.workspace_table_id)
+                    );
+                    const isImported = existingWorkspaceTableIds.has(record.id);
+                    
+                    return {
+                      disabled: isImported, // 禁用已导入的表选择
+                    };
+                  }
+                }}
+                columns={[
+                  {
+                    title: '表名',
+                    dataIndex: 'name',
+                    key: 'name',
+                  },
+                  {
+                    title: '描述',
+                    dataIndex: 'description',
+                    key: 'description',
+                    render: (text) => text || '-'
+                  },
+                  {
+                    title: '字段数',
+                    key: 'columns_count',
+                    render: (_, record) => record.columns_json?.length || 0
+                  },
+                  {
+                    title: '状态',
+                    key: 'status',
+                    render: (_, record) => {
+                      // 检查该表是否已经被导入
+                      const existingWorkspaceTableIds = new Set(
+                        tables
+                          .filter(table => table.workspace_table_id !== undefined)
+                          .map(table => table.workspace_table_id)
+                      );
+                      const isImported = existingWorkspaceTableIds.has(record.id);
+                      
+                      return isImported ? (
+                        <Tag color="green">已导入</Tag>
+                      ) : null;
+                    }
+                  }
+                ]}
+              />
+            )}
+            
+            {/* 分页控件 */}
+            {!tablesLoading && workspaceTables.length > 0 && (
+              <div style={{ marginTop: 16, textAlign: 'right' }}>
+                <Pagination
+                  current={tablesPagination.current}
+                  pageSize={tablesPagination.pageSize}
+                  total={tablesPagination.total}
+                  onChange={handleTablePageChange}
+                  showSizeChanger
+                  showQuickJumper
+                  showTotal={(total) => `共 ${total} 条数据`}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </>
+    );
   };
-
+  
   // 确认选择工作区表
   const confirmWorkspaceTableSelect = () => {
     // 获取选中的工作区表
@@ -1044,6 +1227,15 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
       Modal.info({
         title: '提示',
         content: '所选库表已全部导入，请选择其他库表。'
+      });
+      return;
+    }
+    
+    // 如果没有选择任何表，提示用户
+    if (selectedTables.length === 0) {
+      Modal.info({
+        title: '提示',
+        content: '请至少选择一个库表进行导入'
       });
       return;
     }
@@ -1586,82 +1778,22 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
     <>
       {mainContent}
       
-      {/* 工作区表选择对话框 - 移到组件主体部分，确保无论哪种渲染模式都能正确显示 */}
+      {/* 工作区表选择对话框 */}
       <Modal
         title="从资源池导入库表"
         open={workspaceTableSelectVisible}
         onCancel={closeWorkspaceTableSelect}
         onOk={confirmWorkspaceTableSelect}
-        width={800}
+        width={900}
+        okButtonProps={{ 
+          disabled: selectedWorkspaceTableIds.length === 0 || tablesLoading,
+          loading: tablesLoading
+        }}
+        okText="导入选中库表"
+        cancelText="取消"
+        destroyOnClose
       >
-        {workspaceTables.length === 0 ? (
-          <Empty description="工作区中暂无可用的表" />
-        ) : (
-          <>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ color: '#888', fontSize: '13px' }}>注: 已导入的库表将被禁用选择，无法重复导入</span>
-            </div>
-            <Table
-              dataSource={workspaceTables}
-              rowKey="id"
-              pagination={false}
-              rowSelection={{
-                selectedRowKeys: selectedWorkspaceTableIds,
-                onChange: (selectedRowKeys) => {
-                  setSelectedWorkspaceTableIds(selectedRowKeys as number[]);
-                },
-                getCheckboxProps: (record) => {
-                  // 检查该表是否已经被导入
-                  const existingWorkspaceTableIds = new Set(
-                    tables
-                      .filter(table => table.workspace_table_id !== undefined)
-                      .map(table => table.workspace_table_id)
-                  );
-                  const isImported = existingWorkspaceTableIds.has(record.id);
-                  
-                  return {
-                    disabled: isImported, // 禁用已导入的表选择
-                  };
-                }
-              }}
-              columns={[
-                {
-                  title: '表名',
-                  dataIndex: 'name',
-                  key: 'name',
-                },
-                {
-                  title: '描述',
-                  dataIndex: 'description',
-                  key: 'description',
-                  render: (text) => text || '-'
-                },
-                {
-                  title: '字段数',
-                  key: 'columns_count',
-                  render: (_, record) => record.columns_json?.length || 0
-                },
-                {
-                  title: '状态',
-                  key: 'status',
-                  render: (_, record) => {
-                    // 检查该表是否已经被导入
-                    const existingWorkspaceTableIds = new Set(
-                      tables
-                        .filter(table => table.workspace_table_id !== undefined)
-                        .map(table => table.workspace_table_id)
-                    );
-                    const isImported = existingWorkspaceTableIds.has(record.id);
-                    
-                    return isImported ? (
-                      <Tag color="green">已导入</Tag>
-                    ) : null;
-                  }
-                }
-              ]}
-            />
-          </>
-        )}
+        {renderWorkspaceTableModalContent()}
       </Modal>
     </>
   );

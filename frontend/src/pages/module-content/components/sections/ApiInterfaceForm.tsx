@@ -1,7 +1,9 @@
-import React from 'react';
-import { Form, Input, Select, Radio, Modal, Tabs } from 'antd';
+import React, { useState } from 'react';
+import { Form, Input, Select, Radio, Modal, Tabs, message } from 'antd';
 import { ApiInterfaceCard, ApiParam, HTTP_METHODS, CONTENT_TYPES } from '../../../../types/modules';
 import ApiParamTable from './ApiParamTable';
+import { useWorkspace } from '../../../../contexts/WorkspaceContext';
+import { checkInterfaceExists } from '../../../../apis/workspaceService';
 
 const { Option } = Select;
 const { TabPane } = Tabs;
@@ -29,10 +31,13 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
   useCustomModal = false
 }) => {
   const [form] = Form.useForm();
+  const { currentWorkspace } = useWorkspace();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 确认提交
   const handleOk = async () => {
     try {
+      setIsSubmitting(true);
       const values = await form.validateFields();
       
       // 确保所有必要字段都被提交，防止数据丢失
@@ -45,10 +50,34 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
         requestParams: values.requestParams || [],
         responseParams: values.responseParams || []
       };
+
+      // 如果当前在工作区中，验证接口唯一性
+      if (currentWorkspace) {
+        try {
+          // 检查接口是否已存在
+          const exists = await checkInterfaceExists(
+            currentWorkspace.id,
+            completeValues.path,
+            completeValues.method,
+            initialValues?.workspace_interface_id // 编辑模式下排除当前接口
+          );
+          
+          if (exists) {
+            message.error(`工作区中已存在路径为 '${completeValues.path}' 且方法为 '${completeValues.method}' 的接口`);
+            setIsSubmitting(false);
+            return;
+          }
+        } catch (error) {
+          console.error('验证接口唯一性失败:', error);
+          // 继续提交，让后端验证处理
+        }
+      }
       
       onOk(completeValues as ApiInterfaceCard);
+      setIsSubmitting(false);
     } catch (error) {
       console.error('表单验证失败:', error);
+      setIsSubmitting(false);
     }
   };
   
@@ -192,6 +221,7 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
       width={800}
       destroyOnClose
       maskClosable={false}
+      confirmLoading={isSubmitting}
     >
       <FormContent />
     </Modal>

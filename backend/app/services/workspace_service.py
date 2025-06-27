@@ -572,13 +572,48 @@ class WorkspaceService:
             "details": {"removed_count": removed_count, "skipped_superuser_ids": skipped_superuser_ids}
         }
 
-    async def get_workspace_tables(self, db: AsyncSession, workspace_id: int, current_user: User) -> List[WorkspaceTable]:
-        """获取工作区下的所有数据库表"""
+    async def get_workspace_tables(
+        self, 
+        db: AsyncSession, 
+        workspace_id: int, 
+        current_user: User,
+        page: int = 1,
+        page_size: int = 10,
+        search: str = ''
+    ) -> Dict[str, Any]:
+        """
+        获取工作区下的所有数据库表，支持分页和搜索
+        
+        :param db: 数据库会话
+        :param workspace_id: 工作区ID
+        :param current_user: 当前用户
+        :param page: 页码，从1开始
+        :param page_size: 每页数量
+        :param search: 搜索关键词，可搜索表名和描述
+        :return: 带有分页信息的数据库表列表
+        """
         # 移除工作区成员权限检查，允许所有用户访问工作区表
         # 验证工作区存在
         await self.get_workspace(db, workspace_id)
         
-        return await workspace_repository.get_tables_by_workspace_id(db, workspace_id)
+        # 计算分页参数
+        skip = (page - 1) * page_size
+        
+        # 获取表格
+        tables = await workspace_repository.get_tables_by_workspace_id(
+            db, workspace_id, skip=skip, limit=page_size, search=search
+        )
+        
+        # 获取表格总数
+        total = await workspace_repository.count_tables_by_workspace_id(db, workspace_id, search=search)
+        
+        # 构造响应
+        return {
+            "items": tables,
+            "total": total,
+            "page": page,
+            "page_size": page_size
+        }
 
     async def get_workspace_table(self, db: AsyncSession, table_id: int, current_user: User) -> WorkspaceTable:
         """获取单个工作区数据库表"""
@@ -629,13 +664,48 @@ class WorkspaceService:
             
         return True
 
-    async def get_workspace_interfaces(self, db: AsyncSession, workspace_id: int, current_user: User) -> List[WorkspaceInterface]:
-        """获取工作区下的所有接口"""
+    async def get_workspace_interfaces(
+        self, 
+        db: AsyncSession, 
+        workspace_id: int, 
+        current_user: User,
+        page: int = 1,
+        page_size: int = 10,
+        search: str = ''
+    ) -> Dict[str, Any]:
+        """
+        获取工作区下的接口，带分页和搜索
+        
+        :param db: 数据库会话
+        :param workspace_id: 工作区ID
+        :param current_user: 当前用户
+        :param page: 页码，从1开始
+        :param page_size: 每页数量
+        :param search: 搜索关键词，可搜索路径和描述
+        :return: 带有分页信息的接口列表
+        """
         # 移除工作区成员权限检查，允许所有用户访问工作区接口
         # 验证工作区存在
         await self.get_workspace(db, workspace_id)
         
-        return await workspace_repository.get_interfaces_by_workspace_id(db, workspace_id)
+        # 计算分页参数
+        skip = (page - 1) * page_size
+        
+        # 获取接口
+        interfaces = await workspace_repository.get_interfaces_by_workspace_id(
+            db, workspace_id, skip=skip, limit=page_size, search=search
+        )
+        
+        # 获取接口总数
+        total = await workspace_repository.count_interfaces_by_workspace_id(db, workspace_id, search=search)
+        
+        # 构造响应
+        return {
+            "items": interfaces,
+            "total": total,
+            "page": page,
+            "page_size": page_size
+        }
 
     async def get_workspace_interface(self, db: AsyncSession, interface_id: int, current_user: User) -> WorkspaceInterface:
         """获取单个工作区接口"""

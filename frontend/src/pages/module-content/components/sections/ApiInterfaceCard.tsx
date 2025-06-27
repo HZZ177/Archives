@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, Typography, Tag, Space, Button, Collapse, Divider, Empty, Tooltip, Modal } from 'antd';
-import { EditOutlined, DeleteOutlined, EllipsisOutlined, DownOutlined, RightOutlined, EyeOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EllipsisOutlined, DownOutlined, RightOutlined, EyeOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { ApiInterfaceCard as ApiCardType, ApiParam } from '../../../../types/modules';
 import { CSSTransition } from 'react-transition-group';
 import './SectionStyles.css';
@@ -111,7 +111,7 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
                   onClick={(e) => toggleParamExpand(paramId, e)}
                 />
               )}
-              <Tooltip title={param.name} align={{ offset: [0, 0] }} arrow={{ pointAtCenter: true }}>
+              <Tooltip title={param.name} align={{ offset: [0, 0] }} arrow={{ pointAtCenter: true }} color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
                 <span className={hasChildren ? 'has-children' : ''}>{param.name}</span>
               </Tooltip>
             </div>
@@ -125,9 +125,9 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
             </div>
           )}
           <div className="api-param-desc">
-            <Text ellipsis={{ tooltip: param.description }}>
-              {param.description || '-'}
-            </Text>
+            <Tooltip title={param.description} color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+              <Text ellipsis>{param.description || '-'}</Text>
+            </Tooltip>
           </div>
           <div className="api-param-example">
             <Button 
@@ -195,13 +195,51 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
         </div>
         <div className="api-card-content">
           <div className="api-card-path">
-            <Text strong>{data.path}</Text>
+              <div className="api-card-path-wrapper">
+                <Text strong className="api-card-path-text">{data.path}</Text>
+                <Tooltip 
+                  title={
+                    <div onClick={(e) => e.stopPropagation()} /* 阻止弹窗内容的点击事件冒泡 */>
+                      <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                        <Tag color={getMethodColor(data.method)} style={{ marginRight: '8px' }}>
+                          {data.method || "GET"}
+                        </Tag>
+                        <span>{data.path}</span>
+                      </div>
+                      {data.description && (
+                        <div style={{ marginTop: '4px', fontSize: '12px', color: '#666' }}>
+                          {data.description}
+                        </div>
+                      )}
+                      {data.contentType && (
+                        <div style={{ marginTop: '4px', fontSize: '12px' }}>
+                          <span style={{ color: '#888' }}>请求数据类型: </span>
+                          <span>{data.contentType}</span>
+                        </div>
+                      )}
+                    </div>
+                  } 
+                  placement="top" 
+                  color="#fff"
+                  overlayStyle={{ maxWidth: '500px' }}
+                  overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)', fontSize: '14px', padding: '8px 12px' }}
+                  arrow={{ pointAtCenter: true }}
+                  trigger="click"
+                >
+                  <InfoCircleOutlined 
+                    className="api-card-path-icon" 
+                    onClick={(e) => e.stopPropagation()} /* 阻止事件冒泡，防止触发卡片展开/折叠 */
+                  />
+                </Tooltip>
+              </div>
           </div>
           <div className="api-card-desc">
             {data.description ? (
-              <Text type="secondary" ellipsis={{ tooltip: data.description }}>
-                {data.description}
-              </Text>
+              <Tooltip title={data.description} color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+                <Text type="secondary" ellipsis>
+                  {data.description}
+                </Text>
+              </Tooltip>
             ) : (
               <Text type="secondary" className="api-card-empty-desc">
                 暂无接口描述
@@ -220,7 +258,7 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
           {isEditable && (
             <div className="api-card-icon-buttons">
               {showEditButton && (
-                <Tooltip title="编辑">
+                <Tooltip title="编辑" color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
                   <Button
                     type="text"
                     size="small"
@@ -233,7 +271,7 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
                   />
                 </Tooltip>
               )}
-              <Tooltip title="删除">
+              <Tooltip title="删除" color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
                 <Button
                   type="text"
                   size="small"
@@ -262,7 +300,7 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
           <div className="api-card-details">
             {data.contentType && (
               <div className="api-detail-item">
-                <Text type="secondary">内容类型:</Text>
+                <Text type="secondary">请求数据类型:</Text>
                 <Text>{data.contentType}</Text>
               </div>
             )}

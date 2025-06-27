@@ -13,6 +13,7 @@ from backend.app.schemas.workspace_interface import (
     WorkspaceInterfaceResponse,
     WorkspaceInterfaceDetail
 )
+from backend.app.schemas.response import APIResponse
 from backend.app.services.workspace_service import workspace_service
 
 
@@ -71,24 +72,46 @@ class WorkspaceInterfaceService:
         self,
         db: AsyncSession,
         workspace_id: int,
-        user: User
-    ) -> List[WorkspaceInterfaceResponse]:
+        user: User,
+        page: int = 1,
+        page_size: int = 10,
+        search: str = ''
+    ) -> Dict[str, Any]:
         """
-        获取工作区下的所有接口
+        获取工作区下的接口，带分页和搜索
         
         :param db: 数据库会话
         :param workspace_id: 工作区ID
         :param user: 当前用户
-        :return: 接口列表
+        :param page: 页码，从1开始
+        :param page_size: 每页数量
+        :param search: 搜索关键词，可搜索路径和描述
+        :return: 带有分页信息的接口列表
         """
         try:
             # 验证工作区访问权限
             await self.validate_workspace_access(db, workspace_id, user)
             
-            # 获取接口
-            interfaces = await workspace_interface_repository.get_by_workspace_id(db, workspace_id)
+            # 计算分页参数
+            skip = (page - 1) * page_size
             
-            return [WorkspaceInterfaceResponse.from_orm(interface) for interface in interfaces]
+            # 获取接口
+            interfaces = await workspace_interface_repository.get_by_workspace_id(
+                db, workspace_id, skip=skip, limit=page_size, search=search
+            )
+            
+            # 获取接口总数
+            total = await workspace_interface_repository.count_by_workspace_id(db, workspace_id, search=search)
+            
+            # 构造响应
+            items = [WorkspaceInterfaceResponse.from_orm(interface) for interface in interfaces]
+            
+            return {
+                "items": items,
+                "total": total,
+                "page": page,
+                "page_size": page_size
+            }
         except HTTPException:
             raise
         except Exception as e:
@@ -299,6 +322,37 @@ class WorkspaceInterfaceService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"删除工作区接口失败: {str(e)}"
+            )
+
+    async def check_interface_exists(
+        self,
+        db: AsyncSession,
+        workspace_id: int,
+        path: str,
+        method: str,
+        exclude_id: Optional[int] = None
+    ) -> bool:
+        """
+        检查工作区中是否已存在相同路径和方法的接口
+        
+        :param db: 数据库会话
+        :param workspace_id: 工作区ID
+        :param path: 接口路径
+        :param method: 请求方法
+        :param exclude_id: 排除的接口ID（编辑模式下使用）
+        :return: 是否存在重复接口
+        """
+        try:
+            # 调用仓库方法检查接口是否存在
+            exists = await workspace_interface_repository.check_interface_exists(
+                db, workspace_id, path, method, exclude_id
+            )
+            return exists
+        except Exception as e:
+            logger.error(f"检查工作区接口是否存在失败: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"检查工作区接口是否存在失败: {str(e)}"
             )
 
 

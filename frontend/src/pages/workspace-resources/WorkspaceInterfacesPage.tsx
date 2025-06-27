@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Button, Typography, Spin, Empty, message, Modal, Input } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, Button, Typography, Spin, Empty, message, Modal, Input, Pagination } from 'antd';
 import { PlusOutlined, ApiOutlined, SearchOutlined, ImportOutlined } from '@ant-design/icons';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { usePermission } from '../../contexts/PermissionContext';
@@ -9,6 +9,7 @@ import { ApiInterfaceCard } from '../../types/modules';
 import { ROUTES } from '../../config/constants';
 import { Navigate } from 'react-router-dom';
 import './WorkspaceResourcesPage.css';
+import { debounce } from '../../utils/throttle';
 
 // 复用内容页面中的接口组件
 import InterfaceSection from '../module-content/components/sections/InterfaceSection';
@@ -32,6 +33,14 @@ const WorkspaceInterfacesPage: React.FC = () => {
   
   // 搜索相关状态
   const [searchKeyword, setSearchKeyword] = useState<string>('');
+  const [searchInputValue, setSearchInputValue] = useState<string>('');
+  
+  // 分页相关状态
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  });
   
   // 检查权限
   const hasInterfacesPermission = hasPermission(ROUTES.WORKSPACE_INTERFACES);
@@ -41,19 +50,53 @@ const WorkspaceInterfacesPage: React.FC = () => {
     return <Navigate to="/no-permission" replace />;
   }
   
-  // 处理搜索
+  // 使用useCallback和debounce创建去抖的搜索函数
+  const debouncedSearch = useCallback(
+    debounce((value: string) => {
+      setSearchKeyword(value.trim());
+      // 搜索时重置到第一页
+      setPagination(prev => ({ ...prev, current: 1 }));
+      // 使用新的搜索条件加载数据
+      loadInterfaces(1, pagination.pageSize, value.trim());
+    }, 500), // 500ms的去抖延迟
+    [currentWorkspace, pagination.pageSize]
+  );
+
+  // 处理搜索框输入变化
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInputValue(value);
+    debouncedSearch(value);
+  };
+  
+  // 处理搜索按钮点击
   const handleSearch = (value: string) => {
-    setSearchKeyword(value.trim().toLowerCase());
+    setSearchInputValue(value);
+    setSearchKeyword(value.trim());
+    // 搜索时重置到第一页
+    setPagination(prev => ({ ...prev, current: 1 }));
+    // 使用新的搜索条件加载数据
+    loadInterfaces(1, pagination.pageSize, value.trim());
   };
 
   // 加载工作区接口
-  const loadInterfaces = async () => {
+  const loadInterfaces = async (
+    page = pagination.current,
+    pageSize = pagination.pageSize,
+    search = searchKeyword
+  ) => {
     if (!currentWorkspace) return;
     
     setLoading(true);
     try {
-      const data = await getWorkspaceInterfaces(currentWorkspace.id);
-      setInterfaces(data);
+      const data = await getWorkspaceInterfaces(currentWorkspace.id, page, pageSize, search);
+      // 更新接口列表和分页信息
+      setInterfaces(data.items);
+      setPagination({
+        current: data.page,
+        pageSize: data.page_size,
+        total: data.total
+      });
     } catch (error) {
       console.error('加载工作区接口失败:', error);
       message.error('加载工作区接口失败');
@@ -62,10 +105,20 @@ const WorkspaceInterfacesPage: React.FC = () => {
     }
   };
 
+  // 处理分页变化
+  const handlePageChange = (page: number, pageSize?: number) => {
+    setPagination(prev => ({
+      ...prev,
+      current: page,
+      pageSize: pageSize || prev.pageSize
+    }));
+    loadInterfaces(page, pageSize || pagination.pageSize);
+  };
+
   // 初始加载
   useEffect(() => {
     if (currentWorkspace) {
-      loadInterfaces();
+      loadInterfaces(1, pagination.pageSize, '');
     }
   }, [currentWorkspace]);
 
@@ -101,7 +154,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
         try {
           await deleteWorkspaceInterface(currentWorkspace.id, interfaceToDelete.id);
           message.success('接口删除成功');
-          loadInterfaces();
+          loadInterfaces(); // 保持在当前页
         } catch (error) {
           console.error('删除接口失败:', error);
           message.error('删除接口失败');
@@ -158,7 +211,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
       }
       
       // 重新加载接口列表
-      loadInterfaces();
+      loadInterfaces(); // 保持在当前页
       setFormVisible(false);
     } catch (error) {
       console.error('保存接口失败:', error);
@@ -177,15 +230,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
       return <Spin tip="加载中..." />;
     }
 
-    // 根据搜索关键词过滤接口
-    const filteredInterfaces = searchKeyword
-      ? interfaces.filter(item => 
-          item.path.toLowerCase().includes(searchKeyword) || 
-          (item.description && item.description.toLowerCase().includes(searchKeyword))
-        )
-      : interfaces;
-
-    if (filteredInterfaces.length === 0) {
+    if (interfaces.length === 0) {
       return (
         <Empty
           description={searchKeyword ? "没有匹配的接口" : "暂无接口"}
@@ -195,7 +240,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
     }
 
     // 将WorkspaceInterface转换为ApiInterfaceCard格式以便复用组件
-    const formattedInterfaces: ApiInterfaceCard[] = filteredInterfaces.map(item => ({
+    const formattedInterfaces: ApiInterfaceCard[] = interfaces.map(item => ({
       id: item.id.toString(),
       path: item.path,
       method: item.method as any,
@@ -206,16 +251,35 @@ const WorkspaceInterfacesPage: React.FC = () => {
     }));
 
     return (
-      <InterfaceSection
-        interfaces={formattedInterfaces}
-        onChange={() => {}} // 只读模式，不需要处理变更
-        expandedApiCards={expandedApiCards}
-        setExpandedApiCards={setExpandedApiCards}
-        onEdit={handleEditInterface}
-        onDelete={handleDeleteInterface}
-        showWorkspaceSelectButton={false} // 禁用从工作区选择接口按钮
-        isEditable={true} // 添加此属性，确保显示编辑和删除按钮
-      />
+      <>
+        <InterfaceSection
+          interfaces={formattedInterfaces}
+          onChange={() => {}} // 只读模式，不需要处理变更
+          expandedApiCards={expandedApiCards}
+          setExpandedApiCards={setExpandedApiCards}
+          onEdit={handleEditInterface}
+          onDelete={handleDeleteInterface}
+          showWorkspaceSelectButton={false} // 禁用从工作区选择接口按钮
+          isEditable={true} // 添加此属性，确保显示编辑和删除按钮
+        />
+        
+        {/* 添加分页组件 */}
+        {pagination.total > 0 && (
+          <div className="pagination-container">
+            <Pagination
+              current={pagination.current}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              onChange={handlePageChange}
+              showSizeChanger
+              showQuickJumper
+              showTotal={(total) => `共 ${total} 条数据`}
+              size="small"
+              style={{ marginBottom: 8 }} // 添加底部边距，确保输入框下边线可见
+            />
+          </div>
+        )}
+      </>
     );
   };
 
@@ -237,7 +301,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
   return (
     <div className="workspace-resources-page">
       <div className="resources-page-header">
-        <Title level={4}><ApiOutlined /> 接口池</Title>
+        <Title level={5}><ApiOutlined /> 接口池</Title>
       </div>
       
       <div className="resources-content-container">
@@ -248,16 +312,19 @@ const WorkspaceInterfacesPage: React.FC = () => {
               placeholder="搜索接口路径或描述"
               allowClear
               onSearch={handleSearch}
-              onChange={(e) => handleSearch(e.target.value)}
-              style={{ width: '100%', maxWidth: '600px' }}
+              onChange={handleSearchInputChange}
+              value={searchInputValue}
+              style={{ width: '100%', maxWidth: '500px' }}
               prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+              size="middle"
             />
             <div>
               <Button 
                 icon={<ImportOutlined />} 
                 onClick={handleImport}
                 disabled={!currentWorkspace}
-                style={{ marginRight: 8 }}
+                style={{ marginRight: 6 }}
+                size="middle"
               >
                 导入接口
               </Button>
@@ -266,6 +333,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
                 icon={<PlusOutlined />} 
                 onClick={handleAddInterface}
                 disabled={!currentWorkspace}
+                size="middle"
               >
                 添加接口
               </Button>
@@ -276,12 +344,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
         {/* 显示搜索结果统计 */}
         {searchKeyword && !loading && currentWorkspace && (
           <div style={{ marginBottom: 16, color: '#666' }}>
-            搜索 "{searchKeyword}" 的结果: {
-              interfaces.filter(item => 
-                item.path.toLowerCase().includes(searchKeyword) || 
-                (item.description && item.description.toLowerCase().includes(searchKeyword))
-              ).length
-            } / {interfaces.length} 个接口
+            搜索 "{searchKeyword}" 的结果: {pagination.total} 条记录
           </div>
         )}
         
@@ -327,7 +390,9 @@ const WorkspaceInterfacesPage: React.FC = () => {
         visible={importModalVisible}
         onCancel={() => setImportModalVisible(false)}
         workspaceId={currentWorkspace?.id}
-        onSuccess={loadInterfaces}
+        onSuccess={() => {
+          loadInterfaces(1); // 导入后回到第一页，但不关闭弹窗
+        }}
       />
     </div>
   );

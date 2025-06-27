@@ -339,25 +339,88 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
             logger.error(f"设置用户({user_id})的默认工作区({workspace_id})失败: {str(e)}")
             raise
 
-    async def get_tables_by_workspace_id(self, db: AsyncSession, workspace_id: int) -> List[WorkspaceTable]:
-        """获取工作区下的所有表"""
+    async def get_tables_by_workspace_id(
+        self, 
+        db: AsyncSession, 
+        workspace_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        search: str = ''
+    ) -> List[WorkspaceTable]:
+        """
+        获取工作区下的数据库表，支持分页和搜索
+        
+        :param db: 数据库会话
+        :param workspace_id: 工作区ID
+        :param skip: 跳过的记录数
+        :param limit: 返回的记录数
+        :param search: 搜索关键词，搜索表名和描述
+        :return: 数据库表列表
+        """
         try:
-            result = await db.execute(
-                select(WorkspaceTable)
-                .options(
-                    selectinload(WorkspaceTable.creator),
-                    selectinload(WorkspaceTable.last_editor)
-                )
-                .where(
-                    and_(
-                        WorkspaceTable.workspace_id == workspace_id,
-                        WorkspaceTable.created_by.isnot(None)
-                    )
+            query = select(WorkspaceTable).options(
+                selectinload(WorkspaceTable.creator),
+                selectinload(WorkspaceTable.last_editor)
+            ).where(
+                and_(
+                    WorkspaceTable.workspace_id == workspace_id,
+                    WorkspaceTable.created_by.isnot(None)
                 )
             )
+            
+            # 添加搜索条件
+            if search:
+                query = query.where(
+                    or_(
+                        WorkspaceTable.name.ilike(f"%{search}%"),
+                        WorkspaceTable.description.ilike(f"%{search}%")
+                    )
+                )
+            
+            # 添加分页
+            query = query.offset(skip).limit(limit)
+            
+            result = await db.execute(query)
             return list(result.scalars().all())
         except Exception as e:
             logger.error(f"获取工作区表失败: {str(e)}")
+            raise
+
+    async def count_tables_by_workspace_id(
+        self, 
+        db: AsyncSession, 
+        workspace_id: int,
+        search: str = ''
+    ) -> int:
+        """
+        获取工作区下数据库表的总数
+        
+        :param db: 数据库会话
+        :param workspace_id: 工作区ID
+        :param search: 搜索关键词
+        :return: 数据库表总数
+        """
+        try:
+            query = select(func.count(WorkspaceTable.id)).where(
+                and_(
+                    WorkspaceTable.workspace_id == workspace_id,
+                    WorkspaceTable.created_by.isnot(None)
+                )
+            )
+            
+            # 添加搜索条件
+            if search:
+                query = query.where(
+                    or_(
+                        WorkspaceTable.name.ilike(f"%{search}%"),
+                        WorkspaceTable.description.ilike(f"%{search}%")
+                    )
+                )
+            
+            result = await db.execute(query)
+            return result.scalar() or 0
+        except Exception as e:
+            logger.error(f"获取工作区下数据库表总数失败: {str(e)}")
             raise
 
     async def get_table_by_id(self, db: AsyncSession, table_id: int) -> Optional[WorkspaceTable]:
@@ -434,22 +497,85 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
             await db.delete(table)
             await db.commit()
 
-    async def get_interfaces_by_workspace_id(self, db: AsyncSession, workspace_id: int) -> List[WorkspaceInterface]:
-        """获取工作区下的所有接口"""
+    async def get_interfaces_by_workspace_id(
+        self, 
+        db: AsyncSession, 
+        workspace_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        search: str = ''
+    ) -> List[WorkspaceInterface]:
+        """
+        获取工作区下的接口，支持分页和搜索
+        
+        :param db: 数据库会话
+        :param workspace_id: 工作区ID
+        :param skip: 跳过的记录数
+        :param limit: 返回的记录数
+        :param search: 搜索关键词，搜索路径和描述
+        :return: 接口列表
+        """
         try:
-            result = await db.execute(
-                select(WorkspaceInterface)
-                .options(selectinload(WorkspaceInterface.creator))
-                .where(
-                    and_(
-                        WorkspaceInterface.workspace_id == workspace_id,
-                        WorkspaceInterface.created_by.isnot(None)
-                    )
+            query = select(WorkspaceInterface).options(selectinload(WorkspaceInterface.creator)).where(
+                and_(
+                    WorkspaceInterface.workspace_id == workspace_id,
+                    WorkspaceInterface.created_by.isnot(None)
                 )
             )
+            
+            # 添加搜索条件
+            if search:
+                query = query.where(
+                    or_(
+                        WorkspaceInterface.path.ilike(f"%{search}%"),
+                        WorkspaceInterface.description.ilike(f"%{search}%")
+                    )
+                )
+            
+            # 添加分页
+            query = query.offset(skip).limit(limit)
+            
+            result = await db.execute(query)
             return list(result.scalars().all())
         except Exception as e:
-            logger.error(f"获取工作区下的所有接口失败: {str(e)}")
+            logger.error(f"获取工作区下的接口失败: {str(e)}")
+            raise
+
+    async def count_interfaces_by_workspace_id(
+        self, 
+        db: AsyncSession, 
+        workspace_id: int,
+        search: str = ''
+    ) -> int:
+        """
+        获取工作区下接口的总数
+        
+        :param db: 数据库会话
+        :param workspace_id: 工作区ID
+        :param search: 搜索关键词
+        :return: 接口总数
+        """
+        try:
+            query = select(func.count(WorkspaceInterface.id)).where(
+                and_(
+                    WorkspaceInterface.workspace_id == workspace_id,
+                    WorkspaceInterface.created_by.isnot(None)
+                )
+            )
+            
+            # 添加搜索条件
+            if search:
+                query = query.where(
+                    or_(
+                        WorkspaceInterface.path.ilike(f"%{search}%"),
+                        WorkspaceInterface.description.ilike(f"%{search}%")
+                    )
+                )
+            
+            result = await db.execute(query)
+            return result.scalar() or 0
+        except Exception as e:
+            logger.error(f"获取工作区下接口总数失败: {str(e)}")
             raise
 
     async def get_interface_by_id(self, db: AsyncSession, interface_id: int) -> Optional[WorkspaceInterface]:

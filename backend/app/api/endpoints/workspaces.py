@@ -1,6 +1,6 @@
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Optional, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.deps import get_current_active_user, get_db, success_response, error_response
@@ -25,7 +25,7 @@ from backend.app.schemas.workspace import (
     WorkspaceInterfaceCreate,
     WorkspaceInterfaceUpdate
 )
-from backend.app.schemas.response import APIResponse
+from backend.app.schemas.response import APIResponse, PaginatedResponse
 from backend.app.services.workspace_service import WorkspaceService
 
 router = APIRouter()
@@ -332,15 +332,20 @@ async def add_user_to_default_workspace(
 
 
 # 工作区表相关接口
-@router.get("/{workspace_id}/tables", response_model=APIResponse[List[WorkspaceTableRead]])
+@router.get("/{workspace_id}/tables", response_model=APIResponse[PaginatedResponse[WorkspaceTableRead]])
 async def get_workspace_tables(
     workspace_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    page: int = Query(1, description="页码，从1开始", ge=1),
+    page_size: int = Query(10, description="每页数量", ge=1, le=100),
+    search: str = Query('', description="搜索关键词，可搜索表名和描述")
 ):
-    """获取工作区所有表"""
+    """获取工作区所有表，带分页和搜索"""
     try:
-        tables = await workspace_service.get_workspace_tables(db, workspace_id, current_user)
+        tables = await workspace_service.get_workspace_tables(
+            db, workspace_id, current_user, page=page, page_size=page_size, search=search
+        )
         return success_response(data=tables)
     except HTTPException as e:
         return error_response(message=e.detail)
@@ -426,20 +431,25 @@ async def delete_workspace_table(
 
 
 # 工作区接口相关接口
-@router.get("/{workspace_id}/interfaces", response_model=APIResponse[List[WorkspaceInterface]])
+@router.get("/{workspace_id}/interfaces", response_model=APIResponse[PaginatedResponse[WorkspaceInterface]])
 async def get_workspace_interfaces(
     workspace_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    page: int = Query(1, description="页码，从1开始", ge=1),
+    page_size: int = Query(10, description="每页数量", ge=1, le=100),
+    search: str = Query('', description="搜索关键词，可搜索路径和描述")
 ):
-    """获取工作区下的所有接口"""
+    """获取工作区下的所有接口，带分页和搜索"""
     try:
         workspace = await workspace_service.get_workspace(db, workspace_id)
         if not workspace:
             raise HTTPException(status_code=404, detail=f"ID为{workspace_id}的工作区不存在")
         
-        interfaces = await workspace_service.get_workspace_interfaces(db, workspace_id, current_user)
-        return success_response(data=interfaces)
+        result = await workspace_service.get_workspace_interfaces(
+            db, workspace_id, current_user, page=page, page_size=page_size, search=search
+        )
+        return success_response(data=result)
     except HTTPException as e:
         return error_response(message=e.detail)
     except Exception as e:

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, Button, Typography, Spin, Empty, Row, Col, message, Modal, Input } from 'antd';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Card, Button, Typography, Spin, Empty, Row, Col, message, Modal, Input, Pagination } from 'antd';
 import { PlusOutlined, DatabaseOutlined, EditOutlined, DeleteOutlined, ImportOutlined, CalendarOutlined, NumberOutlined, InfoCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { usePermission } from '../../contexts/PermissionContext';
@@ -9,6 +9,8 @@ import { DatabaseTable, DatabaseTableColumn } from '../../types/modules';
 import { ROUTES } from '../../config/constants';
 import { Navigate } from 'react-router-dom';
 import './WorkspaceResourcesPage.css';
+import { getWorkspaceTablesPaginated } from '../../services/workspaceTableService';
+import { debounce } from '../../utils/throttle';
 
 // 复用内容页面中的数据库表组件
 import DatabaseTablesSection, { ValidationHandle } from '../module-content/components/sections/DatabaseTablesSection';
@@ -190,6 +192,14 @@ const WorkspaceTablesPage: React.FC = () => {
   
   // 搜索相关状态
   const [searchKeyword, setSearchKeyword] = useState<string>('');
+  const [searchInputValue, setSearchInputValue] = useState<string>('');
+  
+  // 分页相关状态
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  });
   
   // 检查权限
   const hasTablesPermission = hasPermission(ROUTES.WORKSPACE_TABLES);
@@ -200,16 +210,20 @@ const WorkspaceTablesPage: React.FC = () => {
   }
   
   // 加载工作区表
-  const loadTables = async () => {
+  const loadTables = async (
+    page = pagination.current,
+    pageSize = pagination.pageSize,
+    search = searchKeyword
+  ) => {
     if (!currentWorkspace) return;
     
     setLoading(true);
     try {
-      const data = await getWorkspaceTables(currentWorkspace.id);
-      setTables(data);
+      const data = await getWorkspaceTablesPaginated(currentWorkspace.id, page, pageSize, search);
+      setTables(data.items);
       
       // 将 WorkspaceTableRead[] 转换为 DatabaseTable[]
-      const convertedTables = data.map(table => ({
+      const convertedTables = data.items.map(table => ({
         id: table.id, // 保存原始ID，用于编辑和删除操作
         name: table.name,
         schema_name: table.schema_name,
@@ -224,6 +238,13 @@ const WorkspaceTablesPage: React.FC = () => {
       
       setDatabaseTables(convertedTables);
       
+      // 更新分页信息
+      setPagination({
+        current: data.page,
+        pageSize: data.page_size,
+        total: data.total
+      });
+      
       // 设置所有表格为折叠状态
       const allTableIndexes = new Set(convertedTables.map((_, index) => index));
       setCollapsedTables(allTableIndexes);
@@ -235,12 +256,51 @@ const WorkspaceTablesPage: React.FC = () => {
     }
   };
 
+  // 处理分页变化
+  const handlePageChange = (page: number, pageSize?: number) => {
+    setPagination(prev => ({
+      ...prev,
+      current: page,
+      pageSize: pageSize || prev.pageSize
+    }));
+    loadTables(page, pageSize || pagination.pageSize);
+  };
+
   // 初始加载
   useEffect(() => {
     if (currentWorkspace) {
-      loadTables();
+      loadTables(1, pagination.pageSize, '');
     }
   }, [currentWorkspace]);
+
+  // 使用useCallback和debounce创建去抖的搜索函数
+  const debouncedSearch = useCallback(
+    debounce((value: string) => {
+      setSearchKeyword(value.trim());
+      // 搜索时重置到第一页
+      setPagination(prev => ({ ...prev, current: 1 }));
+      // 使用新的搜索条件加载数据
+      loadTables(1, pagination.pageSize, value.trim());
+    }, 500), // 500ms的去抖延迟
+    [currentWorkspace, pagination.pageSize]
+  );
+
+  // 处理搜索框输入变化
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInputValue(value);
+    debouncedSearch(value);
+  };
+
+  // 处理搜索按钮点击
+  const handleSearch = (value: string) => {
+    setSearchInputValue(value);
+    setSearchKeyword(value.trim());
+    // 搜索时重置到第一页
+    setPagination(prev => ({ ...prev, current: 1 }));
+    // 使用新的搜索条件加载数据
+    loadTables(1, pagination.pageSize, value.trim());
+  };
 
   // 打开创建表弹窗
   const handleAddTable = () => {
@@ -473,11 +533,6 @@ const WorkspaceTablesPage: React.FC = () => {
     }
   };
 
-  // 处理搜索
-  const handleSearch = (value: string) => {
-    setSearchKeyword(value.trim().toLowerCase());
-  };
-
   // 渲染页面内容
   const renderContent = () => {
     if (loading) {
@@ -488,15 +543,7 @@ const WorkspaceTablesPage: React.FC = () => {
       return <Empty description="请先选择一个工作区" />;
     }
     
-    // 根据搜索关键词过滤表格
-    const filteredTables = searchKeyword
-      ? databaseTables.filter(table => 
-          table.name.toLowerCase().includes(searchKeyword) || 
-          (table.description && table.description.toLowerCase().includes(searchKeyword))
-        )
-      : databaseTables;
-
-    if (filteredTables.length === 0) {
+    if (databaseTables.length === 0) {
       return (
         <Empty
           description={searchKeyword ? "没有匹配的数据库表" : "暂无数据库表"}
@@ -506,27 +553,46 @@ const WorkspaceTablesPage: React.FC = () => {
     }
 
     return (
-      <div className="database-tables-section">
-        <DatabaseTablesSection
-          tables={filteredTables}
-          onChange={() => {}} // 只读模式，不需要处理变更
-          collapsedTables={collapsedTables}
-          setCollapsedTables={setCollapsedTables}
-          isEditMode={true} // 设为编辑模式，以显示操作按钮
-          showActionButtons={false} // 不显示默认的操作按钮，包括"添加表"按钮
-          onDelete={handleTableOperation} // 使用onDelete属性处理操作
-          onEdit={handleEditButtonClick} // 添加onEdit属性处理编辑操作
-          enableWorkspaceTableSelection={false} // 禁用"从工作区选择表"按钮
-          readOnlyInEditMode={true} // 在编辑模式下以只读方式显示表格内容
-        />
-      </div>
+      <>
+        <div className="database-tables-section">
+          <DatabaseTablesSection
+            tables={databaseTables}
+            onChange={() => {}} // 只读模式，不需要处理变更
+            collapsedTables={collapsedTables}
+            setCollapsedTables={setCollapsedTables}
+            isEditMode={true} // 设为编辑模式，以显示操作按钮
+            showActionButtons={false} // 不显示默认的操作按钮，包括"添加表"按钮
+            onDelete={handleTableOperation} // 使用onDelete属性处理操作
+            onEdit={handleEditButtonClick} // 添加onEdit属性处理编辑操作
+            enableWorkspaceTableSelection={false} // 禁用"从工作区选择表"按钮
+            readOnlyInEditMode={true} // 在编辑模式下以只读方式显示表格内容
+          />
+        </div>
+        
+        {/* 添加分页组件 */}
+        {pagination.total > 0 && (
+          <div className="pagination-container">
+            <Pagination
+              current={pagination.current}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              onChange={handlePageChange}
+              showSizeChanger
+              showQuickJumper
+              showTotal={(total) => `共 ${total} 条数据`}
+              size="small"
+              style={{ marginBottom: 8 }} // 添加底部边距，确保输入框下边线可见
+            />
+          </div>
+        )}
+      </>
     );
   };
 
   return (
     <div className="workspace-resources-page">
       <div className="resources-page-header">
-        <Title level={4}><DatabaseOutlined /> 数据库表池</Title>
+        <Title level={5}><DatabaseOutlined /> 数据库表池</Title>
       </div>
       
       <div className="resources-content-container">
@@ -537,26 +603,30 @@ const WorkspaceTablesPage: React.FC = () => {
               placeholder="搜索表名或描述"
               allowClear
               onSearch={handleSearch}
-              onChange={(e) => handleSearch(e.target.value)}
-              style={{ width: '100%', maxWidth: '600px' }}
+              onChange={handleSearchInputChange}
+              value={searchInputValue}
+              style={{ width: '100%', maxWidth: '500px' }}
               prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+              size="middle"
             />
             <div>
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />} 
-                onClick={handleAddTable}
-                style={{ marginRight: 8 }}
-                disabled={!currentWorkspace}
-              >
-                添加表
-              </Button>
               <Button
                 icon={<ImportOutlined />}
                 onClick={showSqlImportModal}
                 disabled={!currentWorkspace}
+                style={{ marginRight: 6 }}
+                size="middle"
               >
                 导入SQL
+              </Button>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />} 
+                onClick={handleAddTable}
+                disabled={!currentWorkspace}
+                size="middle"
+              >
+                添加表
               </Button>
             </div>
           </div>
@@ -565,12 +635,7 @@ const WorkspaceTablesPage: React.FC = () => {
         {/* 显示搜索结果统计 */}
         {searchKeyword && !loading && currentWorkspace && (
           <div style={{ marginBottom: 16, color: '#666' }}>
-            搜索 "{searchKeyword}" 的结果: {
-              databaseTables.filter(table => 
-                table.name.toLowerCase().includes(searchKeyword) || 
-                (table.description && table.description.toLowerCase().includes(searchKeyword))
-              ).length
-            } / {databaseTables.length} 个表
+            搜索 "{searchKeyword}" 的结果: {pagination.total} 条记录
           </div>
         )}
         

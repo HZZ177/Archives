@@ -1,5 +1,5 @@
 import { apiClient } from '../utils/apiClient';
-import { WorkspaceTable, WorkspaceTableDetail } from '../types/workspace';
+import { WorkspaceTable, WorkspaceTableDetail, PaginatedTables } from '../types/workspace';
 
 const BASE_URL = '/workspace-tables';
 
@@ -10,6 +10,29 @@ const BASE_URL = '/workspace-tables';
  */
 export async function getWorkspaceTables(workspaceId: number): Promise<WorkspaceTable[]> {
   const response = await apiClient.get(`${BASE_URL}/workspace/${workspaceId}`);
+  return response.data.data;
+}
+
+/**
+ * 获取工作区下的所有数据库表，支持分页和搜索
+ * @param workspaceId 工作区ID
+ * @param page 页码，从1开始
+ * @param pageSize 每页数量
+ * @param search 搜索关键词
+ * @returns 分页的数据库表列表和总数
+ */
+export async function getWorkspaceTablesPaginated(
+  workspaceId: number,
+  page: number = 1,
+  pageSize: number = 10,
+  search: string = ''
+): Promise<PaginatedTables> {
+  let url = `${BASE_URL}/workspace/${workspaceId}/paginated?page=${page}&page_size=${pageSize}`;
+  if (search) {
+    url += `&search=${encodeURIComponent(search)}`;
+  }
+  
+  const response = await apiClient.get(url);
   return response.data.data;
 }
 

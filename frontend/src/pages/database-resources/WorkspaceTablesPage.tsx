@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { 
   Card, 
   Table, 
@@ -28,6 +28,7 @@ import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { getWorkspaceTables, deleteTable } from '../../services/workspaceTableService';
 import { WorkspaceTable } from '../../types/workspace';
 import TableForm from './components/TableForm';
+import { debounce } from '../../utils/throttle';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -37,6 +38,7 @@ const WorkspaceTablesPage: React.FC = () => {
   const [tables, setTables] = useState<WorkspaceTable[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [searchInputValue, setSearchInputValue] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [currentTable, setCurrentTable] = useState<WorkspaceTable | null>(null);
   const [modalTitle, setModalTitle] = useState('添加数据库表');
@@ -64,8 +66,24 @@ const WorkspaceTablesPage: React.FC = () => {
     }
   }, [currentWorkspace]);
 
+  // 使用useCallback和debounce创建去抖的搜索函数
+  const debouncedSearch = useCallback(
+    debounce((value: string) => {
+      setSearchText(value);
+    }, 500), // 500ms的去抖延迟
+    []
+  );
+
+  // 处理搜索框输入变化
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInputValue(value);
+    debouncedSearch(value);
+  };
+
   // 处理搜索
   const handleSearch = (value: string) => {
+    setSearchInputValue(value);
     setSearchText(value);
   };
 
@@ -197,14 +215,18 @@ const WorkspaceTablesPage: React.FC = () => {
             <Input
               placeholder="搜索表名或描述"
               prefix={<SearchOutlined />}
-              value={searchText}
-              onChange={e => handleSearch(e.target.value)}
+              value={searchInputValue}
+              onChange={handleSearchInputChange}
               style={{ width: 250 }}
               allowClear
             />
             <Button 
               icon={<ReloadOutlined />} 
-              onClick={loadTables}
+              onClick={() => {
+                setSearchText('');
+                setSearchInputValue('');
+                loadTables();
+              }}
               loading={loading}
             >
               刷新

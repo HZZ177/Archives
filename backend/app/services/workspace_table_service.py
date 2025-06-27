@@ -13,6 +13,7 @@ from backend.app.schemas.workspace_table import (
     WorkspaceTableResponse,
     WorkspaceTableDetail
 )
+from backend.app.schemas.response import PaginatedResponse
 from backend.app.services.workspace_service import workspace_service
 
 
@@ -96,6 +97,54 @@ class WorkspaceTableService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"获取工作区数据库表失败: {str(e)}"
+            )
+    
+    async def get_tables_paginated(
+        self,
+        db: AsyncSession,
+        workspace_id: int,
+        user: User,
+        page: int = 1,
+        page_size: int = 10,
+        search: str = ""
+    ) -> PaginatedResponse[WorkspaceTableResponse]:
+        """
+        获取工作区下的所有数据库表，支持分页和搜索
+        
+        :param db: 数据库会话
+        :param workspace_id: 工作区ID
+        :param user: 当前用户
+        :param page: 页码，从1开始
+        :param page_size: 每页数量
+        :param search: 搜索关键词
+        :return: 分页的数据库表列表
+        """
+        try:
+            # 验证工作区访问权限
+            await self.validate_workspace_access(db, workspace_id, user)
+            
+            # 获取分页数据库表
+            tables, total = await workspace_table_repository.get_by_workspace_id_paginated(
+                db, workspace_id, page, page_size, search
+            )
+            
+            # 转换为响应模型
+            items = [WorkspaceTableResponse.from_orm(table) for table in tables]
+            
+            # 构建分页响应
+            return PaginatedResponse(
+                items=items,
+                total=total,
+                page=page,
+                page_size=page_size
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"获取工作区数据库表(分页)失败: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"获取工作区数据库表(分页)失败: {str(e)}"
             )
     
     async def get_table(

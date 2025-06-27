@@ -1,5 +1,5 @@
-from typing import List, Optional, Dict, Any
-from sqlalchemy import select, exists
+from typing import List, Optional, Dict, Any, Tuple
+from sqlalchemy import select, exists, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.logger import logger
@@ -41,6 +41,56 @@ class WorkspaceTableRepository(BaseRepository[WorkspaceTable, WorkspaceTableCrea
             return result.scalars().all()
         except Exception as e:
             logger.error(f"获取工作区数据库表失败: {str(e)}")
+            raise
+    
+    async def get_by_workspace_id_paginated(
+        self, 
+        db: AsyncSession, 
+        workspace_id: int, 
+        page: int = 1, 
+        page_size: int = 10,
+        search: str = ""
+    ) -> Tuple[List[WorkspaceTable], int]:
+        """
+        获取工作区下的所有数据库表，支持分页和搜索
+        
+        :param db: 数据库会话
+        :param workspace_id: 工作区ID
+        :param page: 页码，从1开始
+        :param page_size: 每页数量
+        :param search: 搜索关键词，可搜索表名和描述
+        :return: (数据库表列表, 总数)
+        """
+        try:
+            # 构建基础查询
+            query = select(WorkspaceTable).where(WorkspaceTable.workspace_id == workspace_id)
+            
+            # 如果有搜索关键词，添加搜索条件
+            if search:
+                search_term = f"%{search}%"
+                query = query.where(
+                    or_(
+                        WorkspaceTable.name.ilike(search_term),
+                        WorkspaceTable.description.ilike(search_term)
+                    )
+                )
+            
+            # 计算总数
+            count_query = select(func.count()).select_from(query.subquery())
+            count_result = await db.execute(count_query)
+            total = count_result.scalar_one()
+            
+            # 添加排序和分页
+            query = query.order_by(WorkspaceTable.name)
+            query = query.offset((page - 1) * page_size).limit(page_size)
+            
+            # 执行查询
+            result = await db.execute(query)
+            tables = result.scalars().all()
+            
+            return tables, total
+        except Exception as e:
+            logger.error(f"获取工作区数据库表(分页)失败: {str(e)}")
             raise
     
     async def create_table(

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { 
   Card, 
   Table, 
@@ -14,7 +14,8 @@ import {
   Empty,
   Tag,
   Tooltip,
-  Badge
+  Badge,
+  TablePaginationConfig
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -28,9 +29,10 @@ import {
 } from '@ant-design/icons';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { getWorkspaceInterfaces, deleteInterface } from '../../services/workspaceInterfaceService';
-import { WorkspaceInterface } from '../../types/workspace';
+import { WorkspaceInterface, PaginatedInterfaces } from '../../types/workspace';
 import InterfaceForm from './components/InterfaceForm';
 import InterfaceImportModal from './components/InterfaceImportModal';
+import { debounce } from '../../utils/throttle';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -40,19 +42,57 @@ const WorkspaceInterfacesPage: React.FC = () => {
   const [interfaces, setInterfaces] = useState<WorkspaceInterface[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [searchInputValue, setSearchInputValue] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [currentInterface, setCurrentInterface] = useState<WorkspaceInterface | null>(null);
   const [modalTitle, setModalTitle] = useState('添加接口');
   const [importModalVisible, setImportModalVisible] = useState(false);
+  
+  // 分页状态
+  const [pagination, setPagination] = useState<TablePaginationConfig>({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+    showSizeChanger: true,
+    pageSizeOptions: ['10', '20', '50', '100'],
+    showTotal: (total) => `共 ${total} 条`
+  });
 
   // 加载工作区接口
-  const loadInterfaces = async () => {
+  const loadInterfaces = async (
+    page = pagination.current, 
+    pageSize = pagination.pageSize,
+    search = searchText
+  ) => {
     if (!currentWorkspace) return;
     
     try {
       setLoading(true);
-      const data = await getWorkspaceInterfaces(currentWorkspace.id);
-      setInterfaces(data);
+      console.log(`加载接口数据: 页码=${page}, 每页条数=${pageSize}, 搜索=${search}`);
+      
+      const paginatedData = await getWorkspaceInterfaces(
+        currentWorkspace.id, 
+        page as number, 
+        pageSize as number,
+        search
+      );
+      
+      console.log('接口数据返回:', paginatedData);
+      
+      // 直接使用后端返回的数据，不再进行本地过滤
+      setInterfaces(paginatedData.items);
+      setPagination({
+        ...pagination,
+        current: paginatedData.page,
+        pageSize: paginatedData.page_size,
+        total: paginatedData.total
+      });
+      
+      console.log('更新后的分页状态:', {
+        current: paginatedData.page,
+        pageSize: paginatedData.page_size,
+        total: paginatedData.total
+      });
     } catch (error) {
       console.error('加载接口失败:', error);
       message.error('加载接口失败，请稍后重试');
@@ -64,20 +104,39 @@ const WorkspaceInterfacesPage: React.FC = () => {
   // 首次加载和工作区变更时重新加载数据
   useEffect(() => {
     if (currentWorkspace) {
-      loadInterfaces();
+      loadInterfaces(1); // 重置到第一页
     }
   }, [currentWorkspace]);
 
-  // 处理搜索
-  const handleSearch = (value: string) => {
-    setSearchText(value);
+  // 使用useCallback和debounce创建去抖的搜索函数
+  const debouncedSearch = useCallback(
+    debounce((value: string) => {
+      setSearchText(value);
+      // 搜索时重置到第一页，并使用新的搜索条件加载数据
+      loadInterfaces(1, pagination.pageSize, value);
+    }, 500), // 500ms的去抖延迟
+    [currentWorkspace, pagination.pageSize]
+  );
+
+  // 处理搜索框输入变化
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInputValue(value);
+    debouncedSearch(value);
   };
 
-  // 过滤表格数据
-  const filteredInterfaces = interfaces.filter(item => 
-    item.path.toLowerCase().includes(searchText.toLowerCase()) ||
-    (item.description && item.description.toLowerCase().includes(searchText.toLowerCase()))
-  );
+  // 处理搜索按钮点击（如果需要）
+  const handleSearch = (value: string) => {
+    setSearchInputValue(value);
+    setSearchText(value);
+    // 搜索时重置到第一页，并使用新的搜索条件加载数据
+    loadInterfaces(1, pagination.pageSize, value);
+  };
+
+  // 处理分页变化
+  const handleTableChange = (newPagination: TablePaginationConfig) => {
+    loadInterfaces(newPagination.current, newPagination.pageSize, searchText);
+  };
 
   // 添加接口
   const handleAdd = () => {
@@ -98,7 +157,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
     try {
       await deleteInterface(id);
       message.success('删除成功');
-      loadInterfaces();
+      loadInterfaces(); // 保持在当前页
     } catch (error) {
       console.error('删除接口失败:', error);
       message.error('删除失败，请稍后重试');
@@ -108,7 +167,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
   // 表单提交成功后的回调
   const handleFormSuccess = () => {
     setModalVisible(false);
-    loadInterfaces();
+    loadInterfaces(); // 保持在当前页
   };
 
   // 获取HTTP方法对应的颜色
@@ -228,14 +287,18 @@ const WorkspaceInterfacesPage: React.FC = () => {
             <Input
               placeholder="搜索路径或描述"
               prefix={<SearchOutlined />}
-              value={searchText}
-              onChange={e => handleSearch(e.target.value)}
+              value={searchInputValue}
+              onChange={handleSearchInputChange}
               style={{ width: 250 }}
               allowClear
             />
             <Button 
               icon={<ReloadOutlined />} 
-              onClick={loadInterfaces}
+              onClick={() => {
+                setSearchText('');
+                setSearchInputValue('');
+                loadInterfaces(1, pagination.pageSize, '');
+              }}
               loading={loading}
             >
               刷新
@@ -260,10 +323,11 @@ const WorkspaceInterfacesPage: React.FC = () => {
         
         <Table
           columns={columns}
-          dataSource={filteredInterfaces}
+          dataSource={interfaces} // 直接使用interfaces，不再使用filteredInterfaces
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 10 }}
+          pagination={pagination}
+          onChange={handleTableChange}
         />
       </div>
     );
@@ -308,7 +372,9 @@ const WorkspaceInterfacesPage: React.FC = () => {
         visible={importModalVisible}
         onCancel={() => setImportModalVisible(false)}
         workspaceId={currentWorkspace?.id}
-        onSuccess={loadInterfaces}
+        onSuccess={() => {
+          loadInterfaces(); // 重新加载接口列表，但不关闭弹窗
+        }}
       />
     </div>
   );

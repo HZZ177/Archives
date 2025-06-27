@@ -14,10 +14,10 @@ interface ApiParamTableProps {
 }
 
 // 为参数添加唯一标识和层级信息
-interface FlatApiParam extends ApiParam {
+interface KeyedApiParam extends ApiParam {
   key: string;
-  level: number;
   path: number[];
+  level: number;
 }
 
 /**
@@ -32,51 +32,54 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
   title = '参数',
   isResponse = false
 }) => {
-  const [expandedRows, setExpandedRows] = useState<string[]>([]);
-  const [dataSource, setDataSource] = useState<FlatApiParam[]>([]);
+  const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
 
-  // 扁平化数据，用于表格渲染
-  const flattenData = (data: ApiParam[], level = 0, parentPath: number[] = []): FlatApiParam[] => {
-    let flatList: FlatApiParam[] = [];
-    data.forEach((param, index) => {
+  // 递归为数据添加key, path, level
+  const addKeys = (params: ApiParam[], parentPath: number[] = [], level = 0): KeyedApiParam[] => {
+    if (!Array.isArray(params)) {
+      console.warn('ApiParamTable: value is not an array, using empty array instead', params);
+      return [];
+    }
+    
+    return params.map((param, index) => {
       const currentPath = [...parentPath, index];
       const key = currentPath.join('-');
-      
-      const flatParam: FlatApiParam = {
+      const newParam: KeyedApiParam = {
         ...param,
         key,
-        level,
-        path: currentPath
+        path: currentPath,
+        level: level,
       };
-      flatList.push(flatParam);
-
-      // 如果行是展开的，并且有子节点，则递归扁平化子节点
-      if (expandedRows.includes(key) && param.children && param.children.length > 0) {
-        flatList = flatList.concat(flattenData(param.children, level + 1, currentPath));
+      if (param.children) {
+        newParam.children = addKeys(param.children, currentPath, level + 1);
       }
+      return newParam;
     });
-    return flatList;
   };
 
-  useEffect(() => {
-    setDataSource(flattenData(value));
-  }, [value, expandedRows]);
-
+  // 确保value是数组
+  const safeValue = Array.isArray(value) ? value : [];
+  const dataSourceWithKeys = addKeys(safeValue);
 
   // 更新参数（支持多层级）
   const handleParamChange = (path: number[], field: keyof ApiParam, fieldValue: any) => {
-    const newParams: ApiParam[] = JSON.parse(JSON.stringify(value));
+    const newParams: ApiParam[] = JSON.parse(JSON.stringify(safeValue));
     let currentLevel: any = newParams;
     
     path.forEach((p, i) => {
       if (i < path.length - 1) {
         currentLevel = currentLevel[p].children || [];
       } else {
+        // 更新目标节点
         currentLevel[p] = { ...currentLevel[p], [field]: fieldValue };
 
-        // 如果类型变更为 object/array 且没有children，则添加
-        if (field === 'type' && (fieldValue === 'object' || fieldValue === 'array') && !currentLevel[p].children) {
-          currentLevel[p].children = [];
+        // 如果类型变更为 object/array 且原本没有children，则添加
+        if (
+            field === 'type' && 
+            (fieldValue === 'object' || fieldValue === 'array') && 
+            !currentLevel[p].children
+        ) {
+            currentLevel[p].children = [];
         }
       }
     });
@@ -93,12 +96,12 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
       description: '',
       example: ''
     };
-    onChange?.([...value, newParam]);
+    onChange?.([...safeValue, newParam]);
   };
 
   // 函数：添加子参数
   const handleAddChild = (path: number[]) => {
-    const newParams: ApiParam[] = JSON.parse(JSON.stringify(value));
+    const newParams: ApiParam[] = JSON.parse(JSON.stringify(safeValue));
     
     let targetNode: ApiParam | undefined;
     let currentLevel: ApiParam[] = newParams;
@@ -130,8 +133,9 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
       });
       
       const key = path.join('-');
-      if (!expandedRows.includes(key)) {
-        setExpandedRows([...expandedRows, key]);
+      // 自动展开父节点
+      if (!expandedRowKeys.includes(key)) {
+        setExpandedRowKeys([...expandedRowKeys, key]);
       }
       onChange?.(newParams);
     }
@@ -139,7 +143,7 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
 
   // 删除参数
   const handleDelete = (path: number[]) => {
-    const newParams = JSON.parse(JSON.stringify(value));
+    const newParams = JSON.parse(JSON.stringify(safeValue));
     if (path.length === 1) {
       newParams.splice(path[0], 1);
     } else {
@@ -152,14 +156,16 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
     onChange?.(newParams);
   };
 
-  // 展开/折叠行
-  const handleExpandRow = (key: string) => {
-    const newExpandedRows = expandedRows.includes(key)
-      ? expandedRows.filter(k => k !== key && !k.startsWith(key + '-'))
-      : [...expandedRows, key];
-    setExpandedRows(newExpandedRows);
+  // 安全处理expandedRowsChange，确保keys是数组
+  const handleExpandedRowsChange = (keys: readonly React.Key[]) => {
+    if (Array.isArray(keys)) {
+      setExpandedRowKeys([...keys]);
+    } else {
+      console.warn('expandedRowKeys is not an array:', keys);
+      setExpandedRowKeys([]);
+    }
   };
-  
+
   const columns: any[] = [
     {
       title: '参数名',
@@ -167,7 +173,7 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
       key: 'name',
       width: '30%',
       className: 'param-name-cell',
-      render: (text: string, record: FlatApiParam) => (
+      render: (text: string, record: KeyedApiParam) => (
         <div style={{ paddingLeft: record.level * 24 }}>
           {readOnly ? text : (
             <Input
@@ -184,7 +190,7 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
       dataIndex: 'type',
       key: 'type',
       width: '15%',
-      render: (text: string, record: FlatApiParam) => (
+      render: (text: string, record: KeyedApiParam) => (
         readOnly ? text : (
           <Select
             value={text}
@@ -202,7 +208,7 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
       title: '描述',
       dataIndex: 'description',
       key: 'description',
-      render: (text: string, record: FlatApiParam) => (
+      render: (text: string, record: KeyedApiParam) => (
         readOnly ? text : (
           <Input value={text} onChange={(e) => handleParamChange(record.path, 'description', e.target.value)} placeholder="参数描述" />
         )
@@ -213,7 +219,7 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
       dataIndex: 'example',
       key: 'example',
       width: '20%',
-      render: (text: string, record: FlatApiParam) => (
+      render: (text: string, record: KeyedApiParam) => (
         readOnly ? text : (
           <Input value={text} onChange={(e) => handleParamChange(record.path, 'example', e.target.value)} placeholder="示例值" />
         )
@@ -228,7 +234,7 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
         dataIndex: 'required',
         key: 'required',
         width: '10%',
-        render: (required: boolean, record: FlatApiParam) => (
+        render: (required: boolean, record: KeyedApiParam) => (
             readOnly ? (required ? '是' : '否') : (
                 <Select
                     value={required}
@@ -250,7 +256,7 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
       key: 'action',
       width: '80px',
       align: 'center',
-      render: (_: any, record: FlatApiParam) => {
+      render: (_: any, record: KeyedApiParam) => {
         const hasAddChildButton = record.type === 'object' || record.type === 'array';
         
         return (
@@ -279,7 +285,7 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
     <div className="api-param-table-container">
       <Table
         rowKey="key"
-        dataSource={dataSource}
+        dataSource={dataSourceWithKeys}
         columns={columns}
         pagination={false}
         size="small"
@@ -287,11 +293,8 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
         tableLayout="fixed"
         locale={{ emptyText: <div className="api-param-empty">暂无参数</div> }}
         expandable={{
-          expandedRowKeys: expandedRows,
-          onExpand: (expanded, record) => {
-            handleExpandRow(record.key);
-          },
-          rowExpandable: record => !!((record.type === 'object' || record.type === 'array') && record.children && record.children.length > 0),
+          expandedRowKeys: expandedRowKeys,
+          onExpandedRowsChange: handleExpandedRowsChange,
         }}
       />
       {!readOnly && (

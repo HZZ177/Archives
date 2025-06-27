@@ -34,7 +34,7 @@ class WorkspaceTableInDB(WorkspaceTableBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class WorkspaceTableResponse(WorkspaceTableInDB):
@@ -47,4 +47,4 @@ class WorkspaceTableDetail(WorkspaceTableResponse):
     columns: List[DatabaseTableColumn]  # 转换后的字段信息
 
     class Config:
-        orm_mode = True 
+        from_attributes = True 

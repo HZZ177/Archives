@@ -15,6 +15,7 @@ export interface Workspace {
   created_by: number;
   created_at: string;
   updated_at: string;
+  user_count?: number;
 }
 
 // 工作区用户关系
@@ -65,15 +66,15 @@ export interface WorkspaceInterface {
   content_type?: string;
   request_params_json?: ApiParam[];
   response_params_json?: ApiParam[];
-  created_by: number;
   created_at: string;
   updated_at: string;
+  user_id: number;
 }
 
 // 工作区接口详情
 export interface WorkspaceInterfaceDetail extends WorkspaceInterface {
-  request_params: any[]; // 转换后的请求参数
-  response_params: any[]; // 转换后的响应参数
+  request_params: ApiParam[];
+  response_params: ApiParam[];
 }
 
 // 创建工作区请求
@@ -194,4 +195,24 @@ export interface WorkspaceInterfaceUpdate {
 export interface ModuleContentReferences {
   database_table_refs?: number[];
   api_interface_refs?: number[];
+}
+
+/**
+ * 分页接口数据结构
+ */
+export interface PaginatedInterfaces {
+  items: WorkspaceInterface[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+/**
+ * 分页数据库表数据结构
+ */
+export interface PaginatedTables {
+  items: WorkspaceTableRead[];
+  total: number;
+  page: number;
+  page_size: number;
 } 

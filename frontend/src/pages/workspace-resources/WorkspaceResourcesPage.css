@@ -4,18 +4,19 @@
   min-height: auto; /* 让高度自适应内容 */
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden; /* 防止整个页面水平溢出 */
+  overflow: visible; /* 修改为visible，允许元素溢出 */
   display: flex;
   flex-direction: column;
+  padding-bottom: 16px; /* 底部添加一些内边距 */
 }
 
 /* 内容容器样式 */
 .resources-content-container {
   flex: 1;
-  padding: 0 0 24px 0; /* 移除左右内边距，保留底部内边距 */
+  padding: 0 0 16px 0; /* 减少底部内边距 */
   max-width: 100%;
   box-sizing: border-box; /* 确保padding计入宽度 */
-  overflow-x: hidden; /* 防止内容水平溢出 */
+  overflow: visible; /* 修改为visible，允许元素溢出 */
 }
 
 /* 页面头部样式 */
@@ -23,9 +24,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 12px 24px; /* 减少上下内边距 */
   border-bottom: 1px solid #f0f0f0;
-  margin-bottom: 16px;
+  margin-bottom: 12px; /* 减少下边距 */
 }
 
 /* 搜索和操作区域样式 */
@@ -33,17 +34,36 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px; /* 减少下边距 */
   flex-wrap: wrap;
-  padding: 0 24px; /* 添加左右内边距，与页面头部对齐 */
+  padding: 0 24px; /* 保持左右内边距 */
 }
 
 /* 资源列表样式 */
 .resources-list {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
-  padding: 0 24px; /* 添加左右内边距，与页面头部对齐 */
+  overflow: visible; /* 修改为visible，允许元素溢出 */
+  padding: 0 24px; /* 保持左右内边距 */
+}
+
+/* 接口卡片容器样式 */
+.resources-list .api-interface-cards-container {
+  margin-bottom: 0; /* 移除底部边距 */
+}
+
+/* 接口卡片样式 */
+.resources-list .api-interface-card {
+  margin-bottom: 12px; /* 减少卡片间距 */
+}
+
+/* 分页容器样式 */
+.pagination-container {
+  margin-top: 12px;
+  text-align: right;
+  padding-right: 24px;
+  padding-bottom: 8px; /* 添加底部内边距，防止下边线被遮挡 */
+  overflow: visible; /* 确保分页组件可以溢出 */
 }
 
 /* 响应式布局 */
@@ -54,7 +74,7 @@
   }
   
   .resources-actions .ant-input-search {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     width: 100%;
   }
 } 

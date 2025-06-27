@@ -11,7 +11,10 @@ import {
   Spin, 
   message, 
   Tag,
-  Divider
+  Divider,
+  Result,
+  Collapse,
+  Progress
 } from 'antd';
 import { 
   InboxOutlined, 
@@ -19,14 +22,25 @@ import {
   ImportOutlined,
   ApiOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
 import { RcFile } from 'antd/lib/upload';
 import { ImportPreviewItem, ImportResult, parseOpenApi } from '../../../utils/openApiParser';
 import { createInterface } from '../../../services/workspaceInterfaceService';
+import { checkInterfaceExists } from '../../../apis/workspaceService';
 
 const { Dragger } = Upload;
 const { Title, Text, Paragraph } = Typography;
+const { Panel } = Collapse;
+
+// 导入结果的接口项
+interface ImportResultItem {
+  path: string;
+  method: string;
+  status: 'success' | 'failed' | 'skipped';
+  reason?: string;
+}
 
 interface InterfaceImportModalProps {
   visible: boolean;
@@ -49,6 +63,23 @@ const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
   const [parsing, setParsing] = useState(false);
   const [parseResult, setParseResult] = useState<ImportResult | null>(null);
   const [previewList, setPreviewList] = useState<ImportPreviewItem[]>([]);
+  
+  // 添加导入结果状态
+  const [importFinished, setImportFinished] = useState(false);
+  const [importResults, setImportResults] = useState<ImportResultItem[]>([]);
+  const [importStats, setImportStats] = useState({
+    total: 0,
+    success: 0,
+    failed: 0,
+    skipped: 0
+  });
+  
+  // 添加进度状态
+  const [importProgress, setImportProgress] = useState({
+    current: 0,
+    total: 0,
+    percent: 0
+  });
   
   // 上传文件前的验证
   const beforeUpload = (file: RcFile) => {
@@ -166,11 +197,44 @@ const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
       const importTotal = selectedInterfaces.length;
       let importSuccess = 0;
       let importFailed = 0;
+      let importDuplicated = 0; // 添加重复接口计数
       
-      // 逐个导入接口
-      for (const item of selectedInterfaces) {
+      // 初始化进度状态
+      setImportProgress({
+        current: 0,
+        total: importTotal,
+        percent: 0
+      });
+      
+      // 存储详细的导入结果
+      const results: ImportResultItem[] = [];
+      
+      // 使用递归函数处理每个接口，确保进度条正确更新
+      const processInterface = async (index: number) => {
+        if (index >= selectedInterfaces.length) {
+          // 所有接口处理完成
+          // 设置导入结果状态
+          setImportResults(results);
+          setImportStats({
+            total: importTotal,
+            success: importSuccess,
+            failed: importFailed,
+            skipped: importDuplicated
+          });
+          setImportFinished(true);
+          
+          // 调用onSuccess回调，但不关闭弹窗
+          if (importSuccess > 0) {
+            onSuccess();
+          }
+          
+          setImporting(false);
+          return;
+        }
+        
+        const item = selectedInterfaces[index];
         try {
-          await createInterface(workspaceId, {
+          const interfaceData = {
             workspace_id: workspaceId,
             path: item.path,
             method: item.method,
@@ -178,27 +242,69 @@ const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
             content_type: item.content_type,
             request_params_json: item.request_params_json,
             response_params_json: item.response_params_json
-          });
+          };
           
-          importSuccess++;
+          // 先检查接口是否已存在
+          const exists = await checkInterfaceExists(
+            workspaceId,
+            item.path,
+            item.method
+          );
+          
+          if (exists) {
+            // 接口已存在，记录为重复
+            console.log(`接口已存在，跳过导入: ${item.method} ${item.path}`);
+            importDuplicated++;
+            results.push({
+              path: item.path,
+              method: item.method,
+              status: 'skipped',
+              reason: '接口已存在'
+            });
+          } else {
+            // 接口不存在，创建新接口
+            await createInterface(workspaceId, interfaceData);
+            importSuccess++;
+            results.push({
+              path: item.path,
+              method: item.method,
+              status: 'success'
+            });
+          }
         } catch (error) {
           console.error('导入接口失败:', error, item);
           importFailed++;
+          results.push({
+            path: item.path,
+            method: item.method,
+            status: 'failed',
+            reason: error instanceof Error ? error.message : '未知错误'
+          });
         }
-      }
+        
+        // 更新进度状态
+        const currentProgress = index + 1;
+        const percent = Math.floor((currentProgress / importTotal) * 100);
+        
+        // 使用setTimeout确保UI更新
+        setImportProgress({
+          current: currentProgress,
+          total: importTotal,
+          percent
+        });
+        
+        // 使用setTimeout延迟处理下一个接口，确保UI有时间更新
+        setTimeout(() => {
+          processInterface(index + 1);
+        }, 10);
+      };
       
-      if (importFailed === 0) {
-        message.success(`成功导入 ${importSuccess} 个接口`);
-      } else {
-        message.warning(`导入完成，成功 ${importSuccess} 个，失败 ${importFailed} 个`);
-      }
+      // 开始处理第一个接口
+      processInterface(0);
       
-      onSuccess();
-      handleClose();
     } catch (error) {
       message.error('导入接口失败');
       console.error('导入接口失败:', error);
-    } finally {
       setImporting(false);
     }
   };
@@ -208,6 +314,14 @@ const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
     setFileList([]);
     setParseResult(null);
     setPreviewList([]);
+    setImportFinished(false);
+    setImportResults([]);
+    setImportStats({
+      total: 0,
+      success: 0,
+      failed: 0,
+      skipped: 0
+    });
     onCancel();
   };
   
@@ -345,7 +459,7 @@ const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
               type="primary" 
               icon={<ImportOutlined />}
               onClick={handleImport}
-              disabled={selectedCount === 0 || importing}
+              disabled={getSelectedCount() === 0 || importing}
               loading={importing}
             >
               导入选中接口
@@ -356,13 +470,174 @@ const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
     );
   };
   
+  // 渲染导入结果页面
+  const renderImportResult = () => {
+    const { total, success, failed, skipped } = importStats;
+    
+    // 过滤不同状态的接口
+    const successItems = importResults.filter(item => item.status === 'success');
+    const failedItems = importResults.filter(item => item.status === 'failed');
+    const skippedItems = importResults.filter(item => item.status === 'skipped');
+    
+    return (
+      <div>
+        <Result
+          status={failed > 0 ? 'warning' : 'success'}
+          title={`导入完成 (${success}/${total})`}
+          subTitle={
+            <div>
+              <div>成功: {success} 个</div>
+              <div>失败: {failed} 个</div>
+              <div>跳过: {skipped} 个</div>
+            </div>
+          }
+        />
+        
+        <Divider />
+        
+        <Collapse defaultActiveKey={failed > 0 ? ['failed'] : []}>
+          {success > 0 && (
+            <Panel 
+              header={<><CheckCircleOutlined style={{ color: '#52c41a' }} /> 成功导入 ({success})</>} 
+              key="success"
+            >
+              <List
+                size="small"
+                dataSource={successItems}
+                renderItem={item => (
+                  <List.Item>
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                      <Tag color={getMethodColor(item.method)} style={{ marginRight: 8 }}>
+                        {item.method}
+                      </Tag>
+                      <Text style={{ flex: 1 }}>{item.path}</Text>
+                    </div>
+                  </List.Item>
+                )}
+              />
+            </Panel>
+          )}
+          
+          {failed > 0 && (
+            <Panel 
+              header={<><ExclamationCircleOutlined style={{ color: '#ff4d4f' }} /> 导入失败 ({failed})</>} 
+              key="failed"
+            >
+              <List
+                size="small"
+                dataSource={failedItems}
+                renderItem={item => (
+                  <List.Item>
+                    <div style={{ display: 'flex', width: '100%', flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                        <Tag color={getMethodColor(item.method)} style={{ marginRight: 8 }}>
+                          {item.method}
+                        </Tag>
+                        <Text style={{ flex: 1 }}>{item.path}</Text>
+                      </div>
+                      {item.reason && (
+                        <div style={{ marginTop: 4, paddingLeft: 8 }}>
+                          <Text type="danger">原因: {item.reason}</Text>
+                        </div>
+                      )}
+                    </div>
+                  </List.Item>
+                )}
+              />
+            </Panel>
+          )}
+          
+          {skipped > 0 && (
+            <Panel 
+              header={<><InfoCircleOutlined style={{ color: '#1890ff' }} /> 已跳过 ({skipped})</>} 
+              key="skipped"
+            >
+              <List
+                size="small"
+                dataSource={skippedItems}
+                renderItem={item => (
+                  <List.Item>
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                      <Tag color={getMethodColor(item.method)} style={{ marginRight: 8 }}>
+                        {item.method}
+                      </Tag>
+                      <Text style={{ flex: 1 }}>{item.path}</Text>
+                      <Text type="secondary">{item.reason}</Text>
+                    </div>
+                  </List.Item>
+                )}
+              />
+            </Panel>
+          )}
+        </Collapse>
+        
+        <div style={{ marginTop: 16, textAlign: 'right' }}>
+          <Button type="primary" onClick={handleClose}>
+            确定
+          </Button>
+        </div>
+      </div>
+    );
+  };
+  
+  // 渲染导入进度
+  const renderImportProgress = () => {
+    return (
+      <div style={{ textAlign: 'center', padding: '20px 0' }}>
+        <div style={{ marginBottom: 20 }}>
+          <Text strong>正在导入接口...</Text>
+          <div style={{ margin: '16px 0' }}>
+            <Text>{`${importProgress.current} / ${importProgress.total}`}</Text>
+          </div>
+        </div>
+        
+        <Progress 
+          percent={importProgress.percent} 
+          status="active" 
+          style={{ width: '100%' }}
+        />
+        
+        <div style={{ marginTop: 16 }}>
+          <Text type="secondary">请耐心等待，导入完成后将显示详细结果</Text>
+        </div>
+      </div>
+    );
+  };
+  
+  // 渲染Modal内容
+  const renderModalContent = () => {
+    if (parsing) {
+      return (
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <Spin tip="正在解析文件..." />
+        </div>
+      );
+    }
+    
+    if (importing) {
+      return renderImportProgress();
+    }
+    
+    if (importFinished) {
+      return renderImportResult();
+    }
+    
+    if (parseResult && parseResult.success && previewList.length > 0) {
+      return renderPreviewList();
+    }
+    
+    return renderUploader();
+  };
+  
   return (
     <Modal
       title={
         <div>
           <Space>
             <ImportOutlined />
-            <span>导入接口</span>
+            <span>
+              {importFinished ? '导入结果' : '导入接口'}
+            </span>
           </Space>
         </div>
       }
@@ -372,27 +647,7 @@ const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
       width={800}
       destroyOnClose
     >
-      {parseResult && parseResult.success ? renderPreviewList() : renderUploader()}
-      
-      {parsing && (
-        <div style={{ 
-          position: 'absolute', 
-          top: 0, 
-          left: 0, 
-          right: 0, 
-          bottom: 0, 
-          background: 'rgba(255, 255, 255, 0.7)', 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <Spin size="large" />
-            <div style={{ marginTop: 16 }}>正在解析文件，请稍候...</div>
-          </div>
-        </div>
-      )}
+      {renderModalContent()}
     </Modal>
   );
 };

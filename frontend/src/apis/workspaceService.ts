@@ -289,17 +289,74 @@ export const setDefaultWorkspace = async (userId: number, workspaceId: number): 
 // 工作区表相关API
 
 /**
- * 获取工作区下的所有数据库表
+ * 获取工作区下的所有数据库表，支持分页和搜索
  * @param workspaceId 工作区ID
- * @returns 数据库表列表
+ * @param page 页码，从1开始
+ * @param pageSize 每页数量
+ * @param search 搜索关键词
+ * @param returnAllItems 是否只返回表数组而不是分页对象，用于兼容旧版调用
+ * @returns 分页的数据库表列表和总数，或仅数据库表数组（当returnAllItems为true时）
  */
-export const getWorkspaceTables = async (workspaceId: number): Promise<WorkspaceTableRead[]> => {
+export const getWorkspaceTables = async <T extends boolean = false>(
+  workspaceId: number, 
+  page: number = 1, 
+  pageSize: number = 10,
+  search: string = '',
+  returnAllItems: T = false as T
+): Promise<T extends true ? WorkspaceTableRead[] : {
+  items: WorkspaceTableRead[],
+  total: number,
+  page: number,
+  page_size: number
+}> => {
   try {
-    const response = await request.get<APIResponse<WorkspaceTableRead[]>>(`/workspaces/${workspaceId}/tables`);
-    return unwrapResponse(response.data);
+    const params: Record<string, any> = { page, page_size: pageSize };
+    if (search) {
+      params.search = search;
+    }
+    
+    console.log(`获取工作区数据库表，参数:`, { workspaceId, page, pageSize, search, returnAllItems });
+    
+    const response = await request.get<APIResponse<{
+      items: WorkspaceTableRead[],
+      total: number,
+      page: number,
+      page_size: number
+    }>>(`/workspaces/${workspaceId}/tables`, { params });
+    
+    const data = unwrapResponse(response.data);
+    console.log('获取工作区数据库表响应:', data);
+    
+    // 确保items是数组
+    const result = {
+      items: Array.isArray(data.items) ? data.items : [],
+      total: data.total || 0,
+      page: data.page || 1,
+      page_size: data.page_size || pageSize
+    };
+    
+    // 根据returnAllItems参数决定返回类型
+    if (returnAllItems) {
+      console.log('仅返回数据库表数组:', result.items);
+      return result.items as any;
+    }
+    
+    return result as any;
   } catch (error) {
     console.error(`获取工作区(ID:${workspaceId})数据库表列表失败:`, error);
-    throw error;
+    // 出错时返回安全的默认值
+    const defaultResult = {
+      items: [],
+      total: 0,
+      page: page,
+      page_size: pageSize
+    };
+    
+    if (returnAllItems) {
+      return [] as any;
+    }
+    
+    return defaultResult as any;
   }
 };
 
@@ -369,17 +426,74 @@ export const deleteWorkspaceTable = async (workspaceId: number, tableId: number)
 // 工作区接口相关API
 
 /**
- * 获取工作区下的所有接口
+ * 获取工作区下的所有接口，支持分页和搜索
  * @param workspaceId 工作区ID
- * @returns 接口列表
+ * @param page 页码，从1开始
+ * @param pageSize 每页数量
+ * @param search 搜索关键词
+ * @param returnAllItems 是否只返回接口数组而不是分页对象，用于兼容旧版调用
+ * @returns 分页的接口列表和总数，或仅接口数组（当returnAllItems为true时）
  */
-export const getWorkspaceInterfaces = async (workspaceId: number): Promise<WorkspaceInterface[]> => {
+export const getWorkspaceInterfaces = async <T extends boolean = false>(
+  workspaceId: number, 
+  page: number = 1, 
+  pageSize: number = 10,
+  search: string = '',
+  returnAllItems: T = false as T
+): Promise<T extends true ? WorkspaceInterface[] : {
+  items: WorkspaceInterface[],
+  total: number,
+  page: number,
+  page_size: number
+}> => {
   try {
-    const response = await request.get<APIResponse<WorkspaceInterface[]>>(`/workspaces/${workspaceId}/interfaces`);
-    return unwrapResponse(response.data);
+    const params: Record<string, any> = { page, page_size: pageSize };
+    if (search) {
+      params.search = search;
+    }
+    
+    console.log(`获取工作区接口，参数:`, { workspaceId, page, pageSize, search, returnAllItems });
+    
+    const response = await request.get<APIResponse<{
+      items: WorkspaceInterface[],
+      total: number,
+      page: number,
+      page_size: number
+    }>>(`/workspaces/${workspaceId}/interfaces`, { params });
+    
+    const data = unwrapResponse(response.data);
+    console.log('获取工作区接口响应:', data);
+    
+    // 确保items是数组
+    const result = {
+      items: Array.isArray(data.items) ? data.items : [],
+      total: data.total || 0,
+      page: data.page || 1,
+      page_size: data.page_size || pageSize
+    };
+    
+    // 根据returnAllItems参数决定返回类型
+    if (returnAllItems) {
+      console.log('仅返回接口数组:', result.items);
+      return result.items as any;
+    }
+    
+    return result as any;
   } catch (error) {
     console.error(`获取工作区(ID:${workspaceId})接口列表失败:`, error);
-    throw error;
+    // 出错时返回安全的默认值
+    const defaultResult = {
+      items: [],
+      total: 0,
+      page: page,
+      page_size: pageSize
+    };
+    
+    if (returnAllItems) {
+      return [] as any;
+    }
+    
+    return defaultResult as any;
   }
 };
 
@@ -443,5 +557,38 @@ export const deleteWorkspaceInterface = async (workspaceId: number, interfaceId:
   } catch (error) {
     console.error(`删除工作区(ID:${workspaceId})接口(ID:${interfaceId})失败:`, error);
     throw error;
+  }
+};
+
+/**
+ * 检查工作区中是否存在相同路径和方法的接口
+ * @param workspaceId 工作区ID
+ * @param path 接口路径
+ * @param method 请求方法
+ * @param excludeId 排除的接口ID（编辑模式下使用）
+ * @returns 是否存在重复接口
+ */
+export const checkInterfaceExists = async (
+  workspaceId: number, 
+  path: string, 
+  method: string, 
+  excludeId?: number | string
+): Promise<boolean> => {
+  try {
+    const params: Record<string, any> = { path, method };
+    if (excludeId !== undefined) {
+      params.exclude_id = excludeId;
+    }
+    
+    const response = await request.get<APIResponse<boolean>>(
+      `/workspace-interfaces/workspace/${workspaceId}/check-exists`, 
+      { params }
+    );
+    
+    return unwrapResponse(response.data);
+  } catch (error) {
+    console.error(`检查接口唯一性失败:`, error);
+    // 出错时返回false，让后端验证来处理
+    return false;
   }
 }; 
