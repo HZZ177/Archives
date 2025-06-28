@@ -94,7 +94,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
         {!collapsed && (
           <>
             {isEditable && onRefresh && (
-              <Tooltip title="刷新数据库表" placement="top">
+              <Tooltip title="刷新数据库表" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
                 <Button
                   type="text"
                   icon={<ReloadOutlined />}
@@ -103,7 +103,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
                 />
               </Tooltip>
             )}
-            <Tooltip title="收起面板" placement="top">
+            <Tooltip title="收起面板" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
               <Button
                 type="text"
                 icon={<MenuFoldOutlined />}
@@ -140,7 +140,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
                   <Title level={5} className={styles.tableName}>
                     {table.name}
                     <div style={{ display: 'flex', marginLeft: 'auto' }}>
-                      <Tooltip title="查看表详情" placement="top">
+                      <Tooltip title="查看表详情" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
                         <Button
                           type="text"
                           size="small"
@@ -162,7 +162,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
                         />
                       </Tooltip>
                       {isEditable && (
-                        <Tooltip title="可拖拽到画布" placement="top">
+                        <Tooltip title="可拖拽到画布" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
                           <DragOutlined style={{ fontSize: '14px', color: '#8e7cc3' }} />
                         </Tooltip>
                       )}
