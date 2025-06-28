@@ -9,7 +9,7 @@ class Image(Base):
     """图片模型，用于存储上传的图片信息"""
     __tablename__ = "images"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True, comment="图片唯一标识符")
     filename = Column(String(255), nullable=False, comment="文件名")
     file_path = Column(String(500), nullable=False, comment="文件存储路径")
     url = Column(String(500), nullable=False, comment="图片访问URL")

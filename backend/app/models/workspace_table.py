@@ -10,17 +10,17 @@ class WorkspaceTable(Base):
     """工作区数据库表模型，用于在工作区级别统一管理数据库表"""
     __tablename__ = "workspace_tables"
     
-    id = Column(Integer, primary_key=True, index=True)
-    workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
-    name = Column(String(255), nullable=False)
-    schema_name = Column(String(255), nullable=True)
-    description = Column(Text, nullable=True)
-    columns_json = Column(JSON, nullable=False)  # 存储字段信息
-    relationships_json = Column(JSON, nullable=True)  # 存储关系信息
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # 最后修改者
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)  # 创建者
-    created_at = Column(DateTime, default=get_local_time)
-    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
+    id = Column(Integer, primary_key=True, index=True, comment="表唯一标识符")
+    workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, comment="所属工作区ID")
+    name = Column(String(255), nullable=False, comment="表名称")
+    schema_name = Column(String(255), nullable=True, comment="数据库模式名称")
+    description = Column(Text, nullable=True, comment="表描述")
+    columns_json = Column(JSON, nullable=False, comment="存储表列定义信息的JSON数组")
+    relationships_json = Column(JSON, nullable=True, comment="存储表关系信息的JSON数组")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="最后修改者的用户ID")
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False, comment="创建者的用户ID")
+    created_at = Column(DateTime, default=get_local_time, comment="创建时间")
+    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time, comment="最后更新时间")
     
     # 关系
     workspace = relationship("Workspace", back_populates="tables")
