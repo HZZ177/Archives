@@ -107,7 +107,7 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
           </div>
           {/* 右侧：操作按钮区 */}
           <div className={`node-actions${node.is_content_page ? ' content-node-actions' : ''}`} style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'static', right: 'unset', top: 'unset', transform: 'none' }} onClick={e => e.stopPropagation()}>
-            <Tooltip title={node.is_content_page ? "内容页面不可添加子节点" : "添加子模块"} placement="top">
+            <Tooltip title={node.is_content_page ? "内容页面不可添加子节点" : "添加子模块"} placement="top" color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
               <Button 
                 type="text" 
                 size="small" 
@@ -122,7 +122,7 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
                 }} 
               />
             </Tooltip>
-            <Tooltip title="删除" placement="top">
+            <Tooltip title="删除" placement="top" color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
               <Button type="text" size="small" icon={<DeleteOutlined />} className="node-action-btn" danger
                 onClick={e => { e.stopPropagation(); onDelete(node); }} />
             </Tooltip>

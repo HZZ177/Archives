@@ -189,7 +189,7 @@ function extractSchemaProperties(schema: any, definitions: any): ApiParam[] {
       type: property.type || 'string',
       required: required,
       description: property.description || '',
-      example: property.example || ''
+      example: property.example !== undefined ? String(property.example) : ''
     };
     
     // 处理引用类型
@@ -357,6 +357,6 @@ function convertParameter(param: any): ApiParam {
     type: param.type || 'string',
     required: !!param.required,
     description: param.description || '',
-    example: param.example || ''
+    example: param.example !== undefined ? String(param.example) : ''
   };
 } 

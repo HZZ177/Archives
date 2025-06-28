@@ -628,7 +628,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
                       
                     <Space>
                       {node.is_content_page && (
-                        <Tooltip title="查看内容页面">
+                        <Tooltip title="查看内容页面" color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
                           <Link to={`/module-content/${node.id}`}>
                             <Button 
                               type="default" 
