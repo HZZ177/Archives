@@ -343,7 +343,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
         
         {/* 显示搜索结果统计 */}
         {searchKeyword && !loading && currentWorkspace && (
-          <div style={{ marginBottom: 16, color: '#666' }}>
+          <div style={{ padding: '0 24px', marginBottom: 16, color: '#666' }}>
             搜索 "{searchKeyword}" 的结果: {pagination.total} 条记录
           </div>
         )}

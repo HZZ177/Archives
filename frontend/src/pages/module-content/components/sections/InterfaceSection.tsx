@@ -319,11 +319,7 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
     onChange([...interfaces, ...newInterfaces]);
     
     // 显示成功提示
-    Modal.success({
-      title: '导入成功',
-      content: `成功导入 ${newInterfaces.length} 个接口`,
-      okText: '确定'
-    });
+    message.success(`成功导入 ${newInterfaces.length} 个接口`);
     
     // 清空选择状态并关闭对话框
     setSelectedWorkspaceInterfaceIds([]);

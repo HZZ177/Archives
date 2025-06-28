@@ -9,6 +9,7 @@ import { useWorkspace } from '../../../../contexts/WorkspaceContext';
 import { getWorkspaceTables } from '../../../../apis/workspaceService';
 import { WorkspaceTable } from '../../../../types/workspace';
 import { debounce } from '../../../../utils/throttle';
+import DatabaseTableCard from './DatabaseTableCard';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -1252,6 +1253,8 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
     // 更新表格列表
     onChange([...tables, ...newTables]);
     
+    message.success(`成功导入 ${newTables.length} 个库表`);
+    
     // 清空选择状态并关闭对话框
     setSelectedWorkspaceTableIds([]);
     closeWorkspaceTableSelect();
@@ -1305,470 +1308,125 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
           </div>
         </div>
 
-        {tables.map((table, index) => {
-          const isCollapsed = collapsedTables.has(index);
-          const primaryKeyField = table.columns.find(col => col.is_primary_key);
-          const fieldsCount = table.columns.length;
-          
-          return (
-            <div 
-              key={index} 
-              className={`database-table-container${isCollapsed ? ' collapsed' : ''}`}
-              ref={index === tables.length - 1 ? newTableRef : null}
-            >
-              <div 
-                className="database-table-header"
-                onClick={() => toggleCollapse(index)}
-              >
-                <div className="database-table-icon">
-                  <DatabaseOutlined />
-                </div>
-                <div className="database-table-title">
-                  <div className="table-name">{table.name}</div>
-                  {table.description && <div className="table-description">{table.description}</div>}
-                </div>
-                {isCollapsed && (
-                  <div className="table-summary">
-                    <span>{fieldsCount} 个字段</span>
-                    {primaryKeyField && (
-                      <span className="primary-key-info">
-                        <KeyOutlined style={{ marginRight: 4 }} /> {primaryKeyField.field_name}
-                      </span>
-                    )}
-                  </div>
-                )}
-                <div className="database-table-actions">
-                  {/* 添加编辑按钮，仅当onEdit存在且isEditMode为true时显示 */}
-                  {onEdit && isEditMode && (
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation(); // 防止触发折叠/展开
-                        onEdit(index);
-                      }}
-                    >
-                      编辑
-                    </Button>
-                  )}
-                  {onDelete && isEditMode && (
-                    <Button
-                      type="text"
-                      danger
-                      size="small"
-                      icon={<DeleteOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(index);
-                      }}
-                    >
-                      删除
-                    </Button>
-                  )}
-                </div>
-                <div className="database-table-toggle">
-                  {isCollapsed ? <DownOutlined /> : <UpOutlined />}
-                </div>
-              </div>
-              <CSSTransition
-                in={!isCollapsed}
-                timeout={300}
-                classNames="table-fade"
-                unmountOnExit
-              >
-                <div className="database-table-content">
-                  <Table
-                    dataSource={table.columns}
-                    pagination={false}
-                    size="small"
-                    rowKey={(record, index) => `${index}_${index}`}
-                    columns={[
-                      {
-                        title: '字段名',
-                        dataIndex: 'field_name',
-                        key: 'field_name',
-                        width: '12%',
-                        render: (text, record) => (
-                          <div className="field-name-cell">
-                            <span className="field-name-text">{text}</span>
-                            {record.is_primary_key && (
-                              <Tooltip title="主键">
-                                <KeyOutlined className="field-primary-icon" />
-                              </Tooltip>
-                            )}
-                          </div>
-                        )
-                      },
-                      {
-                        title: '类型',
-                        dataIndex: 'field_type',
-                        key: 'field_type',
-                        width: '10%',
-                        render: (text, record) => (
-                          <span className="field-type-cell">
-                            {getFieldTypeIcon(text)}
-                            <span className="field-type-text">{text.toUpperCase()}</span>
-                          </span>
-                        )
-                      },
-                      {
-                        title: '长度',
-                        dataIndex: 'length',
-                        key: 'length',
-                        width: '10%',
-                        render: (text) => text || '-'
-                      },
-                      {
-                        title: '可否为空',
-                        dataIndex: 'nullable',
-                        key: 'nullable',
-                        width: '7%',
-                        render: (nullable) => (
-                          <span className={`nullable-status ${nullable ? 'nullable' : 'not-nullable'}`}>
-                            {nullable ? '是' : '否'}
-                          </span>
-                        )
-                      },
-                      {
-                        title: '默认值',
-                        dataIndex: 'default_value',
-                        key: 'default_value',
-                        width: '12%',
-                        render: (text) => text || '-'
-                      },
-                      {
-                        title: '主键',
-                        dataIndex: 'is_primary_key',
-                        key: 'is_primary_key',
-                        width: '7%',
-                        render: (isPrimary) => (
-                          <span className={`key-status ${isPrimary ? 'is-key' : 'not-key'}`}>
-                            {isPrimary ? '' : '-'}
-                          </span>
-                        )
-                      },
-                      {
-                        title: '索引',
-                        dataIndex: 'is_index',
-                        key: 'is_index',
-                        width: '7%',
-                        render: (isIndex) => (
-                          <span className={`index-status ${isIndex ? 'is-index' : 'not-index'}`}>
-                            {isIndex ? '' : '-'}
-                          </span>
-                        )
-                      },
-                      {
-                        title: '说明',
-                        dataIndex: 'description',
-                        key: 'description',
-                        width: '29%',
-                        render: (text) => text || '-'
-                      },
-                    ]}
-                  />
-                  <div className="database-table-footer">
-                    <Button
-                      type="primary"
-                      size="small"
-                      icon={<FileTextOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const sql = generateSql(table);
-                        Modal.info({
-                          title: `${table.name} SQL定义`,
-                          content: (
-                            <pre style={{ maxHeight: '400px', overflow: 'auto' }}>
-                              {sql}
-                            </pre>
-                          ),
-                          width: 800,
-                        });
-                      }}
-                    >
-                      查看SQL
-                    </Button>
-                  </div>
-                </div>
-              </CSSTransition>
-            </div>
-          );
-        })}
+        {tables.map((table, index) => (
+          <DatabaseTableCard
+            key={index}
+            data={table}
+            isCollapsed={collapsedTables.has(index)}
+            onToggleCollapse={() => toggleCollapse(index)}
+            onEdit={onEdit ? () => onEdit(index) : undefined}
+            onDelete={onDelete ? () => onDelete(index) : undefined}
+            isEditMode={!!isEditMode}
+          />
+        ))}
       </div>
     );
   };
 
-  // 修改renderEditMode函数，添加从资源池导入库表的按钮
+  // 编辑模式下的渲染
   const renderEditMode = () => {
-    return (
-      <div className="database-tables-section-content">
-        {/* 顶部操作栏 - 仅在hideTableHeader为false时显示 */}
-        {!hideTableHeader && (
-          <div className="database-tables-header">
-            <div className="database-tables-count">
-              共 {tables.length} 个数据表
-            </div>
-            <div className="database-tables-actions">
-              {/* 工作区表选择按钮 */}
-              {enableWorkspaceTableSelection && (
+    // 在编辑模式下，我们通常只处理一个表
+    const table = tables[0];
+    const tableIndex = 0;
+    
+    if (!table) {
+      return (
+        <div className="db-editor-container">
+            <div className="db-editor-actions">
                 <Button 
-                  type="default"
-                  size="small"
-                  icon={<SelectOutlined />}
-                  onClick={openWorkspaceTableSelect}
-                  style={{ marginRight: 8 }}
-                  className="database-action-button"
+                type="primary" 
+                icon={<PlusOutlined />}
+                onClick={handleAddTable}
                 >
-                  从资源池导入库表
+                添加一个新表以开始
                 </Button>
-              )}
-              
-              {/* 其他按钮 - 只在 showActionButtons 为 true 时显示 */}
-              {showActionButtons && (
-                <>
-                  <Button 
-                    type="default"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={handleAddTable}
-                    style={{ marginRight: 8 }}
-                    className="database-action-button"
-                  >
-                    添加表
-                  </Button>
-                  <Button 
-                    type="default"
-                    size="small"
-                    icon={<ImportOutlined />}
-                    onClick={showSqlImportModal}
-                    style={{ marginRight: 8 }}
-                    className="database-action-button"
-                  >
-                    导入SQL
-                  </Button>
-                </>
-              )}
-              
-              {/* 展开/折叠按钮 */}
-              <Button 
-                type="default"
-                size="small"
-                onClick={() => {
-                  setCollapsedTables(new Set());
-                }}
-                className="expand-all-button database-action-button"
-                icon={<ExpandOutlined />}
-              >
-                全部展开
-              </Button>
-              <Button 
-                type="default"
-                size="small"
-                onClick={() => {
-                  setCollapsedTables(new Set(tables.map((_, index) => index)));
-                }}
-                className="collapse-all-button database-action-button"
-                icon={<CompressOutlined />}
-              >
-                全部折叠
-              </Button>
             </div>
-          </div>
-        )}
+        </div>
+      );
+    }
 
-        {/* 空状态 */}
-        {tables.length === 0 ? (
-          <Empty description="暂无数据表，请添加一个。">
-            <div ref={newTableRef}></div>
-          </Empty>
-        ) : (
-          // 表格列表
-          tables.map((table, index) => {
-            const isCollapsed = collapsedTables.has(index);
-            const primaryKeyField = table.columns.find(col => col.is_primary_key);
-            const fieldsCount = table.columns.length;
-            const errors = validationErrors[index] || {};
-            
-            return (
-              <div 
-                key={index} 
-                className={`database-table-container${isCollapsed ? ' collapsed' : ''}`}
-                ref={index === tables.length - 1 ? newTableRef : null}
-              >
-                {/* 表头部分 */}
-                <div 
-                  className="database-table-header"
-                  onClick={() => toggleCollapse(index)}
-                >
-                  <div className="database-table-icon">
-                    <DatabaseOutlined />
-                  </div>
-                  <div className="database-table-title">
-                    {/* 编辑模式下显示输入框 */}
-                    <Form layout="inline" style={{ margin: 0 }}>
-                      <Form.Item
-                        validateStatus={errors.name ? 'error' : ''}
-                        help={errors.name}
-                        style={{ marginBottom: 0, marginRight: 8 }}
-                      >
-                        <Input
-                          value={table.name}
-                          onChange={(e) => handleTableChange(index, { name: e.target.value })}
-                          placeholder="表名"
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ width: 150 }}
-                        />
-                      </Form.Item>
-                      <Form.Item style={{ marginBottom: 0 }}>
-                        <Input
-                          value={table.description || ''}
-                          onChange={(e) => handleTableChange(index, { description: e.target.value })}
-                          placeholder="表描述"
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ width: 200 }}
-                        />
-                      </Form.Item>
-                    </Form>
-                  </div>
-                  {isCollapsed && (
-                    <div className="table-summary">
-                      <span>{fieldsCount} 个字段</span>
-                      {primaryKeyField && (
-                        <span className="primary-key-info">
-                          <KeyOutlined style={{ marginRight: 4 }} /> {primaryKeyField.field_name}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  <div className="database-table-actions">
-                    {/* 查看SQL按钮 */}
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<FileTextOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const sql = generateSql(table);
-                        Modal.info({
-                          title: `${table.name} SQL定义`,
-                          content: (
-                            <pre style={{ maxHeight: '400px', overflow: 'auto' }}>
-                              {sql}
-                            </pre>
-                          ),
-                          width: 800,
-                        });
-                      }}
-                    >
-                      查看SQL
-                    </Button>
-                    
-                    {/* 添加编辑按钮，仅当onEdit存在且isEditMode为true时显示 */}
-                    {onEdit && isEditMode && (
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation(); // 防止触发折叠/展开
-                          onEdit(index);
-                        }}
-                      >
-                        编辑
-                      </Button>
-                    )}
-                    
-                    {/* 根据showClearButton属性决定显示清空按钮还是删除按钮 */}
-                    {showClearButton ? (
-                      <Button
-                        type="text"
-                        danger
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleClearTable(index);
-                        }}
-                      >
-                        清空
-                      </Button>
-                    ) : (
-                      <Button
-                        type="text"
-                        danger
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteTable(index);
-                        }}
-                      >
-                        删除
-                      </Button>
-                    )}
-                  </div>
-                  {/* 根据hideToggleButton属性决定是否显示收起/展开按钮 */}
-                  {!hideToggleButton && (
-                    <div className="database-table-toggle">
-                      {isCollapsed ? <DownOutlined /> : <UpOutlined />}
-                    </div>
-                  )}
-                </div>
-                
-                {/* 表内容部分 */}
-                <CSSTransition
-                  in={!isCollapsed}
-                  timeout={300}
-                  classNames="table-fade"
-                  unmountOnExit
-                >
-                  <div className="database-table-content">
-                    <Table
-                      columns={getColumns(index, handleColumnChange, deleteColumn, validationErrors)}
-                      dataSource={table.columns.map((col, colIndex) => ({ ...col, key: colIndex }))}
-                      pagination={false}
-                      size="small"
-                      rowKey={(record, idx) => `${index}_${idx}`}
-                      footer={() => (
+    const errors = validationErrors[tableIndex] || {};
+
+    return (
+        <div className="db-editor-container">
+            <div className="db-editor-header">
+                <Form layout="vertical">
+                    <Row gutter={24}>
+                        <Col span={8}>
+                            <Form.Item
+                                label="表名"
+                                required
+                                validateStatus={errors.name ? 'error' : ''}
+                                help={errors.name || ''}
+                            >
+                                <Input
+                                    value={table.name}
+                                    onChange={(e) => handleTableChange(tableIndex, { name: e.target.value })}
+                                    placeholder="请输入表名，如 users"
+                                />
+                            </Form.Item>
+                        </Col>
+                        <Col span={10}>
+                            <Form.Item label="表描述">
+                                <Input
+                                    value={table.description}
+                                    onChange={(e) => handleTableChange(tableIndex, { description: e.target.value })}
+                                    placeholder="请输入表描述，如 用户信息表"
+                                />
+                            </Form.Item>
+                        </Col>
+                        <Col span={6} style={{ textAlign: 'right', alignSelf: 'center' }}>
+                            <Space>
+                                <Button
+                                    icon={<FileTextOutlined />}
+                                    onClick={() => {
+                                        const sql = generateSql(table);
+                                        Modal.info({
+                                            title: `SQL 定义 - ${table.name}`,
+                                            content: <pre style={{ maxHeight: '400px', overflow: 'auto' }}>{sql}</pre>,
+                                            width: 800,
+                                        });
+                                    }}
+                                >
+                                    查看SQL
+                                </Button>
+                                {showClearButton && (
+                                    <Button
+                                        icon={<DeleteOutlined />}
+                                        danger
+                                        onClick={() => handleClearTable(tableIndex)}
+                                    >
+                                        清空
+                                    </Button>
+                                )}
+                            </Space>
+                        </Col>
+                    </Row>
+                </Form>
+            </div>
+
+            <div className="db-editor-table-wrapper">
+                <Table
+                    columns={getColumns(tableIndex, handleColumnChange, deleteColumn, validationErrors)}
+                    dataSource={table.columns.map((col, colIndex) => ({ ...col, key: `col-${colIndex}` }))}
+                    pagination={false}
+                    size="middle"
+                    rowKey="key"
+                    footer={() => (
                         <Button
-                          type="dashed"
-                          onClick={() => addColumn(index)}
-                          style={{ width: '100%' }}
-                          icon={<PlusOutlined />}
+                            type="dashed"
+                            onClick={() => addColumn(tableIndex)}
+                            style={{ width: '100%' }}
+                            icon={<PlusOutlined />}
                         >
-                          添加字段
+                            添加字段
                         </Button>
-                      )}
-                    />
-                  </div>
-                </CSSTransition>
-              </div>
-            );
-          })
-        )}
-
-        {/* SQL导入模态框 */}
-        <Modal
-          title="导入SQL"
-          open={sqlImportModalVisible}
-          onOk={handleSqlImport}
-          onCancel={closeSqlImportModal}
-          width={800}
-        >
-          <div style={{ marginBottom: 16 }}>
-            <Button onClick={fillExampleSql}>填充示例SQL</Button>
-          </div>
-          <TextArea
-            value={sqlInput}
-            onChange={(e) => setSqlInput(e.target.value)}
-            placeholder="请输入CREATE TABLE语句..."
-            rows={10}
-          />
-        </Modal>
-    </div>
-  );
-};
+                    )}
+                />
+            </div>
+        </div>
+    );
+  };
 
   // 渲染主要内容
   const mainContent = isEditMode && !readOnlyInEditMode ? renderEditMode() : renderReadMode();

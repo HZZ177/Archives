@@ -305,29 +305,23 @@
 }
 
 .api-interface-card {
-  margin-bottom: 8px; /* 减少卡片间距 */
-  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
-  border-radius: 6px; /* 减小圆角 */
-  width: 100%; /* 确保卡片宽度为100% */
-  box-sizing: border-box; /* 包含padding和border在内的宽度计算 */
-}
-
-.api-interface-card.collapsed {
-  border: 1px solid #e8e8e8;
-}
-
-.api-interface-card.collapsed:hover {
-  border-color: #e8e8e8;
-  box-shadow: none;
-}
-
-.api-interface-card.expanded {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 1px solid #d9d9d9;
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s;
+  margin-bottom: 8px;
 }
 
 .api-interface-card:hover {
+  border-color: #d9d9d9;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+}
+
+.api-interface-card.expanded {
+  border-color: #d9d9d9;
+}
+
+.api-card-container {
+  border-radius: 8px; /* 匹配 antd卡片的圆角 */
+  overflow: hidden; /* 裁剪内部元素的直角 */
 }
 
 .api-card-collapsed {
@@ -2807,4 +2801,177 @@
 .api-card-path-wrapper:hover .api-card-path-icon {
   opacity: 1;
   color: #1890ff;
+}
+
+.api-param-empty {
+    text-align: center;
+    padding: 24px;
+    color: #8c8c8c;
+    background-color: #fafafa;
+    border-radius: 4px;
+}
+
+/* ================================== */
+/* ====== Database Table Card ======= */
+/* ================================== */
+
+.db-table-card {
+    margin-bottom: 12px;
+    transition: all 0.3s;
+    border: 1px solid #f0f0f0;
+}
+
+.db-table-card:hover {
+    border-color: #d9d9d9;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+}
+
+.db-table-card.expanded {
+    border-color: #d9d9d9;
+}
+
+.db-table-card-container {
+    display: flex;
+    flex-direction: column;
+    border-radius: 8px; /* 匹配 antd卡片的圆角 */
+    overflow: hidden; /* 裁剪内部元素的直角 */
+}
+
+.db-table-card-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.db-table-card-header:hover {
+    background-color: #fafafa;
+}
+
+.db-table-card-icon-container {
+    font-size: 24px;
+    color: #1890ff;
+    margin-right: 16px;
+    display: flex;
+    align-items: center;
+}
+
+.db-table-card-content {
+    flex: 1;
+    min-width: 0; /*  对于flex item, 防止内容溢出 */
+    margin-right: 16px; /* 在内容和右侧面板之间添加一些间距 */
+}
+
+.db-table-card-title-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.db-table-card-title-text {
+    font-size: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* max-width: 300px;  不再需要固定宽度，因为它会自适应 */
+    margin-bottom: 4px; /* 在标题和描述之间添加间距 */
+}
+
+.db-table-card-tags {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.db-table-card-desc {
+    font-size: 13px;
+    color: #8c8c8c;
+}
+
+.db-table-card-right-panel {
+    display: flex;
+    align-items: center;
+    gap: 16px; /* 在标签和操作按钮之间添加间距 */
+}
+
+.db-table-card-actions {
+    display: flex;
+    align-items: center;
+    /* margin-left: 24px; 不再需要 */
+}
+
+.db-table-card-icon-buttons {
+    display: flex;
+    align-items: center;
+    margin-left: 8px;
+    border-left: 1px solid #f0f0f0;
+    padding-left: 8px;
+}
+
+.db-table-card-icon-button {
+    color: #8c8c8c;
+    transition: color 0.3s;
+}
+
+.db-table-card-icon-button:hover {
+    color: #1890ff;
+}
+
+.db-table-card-icon-button.delete-button:hover {
+    color: #ff4d4f;
+}
+
+.db-table-card-details-container {
+    padding: 0 16px 16px 16px;
+    border-top: 1px solid #f0f0f0;
+    background-color: #fdfdfd;
+}
+
+.db-table-card .ant-table-small {
+    border: none;
+}
+
+/* ================================== */
+/* ====== DB Editor Modal Styles ====== */
+/* ================================== */
+
+.db-editor-container {
+    background-color: #fff;
+    padding: 1px; /* 微调以防止外边距折叠 */
+}
+
+.db-editor-header {
+    background-color: #f7f8fa;
+    padding: 16px 24px;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px 8px 0 0;
+}
+
+.db-editor-header .ant-form-item {
+    margin-bottom: 0;
+}
+
+.db-editor-table-wrapper {
+    padding: 16px;
+    border: 1px solid #e8e8e8;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+}
+
+/* 微调表格样式 */
+.db-editor-table-wrapper .ant-table-thead > tr > th {
+    background-color: #fafafa !important;
+    font-weight: 500;
+}
+
+.db-editor-table-wrapper .ant-table-tbody > tr > td {
+    vertical-align: middle;
+}
+
+.db-editor-table-wrapper .ant-table-footer {
+    background: #fff;
+    padding: 12px;
 }

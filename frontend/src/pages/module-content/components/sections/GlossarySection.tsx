@@ -1,13 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Button, Input, Collapse, Form, Modal, Space, Empty, message } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, RightOutlined, DownOutlined } from '@ant-design/icons';
+import { Button, Input, Form, Modal, Space, Empty, message } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, BookOutlined } from '@ant-design/icons';
 import { MdEditor, MdPreview } from 'md-editor-rt';
 import 'md-editor-rt/lib/style.css';
 import axios from 'axios';
 import { API_BASE_URL } from '../../../../config/constants';
 import './GlossarySection.css';
-
-const { Panel } = Collapse;
 
 // 为 MdEditor 创建一个适配 Antd Form 的包装器
 const MdEditorWrapper = ({ value, onChange, ...rest }: any) => {
@@ -26,6 +24,62 @@ interface GlossarySectionProps {
   isEditable?: boolean;
 }
 
+interface GlossaryItemCardProps {
+  item: GlossaryItem;
+  isEditable: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+const GlossaryItemCard: React.FC<GlossaryItemCardProps> = ({ item, isEditable, onEdit, onDelete }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleCardClick = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  return (
+    <div className={`glossary-card ${isExpanded ? 'expanded' : ''}`} onClick={handleCardClick}>
+      <div className="glossary-card-header">
+        <div className="glossary-term-container">
+          <BookOutlined />
+          <span className="glossary-term">{item.term}</span>
+        </div>
+        {isEditable && (
+          <Space className="glossary-card-actions" onClick={handleActionClick}>
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={onEdit}
+            />
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={onDelete}
+            />
+          </Space>
+        )}
+      </div>
+      {isExpanded && (
+        <div className="glossary-card-body" onClick={handleActionClick}>
+          <MdPreview
+            editorId={`preview-${item.id}`}
+            modelValue={item.explanation}
+            previewTheme="github"
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
 const GlossarySection: React.FC<GlossarySectionProps> = ({ 
   content = [], 
   onChange, 
@@ -34,7 +88,6 @@ const GlossarySection: React.FC<GlossarySectionProps> = ({
   const [searchValue, setSearchValue] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<GlossaryItem | null>(null);
-  const [activeKey, setActiveKey] = useState<string[]>([]);
   const [form] = Form.useForm();
   const [editorId] = useState('glossary-editor-' + Date.now());
 
@@ -83,51 +136,6 @@ const GlossarySection: React.FC<GlossarySectionProps> = ({
     onChange(newContent);
   };
   
-  // 格式化术语ID（如123321）为适当的显示格式
-  const formatTerm = (term: string) => {
-    return <span>{term}</span>;
-  };
-  
-  const renderPanelHeader = (item: GlossaryItem) => {
-    const isActive = activeKey.includes(item.id);
-    
-    return (
-      <div className="panel-header">
-        <div className="panel-term-container">
-          <span className="panel-icon">{isActive ? <DownOutlined /> : <RightOutlined />}</span>
-          <span className="panel-term">{formatTerm(item.term)}</span>
-        </div>
-        {isEditable && (
-          <Space className="panel-actions">
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={(e) => {
-                e.stopPropagation();
-                showModal(item);
-              }}
-            />
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(item.id);
-              }}
-            />
-          </Space>
-        )}
-      </div>
-    );
-  };
-
-  const handleCollapseChange = (keys: string | string[]) => {
-    setActiveKey(Array.isArray(keys) ? keys : [keys]);
-  };
-
   // 处理图片上传
   const handleUploadImage = async (files: File[], callback: (urls: string[]) => void) => {
     try {
@@ -181,29 +189,17 @@ const GlossarySection: React.FC<GlossarySectionProps> = ({
       </div>
       
       {filteredContent.length > 0 ? (
-        <Collapse 
-          activeKey={activeKey}
-          onChange={handleCollapseChange}
-          className="glossary-collapse"
-          expandIcon={() => null} // 我们自定义展开图标
-        >
+        <div className="glossary-list">
           {filteredContent.map(item => (
-            <Panel 
-              header={renderPanelHeader(item)} 
-              key={item.id} 
-              className="glossary-panel"
-              showArrow={false}
-            >
-              <div className="glossary-explanation">
-                <MdPreview
-                  editorId={`preview-${item.id}`}
-                  modelValue={item.explanation}
-                  previewTheme="github"
-                />
-              </div>
-            </Panel>
+            <GlossaryItemCard
+              key={item.id}
+              item={item}
+              isEditable={isEditable}
+              onEdit={() => showModal(item)}
+              onDelete={() => handleDelete(item.id)}
+            />
           ))}
-        </Collapse>
+        </div>
       ) : (
         <Empty description={searchValue ? "未找到匹配的术语" : "暂无术语，请添加"} />
       )}
