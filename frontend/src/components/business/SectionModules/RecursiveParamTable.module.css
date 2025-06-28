@@ -1,0 +1,75 @@
+.paramTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 14px;
+  table-layout: fixed;
+}
+
+.paramTable th {
+  background-color: #fafafa;
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 500;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.paramTable td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: top;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.nameColumn {
+  width: 30%;
+}
+
+.typeCell {
+  width: 15%;
+}
+
+.requiredColumn {
+  width: 10%;
+  text-align: center;
+}
+
+.descriptionColumn {
+  width: 45%;
+}
+
+.nameCell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.expandButton {
+  padding: 0 4px !important;
+  margin-right: 4px;
+  height: 22px;
+  width: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nestedRow {
+  background-color: #fafafa;
+}
+
+.nestedRow:hover {
+  background-color: #f5f5f5;
+}
+
+.objectName {
+  color: #1890ff;
+}
+
+.noParams {
+  text-align: center;
+  color: #999;
+  padding: 16px;
+} 

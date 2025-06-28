@@ -1039,6 +1039,9 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                         moduleNodeId={moduleNodeId}
                         isEditable={isEditMode}
                         diagramType="business"
+                        showResourcePanel={true}
+                        apiInterfaces={apiInterfaces}
+                        databaseTables={databaseTables}
                       />
                     </div>
                   );
@@ -1165,6 +1168,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                         moduleNodeId={moduleNodeId}
                         isEditable={isEditMode}
                         diagramType="tableRelation"
+                        databaseTables={databaseTables}
                       />
                     </div>
                   );

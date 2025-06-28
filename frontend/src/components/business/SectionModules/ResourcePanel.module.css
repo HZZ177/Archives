@@ -1,4 +1,4 @@
-.databaseTablePanel {
+.resourcePanel {
   position: absolute;
   left: 0;
   top: 0;
@@ -61,6 +61,18 @@
   top: 0;
   z-index: 10;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
 }
 
 .collapsed .header {
@@ -188,6 +200,77 @@
   margin-bottom: 16px;
 }
 
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 transparent;
+}
+
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background-color: #d9d9d9;
+  border-radius: 3px;
+}
+
+/* 资源类型选择器 */
+.resourceTypeSelector {
+  padding: 8px 12px;
+  background-color: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: center;
+}
+
+.resourceTypeTabs {
+  width: 100%;
+}
+
+/* 移除card类型tabs的默认边框和背景色 */
+.resourceTypeTabs :global(.ant-tabs-card .ant-tabs-nav .ant-tabs-tab) {
+  border: none;
+  background: transparent;
+  margin-right: 0;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.3s;
+  padding: 6px 12px;
+}
+
+.resourceTypeTabs :global(.ant-tabs-card .ant-tabs-nav .ant-tabs-tab-active) {
+  background-color: rgba(142, 124, 195, 0.1);
+  border: none;
+}
+
+.resourceTypeTabs :global(.ant-tabs-card .ant-tabs-tab-active .ant-tabs-tab-btn) {
+  color: #8e7cc3;
+  font-weight: 500;
+}
+
+.resourceTypeTabs :global(.ant-tabs-card .ant-tabs-content) {
+  margin-top: -16px;
+}
+
+.resourceTypeTabs :global(.ant-tabs-card .ant-tabs-content > .ant-tabs-tabpane) {
+  background: #fff;
+  padding: 0;
+}
+
+.resourceTypeTabs :global(.ant-tabs-card .ant-tabs-nav::before) {
+  display: none;
+}
+
+.resourceTypeTabs :global(.ant-tabs-nav) {
+  margin-bottom: 0;
+}
+
 /* 搜索框容器 */
 .searchContainer {
   padding: 8px 12px;
@@ -228,28 +311,8 @@
   background-color: #fafafa;
 }
 
-.content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-  scrollbar-width: thin;
-  scrollbar-color: #d9d9d9 transparent;
-}
-
-.content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.content::-webkit-scrollbar-thumb {
-  background-color: #d9d9d9;
-  border-radius: 3px;
-}
-
-.tableCard {
+/* 通用资源卡片样式 */
+.resourceCard {
   margin-bottom: 12px;
   cursor: grab;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -260,20 +323,42 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
-.tableCard:hover {
+.resourceCard:hover {
   box-shadow: 0 6px 16px rgba(142, 124, 195, 0.15);
   transform: translateY(-2px);
   border-color: #e6f7ff;
 }
 
-.tableCard:active {
+.resourceCard:active {
   cursor: grabbing;
   transform: translateY(0);
   box-shadow: 0 2px 8px rgba(142, 124, 195, 0.2);
-  border-color: #8e7cc3;
 }
 
-.tableName {
+/* 数据库表卡片特定样式 */
+.tableCard {
+  /* 移除左边框色条 */
+}
+
+.tableCard:active {
+  /* 保留活动状态样式，但不指定边框颜色 */
+}
+
+/* 接口卡片特定样式 */
+.interfaceCard {
+  /* 移除左边框色条 */
+}
+
+.interfaceCard:hover {
+  box-shadow: 0 6px 16px rgba(24, 144, 255, 0.15);
+}
+
+.interfaceCard:active {
+  /* 保留活动状态但不指定边框颜色 */
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+}
+
+.resourceName {
   margin: 0 !important;
   font-size: 15px !important;
   font-weight: 600 !important;
@@ -284,7 +369,8 @@
   gap: 6px;
 }
 
-.tableName::before {
+/* 为数据库表名称添加圆点装饰 */
+.tableCard .resourceName::before {
   content: '';
   display: inline-block;
   width: 8px;
@@ -295,7 +381,17 @@
   margin-right: 6px;
 }
 
-.tableDescription {
+.interfacePath {
+  font-size: 14px;
+  color: #333;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.resourceDescription {
   margin-top: 6px !important;
   margin-bottom: 8px !important;
   font-size: 13px !important;
@@ -303,7 +399,7 @@
   line-height: 1.5;
 }
 
-.tableInfo {
+.resourceInfo {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -312,22 +408,30 @@
   margin-top: 8px;
 }
 
-.fieldCount {
+.resourceDetail {
   display: flex;
   align-items: center;
   gap: 4px;
   color: #8c8c8c;
 }
 
+.contentType {
+  font-family: monospace;
+  color: #389e0d;
+  background-color: #f6ffed;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
 .readOnly {
-  opacity: 0.85;
   cursor: default;
-  background-color: #fafafa;
+  opacity: 0.8;
 }
 
 .readOnly:hover {
   transform: none;
-  box-shadow: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
   border-color: #f0f0f0;
 }
 
@@ -336,13 +440,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
-  color: #8c8c8c;
-  text-align: center;
+  padding: 40px 0;
+  color: #bfbfbf;
 }
 
 .emptyIcon {
-  font-size: 36px;
-  color: #d9d9d9;
+  font-size: 48px;
   margin-bottom: 16px;
 } 

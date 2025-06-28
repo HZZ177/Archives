@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
 import { Excalidraw, MainMenu, convertToExcalidrawElements } from '@excalidraw/excalidraw';
-import { Button, message, Modal, Popover } from 'antd';
-import { ZoomInOutlined } from '@ant-design/icons';
+import { Button, message, Modal, Popover, Tag, Tooltip, Badge } from 'antd';
+import { ZoomInOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import { getDiagram, fetchModuleContent } from '../../../apis/moduleService';
 import { DiagramData } from '../../../types/diagram';
-import { DatabaseTable } from '../../../types/modules';
+import { DatabaseTable, ApiInterfaceCard } from '../../../types/modules';
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import DatabaseTablePanel from './DatabaseTablePanel';
+import ResourcePanel from './ResourcePanel';
 import DatabaseTableDetail from './DatabaseTableDetail';
+import RecursiveParamTable from './RecursiveParamTable';
 import styles from './DiagramEditor.module.css';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 
@@ -23,6 +25,9 @@ interface DiagramEditorProps {
   moduleId: number;
   isEditable?: boolean;
   diagramType?: 'business' | 'tableRelation'; // 添加图表类型参数
+  showResourcePanel?: boolean; // 新增：是否显示资源面板
+  apiInterfaces?: ApiInterfaceCard[]; // 新增：接口资源数据
+  databaseTables?: DatabaseTable[]; // 新增：数据库表数据，允许从外部传入
 }
 
 // 定义父组件调用的接口
@@ -34,6 +39,9 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   moduleId,
   isEditable = true,
   diagramType = 'business', // 默认为业务流程图
+  showResourcePanel = false, // 默认不显示资源面板
+  apiInterfaces = [], // 默认空接口列表
+  databaseTables: propDatabaseTables = [] // 重命名为propDatabaseTables以避免与状态变量冲突
 }, ref) => {
   const [initialData, setInitialData] = useState<DiagramData | null>(null);
   const [diagramData, setDiagramData] = useState<DiagramData | null>(null);
@@ -42,6 +50,8 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedTable, setSelectedTable] = useState<DatabaseTable | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedInterface, setSelectedInterface] = useState<ApiInterfaceCard | null>(null);
+  const [interfaceDetailModalVisible, setInterfaceDetailModalVisible] = useState(false);
   const excalApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const previewApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,10 +62,17 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
   // 在 useEffect 中添加日志
   useEffect(() => {
     loadDiagramData();
-    if (diagramType === 'tableRelation') {
-      loadDatabaseTables();
+    // 仅在表关系图模式或启用资源面板时加载数据库表
+    if (diagramType === 'tableRelation' || (diagramType === 'business' && showResourcePanel)) {
+      // 如果外部传入了数据库表数据，则直接使用
+      if (propDatabaseTables && propDatabaseTables.length > 0) {
+        setDatabaseTables(propDatabaseTables);
+      } else {
+        // 否则通过API获取
+        loadDatabaseTables();
+      }
     }
-  }, [moduleId, diagramType]); // 添加diagramType作为依赖项
+  }, [moduleId, diagramType, showResourcePanel, propDatabaseTables]); // 添加propDatabaseTables作为依赖项
 
   // 加载数据库表数据
   const loadDatabaseTables = async () => {
@@ -108,11 +125,13 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
 
   // 监听编辑模式变化，在进入编辑模式时自动刷新数据库表
   useEffect(() => {
-    // 仅当进入编辑模式且为表关系图类型时自动刷新数据库表
-    if (isEditable && diagramType === 'tableRelation') {
+    // 仅当进入编辑模式且为表关系图类型或启用资源面板时自动刷新数据库表
+    // 且没有外部传入的数据库表数据时，才通过API获取
+    if (isEditable && (diagramType === 'tableRelation' || (diagramType === 'business' && showResourcePanel)) && 
+        (!propDatabaseTables || propDatabaseTables.length === 0)) {
       refreshDatabaseTables();
     }
-  }, [isEditable, diagramType, refreshDatabaseTables]); // 依赖于isEditable、diagramType和refreshDatabaseTables
+  }, [isEditable, diagramType, showResourcePanel, refreshDatabaseTables, propDatabaseTables]); // 依赖项增加propDatabaseTables
 
   // 处理滚轮缩放（使用原生WheelEvent）
   const handleWheel = useCallback((event: WheelEvent) => {
@@ -441,6 +460,21 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
       return;
     }
     event.dataTransfer.setData('application/json', JSON.stringify(table));
+    // 设置拖拽类型为数据库表
+    event.dataTransfer.setData('resource-type', 'database-table');
+    event.dataTransfer.effectAllowed = 'copy';
+  };
+
+  // 新增：处理接口资源拖拽开始
+  const handleInterfaceDragStart = (api: ApiInterfaceCard, event: React.DragEvent<HTMLDivElement>) => {
+    // 仅在编辑模式下允许拖拽
+    if (!isEditable) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer.setData('application/json', JSON.stringify(api));
+    // 设置拖拽类型为接口资源
+    event.dataTransfer.setData('resource-type', 'api-interface');
     event.dataTransfer.effectAllowed = 'copy';
   };
 
@@ -460,9 +494,10 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
       }
       
       try {
-    
-        const tableData = JSON.parse(event.dataTransfer.getData('application/json'));
-        debug('解析的表数据', tableData);
+        // 获取拖拽的资源类型
+        const resourceType = event.dataTransfer.getData('resource-type') || 'database-table'; // 默认为数据库表
+        const resourceData = JSON.parse(event.dataTransfer.getData('application/json'));
+        debug('解析的资源数据', resourceData);
         
         // 获取画布坐标系中的放置位置
         const { clientX, clientY } = event;
@@ -481,9 +516,42 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
         const sceneX = (clientX - rect.left) / zoom - scrollX;
         const sceneY = (clientY - rect.top) / zoom - scrollY;
         
-        const elementWidth = 200;
-        const elementHeight = 120;
+        // 根据资源类型设置不同的元素样式和数据
+        let elementWidth = 200;
+        let elementHeight = 120;
+        let backgroundColor = "#fff9c4"; // 默认颜色（数据库表）
+        let strokeColor = "#000000";
+        let label = '';
+        let customData = {};
 
+        if (resourceType === 'database-table') {
+          // 数据库表样式
+          backgroundColor = "#fff9c4"; // 便利贴黄色
+          label = `${resourceData.name}\n\n${resourceData.description || '无描述'}\n\n字段数量: ${resourceData.columns?.length || 0}`;
+          customData = {
+            tableName: resourceData.name,
+            columnsCount: resourceData.columns?.length || 0,
+            tableData: JSON.stringify(resourceData) // 保留完整数据以备后用
+          };
+        } else if (resourceType === 'api-interface') {
+          // 接口资源样式
+          backgroundColor = "#e6f7ff"; // 浅蓝色
+          const methodColor = getApiMethodColor(resourceData.method);
+          strokeColor = methodColor.border;
+          
+          label = `${resourceData.method} ${resourceData.path}\n\n${resourceData.description || '无描述'}`;
+          customData = {
+            interfaceId: resourceData.id,
+            interfacePath: resourceData.path,
+            interfaceMethod: resourceData.method,
+            interfaceData: JSON.stringify(resourceData) // 保留完整数据以备后用
+          };
+          
+          // 接口卡片尺寸调整
+          elementWidth = 240;
+          elementHeight = 100;
+        }
+        
         const x = sceneX - elementWidth / 2;
         const y = sceneY - elementHeight / 2;
         
@@ -497,20 +565,20 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
             y: y,
             width: elementWidth,
             height: elementHeight,
-            backgroundColor: "#fff9c4", // 便利贴黄色
-            strokeColor: "#000000", // 黑色描边
+            backgroundColor: backgroundColor,
+            strokeColor: strokeColor,
             strokeWidth: 1,
             fillStyle: "solid" as const, // 实心填充
-            strokeStyle: "solid" as const, // 朴素线条
+            strokeStyle: resourceType === 'api-interface' ? "dashed" as const : "solid" as const, // 接口使用虚线，表使用实线
+            roundness: { type: 3, value: 25 }, // 所有元素都使用圆角，type=3表示所有角都是圆角，value=25表示圆角半径
+            roughness: 0, // 使用朴素风格（Architect）
             label: {
-              text: `${tableData.name}\n\n${tableData.description || '无描述'}\n\n字段数量: ${tableData.columns?.length || 0}`,
+              text: label,
               fontSize: 16,
+              fontFamily: 2, // 尝试使用值2来设置正常字体
             },
-            customData: {
-              tableName: tableData.name,
-              columnsCount: tableData.columns?.length || 0,
-              tableData: JSON.stringify(tableData) // 保留完整数据以备后用
-            }
+            fontFamily: 2, // 设置元素本身的字体为正常字体
+            customData: customData
           }
         ];
         
@@ -536,7 +604,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           });
           
           debug('元素已添加到画布');
-          message.success('表已添加到画布');
+          message.success(`${resourceType === 'database-table' ? '表' : '接口'}已添加到画布`);
           
           // 如果是在预览模式下添加的元素，同步到主数据
           if (isPreview && isEditable) {
@@ -614,23 +682,58 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
     </MainMenu>
   ), []);
 
+  // 获取API方法对应的颜色
+  const getApiMethodColor = (method?: string) => {
+    if (!method) return { bg: '#e6f7ff', border: '#1890ff' };
+    
+    const methodColors: Record<string, { bg: string, border: string }> = {
+      'GET': { bg: '#f6ffed', border: '#52c41a' },
+      'POST': { bg: '#e6f7ff', border: '#1890ff' },
+      'PUT': { bg: '#fff7e6', border: '#fa8c16' },
+      'DELETE': { bg: '#fff1f0', border: '#f5222d' },
+      'PATCH': { bg: '#f9f0ff', border: '#722ed1' }
+    };
+    
+    return methodColors[method.toUpperCase()] || { bg: '#e6f7ff', border: '#1890ff' };
+  };
+
   return (
     <div className={styles.diagramEditorContainer}>
-      {/* 数据库表侧边面板 - 仅在表关系图类型和编辑模式下显示 */}
-      {diagramType === 'tableRelation' && isEditable && (
-        <DatabaseTablePanel
-          databaseTables={databaseTables}
-          onDragStart={handleTableDragStart}
-          collapsed={sidebarCollapsed}
-          onCollapsedChange={setSidebarCollapsed}
-          isEditable={isEditable}
-          onRefresh={refreshDatabaseTables}
-          onTableDetailClick={(table) => {
-            
-            setSelectedTable(table);
-            setDetailModalVisible(true);
-          }}
-        />
+      {/* 资源面板 - 根据条件显示 */}
+      {((diagramType === 'tableRelation' && isEditable) || (diagramType === 'business' && showResourcePanel && isEditable)) && (
+        diagramType === 'business' && showResourcePanel ? (
+          // 业务流程图使用ResourcePanel
+          <ResourcePanel
+            databaseTables={databaseTables}
+            apiInterfaces={apiInterfaces}
+            onTableDragStart={handleTableDragStart}
+            onInterfaceDragStart={handleInterfaceDragStart}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={setSidebarCollapsed}
+            isEditable={isEditable}
+            onTableDetailClick={(table) => {
+              setSelectedTable(table);
+              setDetailModalVisible(true);
+            }}
+            onInterfaceDetailClick={(api) => {
+              setSelectedInterface(api);
+              setInterfaceDetailModalVisible(true);
+            }}
+          />
+        ) : (
+          // 表关系图使用DatabaseTablePanel
+          <DatabaseTablePanel
+            databaseTables={databaseTables}
+            onDragStart={handleTableDragStart}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={setSidebarCollapsed}
+            isEditable={isEditable}
+            onTableDetailClick={(table) => {
+              setSelectedTable(table);
+              setDetailModalVisible(true);
+            }}
+          />
+        )
       )}
       
       <div 
@@ -638,7 +741,8 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
         style={{ 
           position: 'relative', 
           height: '600px',
-          marginLeft: diagramType === 'tableRelation' && isEditable ? 
+          marginLeft: ((diagramType === 'tableRelation' && isEditable) || 
+                      (diagramType === 'business' && showResourcePanel && isEditable)) ? 
             (sidebarCollapsed ? '40px' : '250px') : '0',
           transition: 'margin-left 0.3s'
         }}
@@ -652,9 +756,11 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           style={{
             position: 'absolute',
             top: 17,
-            left: diagramType === 'tableRelation' && isEditable && !sidebarCollapsed ? 60 : 60,
+            left: ((diagramType === 'tableRelation' && isEditable) || 
+                  (diagramType === 'business' && showResourcePanel && isEditable)) && !sidebarCollapsed ? 60 : 60,
             zIndex: 1000,
-            width: diagramType === 'tableRelation' && isEditable && !sidebarCollapsed ? 36 : 64,
+            width: ((diagramType === 'tableRelation' && isEditable) || 
+                   (diagramType === 'business' && showResourcePanel && isEditable)) && !sidebarCollapsed ? 36 : 64,
             height: 36,
             padding: 0,
             borderRadius: 4,
@@ -673,8 +779,17 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
           excalidrawAPI={onExcalidrawAPI}
           initialData={initialData ? {
             elements: initialData.elements,
-            appState: initialData.state
-          } : undefined}
+            appState: {
+              ...initialData.state,
+              currentItemFontFamily: 2, // 使用正常字体
+              currentItemRoughness: 0 // 使用朴素风格（Architect）
+            }
+          } : {
+            appState: {
+              currentItemFontFamily: 2, // 使用正常字体
+              currentItemRoughness: 0 // 使用朴素风格（Architect）
+            }
+          }}
           onChange={isEditable ? handleChange : undefined}
           onPointerUpdate={handlePointerUpdate}
           onPointerDown={!isEditable ? handlePointerDown : undefined}
@@ -700,20 +815,41 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
         title={`${!isEditable ? "[阅读模式]" : "[编辑模式]"} 图表预览`}
       >
         <div style={{ position: 'relative', width: '100%', height: '85vh', display: 'flex' }}>
-          {/* 在弹窗中添加数据库表侧边面板 - 仅在表关系图类型和编辑模式下显示 */}
-          {diagramType === 'tableRelation' && isEditable && (
-            <DatabaseTablePanel
-              databaseTables={databaseTables}
-              onDragStart={handleTableDragStart}
-              collapsed={sidebarCollapsed}
-              onCollapsedChange={setSidebarCollapsed}
-              isEditable={isEditable}
-              onRefresh={refreshDatabaseTables}
-              onTableDetailClick={(table) => {
-                setSelectedTable(table);
-                setDetailModalVisible(true);
-              }}
-            />
+          {/* 在弹窗中添加资源面板 - 根据条件显示 */}
+          {((diagramType === 'tableRelation' && isEditable) || (diagramType === 'business' && showResourcePanel && isEditable)) && (
+            diagramType === 'business' && showResourcePanel ? (
+              // 业务流程图使用ResourcePanel
+              <ResourcePanel
+                databaseTables={databaseTables}
+                apiInterfaces={apiInterfaces}
+                onTableDragStart={handleTableDragStart}
+                onInterfaceDragStart={handleInterfaceDragStart}
+                collapsed={sidebarCollapsed}
+                onCollapsedChange={setSidebarCollapsed}
+                isEditable={isEditable}
+                onTableDetailClick={(table) => {
+                  setSelectedTable(table);
+                  setDetailModalVisible(true);
+                }}
+                onInterfaceDetailClick={(api) => {
+                  setSelectedInterface(api);
+                  setInterfaceDetailModalVisible(true);
+                }}
+              />
+            ) : (
+              // 表关系图使用DatabaseTablePanel
+              <DatabaseTablePanel
+                databaseTables={databaseTables}
+                onDragStart={handleTableDragStart}
+                collapsed={sidebarCollapsed}
+                onCollapsedChange={setSidebarCollapsed}
+                isEditable={isEditable}
+                onTableDetailClick={(table) => {
+                  setSelectedTable(table);
+                  setDetailModalVisible(true);
+                }}
+              />
+            )
           )}
           
           <div 
@@ -722,7 +858,8 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
               position: 'relative', 
               flex: 1,
               height: '100%',
-              marginLeft: diagramType === 'tableRelation' && isEditable ? 
+              marginLeft: ((diagramType === 'tableRelation' && isEditable) || 
+                          (diagramType === 'business' && showResourcePanel && isEditable)) ? 
                 (sidebarCollapsed ? '40px' : '250px') : '0',
               transition: 'margin-left 0.3s'
             }}
@@ -736,10 +873,19 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
                 appState: {
                   ...diagramData.state,
                   viewModeEnabled: !isEditable,
-                  zenModeEnabled: !isEditable
+                  zenModeEnabled: !isEditable,
+                  currentItemFontFamily: 2, // 使用正常字体
+                  currentItemRoughness: 0 // 使用朴素风格（Architect）
                 },
                 scrollToContent: true
-              } : undefined}
+              } : {
+                appState: {
+                  currentItemFontFamily: 2, // 使用正常字体
+                  currentItemRoughness: 0, // 使用朴素风格（Architect）
+                  viewModeEnabled: !isEditable,
+                  zenModeEnabled: !isEditable
+                }
+              }}
               viewModeEnabled={!isEditable}
               zenModeEnabled={!isEditable}
               gridModeEnabled={true}
@@ -748,34 +894,75 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
               UIOptions={{
                 ...uiOptions,
                 canvasActions: {
-                  ...uiOptions.canvasActions,
-                  // 在阅读模式下禁用所有画布操作
-                  export: isEditable ? { saveFileToDisk: true } : { saveFileToDisk: true },
-                  loadScene: false,
-                  clearCanvas: isEditable,
-                  changeViewBackgroundColor: isEditable,
-                  toggleTheme: false,
+                  ...uiOptions.canvasActions
                 }
               }}
               onChange={isEditable ? handleChange : undefined}
-              onPointerUpdate={isEditable ? handlePointerUpdate : undefined}
-              onPointerDown={isEditable ? handlePointerDown : undefined}
             >
               {mainMenu}
             </Excalidraw>
           </div>
         </div>
       </Modal>
-      
+
       {/* 数据库表详情弹窗 */}
       <Modal
-        title={selectedTable?.name || (selectedTable as any)?.table_name || '表详情'}
-        open={detailModalVisible}
-        footer={null}
+        title={`表详情: ${selectedTable?.name || ''}`}
+        visible={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
-        width={800}
+        footer={null}
+        width={700}
+        destroyOnClose
       >
         {selectedTable && <DatabaseTableDetail table={selectedTable} />}
+      </Modal>
+      
+      {/* 接口资源详情弹窗 */}
+      <Modal
+        title={`接口详情: ${selectedInterface?.path || ''}`}
+        visible={interfaceDetailModalVisible}
+        onCancel={() => setInterfaceDetailModalVisible(false)}
+        footer={null}
+        width={700}
+        destroyOnClose
+      >
+        {selectedInterface && (
+          <div className={styles.interfaceDetail}>
+            <div className={styles.interfaceHeader}>
+              <Tag color={getApiMethodColor(selectedInterface.method).border}>
+                {selectedInterface.method || "GET"}
+              </Tag>
+              <span className={styles.interfacePath}>{selectedInterface.path}</span>
+            </div>
+            {selectedInterface.description && (
+              <div className={styles.interfaceDescription}>
+                {selectedInterface.description}
+              </div>
+            )}
+            <div className={styles.interfaceContentType}>
+              <span className={styles.interfaceLabel}>请求类型:</span>
+              <span>{selectedInterface.contentType || 'application/json'}</span>
+            </div>
+            
+            <div className={styles.interfaceSection}>
+              <h4>请求参数</h4>
+              {selectedInterface.requestParams && selectedInterface.requestParams.length > 0 ? (
+                <RecursiveParamTable params={selectedInterface.requestParams} showRequired={true} />
+              ) : (
+                <div className={styles.noParams}>无请求参数</div>
+              )}
+            </div>
+            
+            <div className={styles.interfaceSection}>
+              <h4>响应参数</h4>
+              {selectedInterface.responseParams && selectedInterface.responseParams.length > 0 ? (
+                <RecursiveParamTable params={selectedInterface.responseParams} showRequired={false} />
+              ) : (
+                <div className={styles.noParams}>无响应参数</div>
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
