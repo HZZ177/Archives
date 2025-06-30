@@ -663,6 +663,23 @@ class WorkspaceService:
             return False
             
         return True
+        
+    async def get_user_workspace_access(self, db: AsyncSession, user_id: int, workspace_id: int) -> Optional[str]:
+        """
+        获取用户在指定工作区的访问级别
+        
+        :param db: 数据库会话
+        :param user_id: 用户ID
+        :param workspace_id: 工作区ID
+        :return: 访问级别（"read", "write", "admin", "owner"）或None（如果用户无权访问）
+        """
+        try:
+            # 获取用户访问级别
+            access_level = await workspace_repository.get_user_access_level(db, workspace_id, user_id)
+            return access_level
+        except Exception as e:
+            logger.error(f"获取用户({user_id})在工作区({workspace_id})的访问级别失败: {str(e)}")
+            return None
 
     async def get_workspace_interfaces(
         self, 
