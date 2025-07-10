@@ -75,6 +75,8 @@ export interface ApiInterfaceCard {
   requestParams: ApiParam[];
   responseParams: ApiParam[];
   workspace_interface_id?: number; // 工作区接口ID，用于引用工作区级别的接口
+  requestExample?: string; // 新增整体请求示例
+  responseExample?: string; // 新增整体响应示例
 }
 
 // API参数类型
@@ -84,7 +86,6 @@ export interface ApiParam {
   required: boolean;
   description?: string;
   children?: ApiParam[];
-  example?: string; // 添加example属性
 }
 
 // 常量定义

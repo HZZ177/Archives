@@ -738,17 +738,42 @@ class WorkspaceService:
         # 验证工作区存在
         await self.get_workspace(db, workspace_id)
         
+        # 添加服务层日志，记录传入的request_example和response_example字段
+        logger.info(f"服务层 - 创建接口: workspace_id={workspace_id}, path={interface_create.path}, method={interface_create.method}")
+        logger.info(f"服务层 - 创建接口传入的请求示例: request_example={interface_create.request_example}")
+        logger.info(f"服务层 - 创建接口传入的响应示例: response_example={interface_create.response_example}")
+        
         interface_create.workspace_id = workspace_id
-        return await workspace_repository.create_workspace_interface(db, interface_create, current_user.id)
+        interface = await workspace_repository.create_workspace_interface(db, interface_create, current_user.id)
+        
+        # 添加服务层日志，记录返回的request_example和response_example字段
+        logger.info(f"服务层 - 创建接口返回: id={interface.id}, path={interface.path}")
+        logger.info(f"服务层 - 创建接口返回的请求示例: request_example={interface.request_example}")
+        logger.info(f"服务层 - 创建接口返回的响应示例: response_example={interface.response_example}")
+        
+        return interface
 
     async def update_workspace_interface(self, db: AsyncSession, interface_id: int, interface_update: WorkspaceInterfaceUpdate, current_user: User) -> WorkspaceInterface:
         """更新工作区接口"""
         # 获取接口信息，确保接口存在
         interface = await self.get_workspace_interface(db, interface_id, current_user)
         
-        # 移除管理员权限检查，允许所有用户更新接口
+        # 添加服务层日志，记录传入的request_example和response_example字段
+        logger.info(f"服务层 - 更新接口: id={interface_id}, path={interface_update.path}, method={interface_update.method}")
+        logger.info(f"服务层 - 更新接口传入的请求示例: request_example={interface_update.request_example}")
+        logger.info(f"服务层 - 更新接口传入的响应示例: response_example={interface_update.response_example}")
+        logger.info(f"服务层 - 更新前接口的请求示例: request_example={interface.request_example}")
+        logger.info(f"服务层 - 更新前接口的响应示例: response_example={interface.response_example}")
         
-        return await workspace_repository.update_workspace_interface(db, interface_id, interface_update)
+        # 移除管理员权限检查，允许所有用户更新接口
+        updated_interface = await workspace_repository.update_workspace_interface(db, interface_id, interface_update)
+        
+        # 添加服务层日志，记录返回的request_example和response_example字段
+        logger.info(f"服务层 - 更新接口返回: id={updated_interface.id}, path={updated_interface.path}")
+        logger.info(f"服务层 - 更新接口返回的请求示例: request_example={updated_interface.request_example}")
+        logger.info(f"服务层 - 更新接口返回的响应示例: response_example={updated_interface.response_example}")
+        
+        return updated_interface
 
     async def delete_workspace_interface(self, db: AsyncSession, interface_id: int, current_user: User):
         """删除工作区接口"""

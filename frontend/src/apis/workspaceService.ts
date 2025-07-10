@@ -521,8 +521,18 @@ export const getWorkspaceInterface = async (workspaceId: number, interfaceId: nu
  */
 export const createWorkspaceInterface = async (workspaceId: number, data: WorkspaceInterfaceCreate): Promise<WorkspaceInterface> => {
   try {
+    console.log('API调用 - 创建接口请求数据:', data);
+    console.log('API调用 - 请求示例:', data.request_example);
+    console.log('API调用 - 响应示例:', data.response_example);
+    
     const response = await request.post<APIResponse<WorkspaceInterface>>(`/workspaces/${workspaceId}/interfaces`, data);
-    return unwrapResponse(response.data);
+    const result = unwrapResponse(response.data);
+    
+    console.log('API调用 - 创建接口响应:', result);
+    console.log('API调用 - 响应中的请求示例:', result.request_example);
+    console.log('API调用 - 响应中的响应示例:', result.response_example);
+    
+    return result;
   } catch (error) {
     console.error(`创建工作区(ID:${workspaceId})接口失败:`, error);
     throw error;
@@ -538,8 +548,18 @@ export const createWorkspaceInterface = async (workspaceId: number, data: Worksp
  */
 export const updateWorkspaceInterface = async (workspaceId: number, interfaceId: number, data: WorkspaceInterfaceUpdate): Promise<WorkspaceInterface> => {
   try {
+    console.log('API调用 - 更新接口请求数据:', data);
+    console.log('API调用 - 请求示例:', data.request_example);
+    console.log('API调用 - 响应示例:', data.response_example);
+    
     const response = await request.put<APIResponse<WorkspaceInterface>>(`/workspaces/${workspaceId}/interfaces/${interfaceId}`, data);
-    return unwrapResponse(response.data);
+    const result = unwrapResponse(response.data);
+    
+    console.log('API调用 - 更新接口响应:', result);
+    console.log('API调用 - 响应中的请求示例:', result.request_example);
+    console.log('API调用 - 响应中的响应示例:', result.response_example);
+    
+    return result;
   } catch (error) {
     console.error(`更新工作区(ID:${workspaceId})接口(ID:${interfaceId})失败:`, error);
     throw error;
@@ -580,10 +600,14 @@ export const checkInterfaceExists = async (
       params.exclude_id = excludeId;
     }
     
+    console.log('检查接口唯一性请求参数:', { workspaceId, path, method, excludeId, params });
+    
     const response = await request.get<APIResponse<boolean>>(
       `/workspace-interfaces/workspace/${workspaceId}/check-exists`, 
       { params }
     );
+    
+    console.log('检查接口唯一性响应:', response.data);
     
     return unwrapResponse(response.data);
   } catch (error) {

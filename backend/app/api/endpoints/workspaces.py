@@ -499,7 +499,18 @@ async def create_workspace_interface(
         if interface_create.workspace_id != workspace_id:
             interface_create.workspace_id = workspace_id
         
+        # 添加日志，记录请求数据中的request_example和response_example字段
+        logger.info(f"创建接口请求数据: path={interface_create.path}, method={interface_create.method}")
+        logger.info(f"创建接口请求示例字段: request_example={interface_create.request_example}")
+        logger.info(f"创建接口响应示例字段: response_example={interface_create.response_example}")
+        
         interface = await workspace_service.create_workspace_interface(db, workspace_id, interface_create, current_user)
+        
+        # 添加日志，记录返回数据中的request_example和response_example字段
+        logger.info(f"创建接口返回数据: id={interface.id}, path={interface.path}")
+        logger.info(f"创建接口返回数据中的请求示例: request_example={interface.request_example}")
+        logger.info(f"创建接口返回数据中的响应示例: response_example={interface.response_example}")
+        
         return success_response(data=interface, message="接口创建成功")
     except HTTPException as e:
         return error_response(message=e.detail)
@@ -526,7 +537,18 @@ async def update_workspace_interface(
         if not interface:
             raise HTTPException(status_code=404, detail=f"ID为{interface_id}的接口不存在")
         
+        # 添加日志，记录请求数据中的request_example和response_example字段
+        logger.info(f"更新接口请求数据: id={interface_id}, path={interface_update.path}, method={interface_update.method}")
+        logger.info(f"更新接口请求示例字段: request_example={interface_update.request_example}")
+        logger.info(f"更新接口响应示例字段: response_example={interface_update.response_example}")
+        
         updated_interface = await workspace_service.update_workspace_interface(db, interface_id, interface_update, current_user)
+        
+        # 添加日志，记录返回数据中的request_example和response_example字段
+        logger.info(f"更新接口返回数据: id={updated_interface.id}, path={updated_interface.path}")
+        logger.info(f"更新接口返回数据中的请求示例: request_example={updated_interface.request_example}")
+        logger.info(f"更新接口返回数据中的响应示例: response_example={updated_interface.response_example}")
+        
         return success_response(data=updated_interface, message="接口更新成功")
     except HTTPException as e:
         return error_response(message=e.detail)

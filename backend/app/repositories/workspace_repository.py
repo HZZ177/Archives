@@ -584,12 +584,26 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
     async def create_workspace_interface(self, db: AsyncSession, interface_create: WorkspaceInterfaceCreate, created_by_id: int) -> WorkspaceInterface:
         """创建工作区接口"""
         try:
+            # 添加仓库层日志，记录传入的request_example和response_example字段
+            logger.info(f"仓库层 - 创建接口: workspace_id={interface_create.workspace_id}, path={interface_create.path}")
+            logger.info(f"仓库层 - 创建接口传入的请求示例: request_example={interface_create.request_example}")
+            logger.info(f"仓库层 - 创建接口传入的响应示例: response_example={interface_create.response_example}")
+            
+            # 打印完整的接口创建数据
             db_obj_data = interface_create.dict()
+            logger.info(f"仓库层 - 创建接口完整数据: {db_obj_data}")
+            
             db_obj_data['created_by'] = created_by_id
             new_interface = WorkspaceInterface(**db_obj_data)
             db.add(new_interface)
             await db.commit()
             await db.refresh(new_interface)
+            
+            # 添加仓库层日志，记录返回的request_example和response_example字段
+            logger.info(f"仓库层 - 创建接口返回: id={new_interface.id}, path={new_interface.path}")
+            logger.info(f"仓库层 - 创建接口返回的请求示例: request_example={new_interface.request_example}")
+            logger.info(f"仓库层 - 创建接口返回的响应示例: response_example={new_interface.response_example}")
+            
             return new_interface
         except Exception as e:
             await db.rollback()
@@ -597,14 +611,36 @@ class WorkspaceRepository(BaseRepository[Workspace, WorkspaceCreate, WorkspaceUp
             raise
 
     async def update_workspace_interface(self, db: AsyncSession, interface_id: int, interface_update: WorkspaceInterfaceUpdate) -> Optional[WorkspaceInterface]:
-        interface = await self.get_interface_by_id(db, interface_id)
-        if interface:
+        try:
+            # 添加仓库层日志，记录传入的request_example和response_example字段
+            logger.info(f"仓库层 - 更新接口: id={interface_id}, path={interface_update.path}")
+            logger.info(f"仓库层 - 更新接口传入的请求示例: request_example={interface_update.request_example}")
+            logger.info(f"仓库层 - 更新接口传入的响应示例: response_example={interface_update.response_example}")
+            
+            # 打印完整的接口更新数据
             update_data = interface_update.dict(exclude_unset=True)
-            for key, value in update_data.items():
-                setattr(interface, key, value)
-            await db.commit()
-            await db.refresh(interface)
-        return interface
+            logger.info(f"仓库层 - 更新接口完整数据: {update_data}")
+            
+            interface = await self.get_interface_by_id(db, interface_id)
+            if interface:
+                # 记录更新前的值
+                logger.info(f"仓库层 - 更新前接口的请求示例: request_example={interface.request_example}")
+                logger.info(f"仓库层 - 更新前接口的响应示例: response_example={interface.response_example}")
+                
+                for key, value in update_data.items():
+                    setattr(interface, key, value)
+                await db.commit()
+                await db.refresh(interface)
+                
+                # 添加仓库层日志，记录返回的request_example和response_example字段
+                logger.info(f"仓库层 - 更新接口返回: id={interface.id}, path={interface.path}")
+                logger.info(f"仓库层 - 更新接口返回的请求示例: request_example={interface.request_example}")
+                logger.info(f"仓库层 - 更新接口返回的响应示例: response_example={interface.response_example}")
+            return interface
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"更新工作区接口失败: {str(e)}")
+            raise
 
     async def delete_workspace_interface(self, db: AsyncSession, interface_id: int):
         interface = await self.get_interface_by_id(db, interface_id)

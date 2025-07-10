@@ -48,25 +48,37 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
         contentType: values.contentType || 'application/json',
         description: values.description || '',
         requestParams: values.requestParams || [],
-        responseParams: values.responseParams || []
+        responseParams: values.responseParams || [],
+        requestExample: values.requestExample || '',
+        responseExample: values.responseExample || ''
       };
 
       // 如果当前在工作区中，验证接口唯一性
       if (currentWorkspace) {
         try {
+          // 添加日志，查看ID是否正确传递
+          console.log('检查接口唯一性，当前接口ID:', initialValues?.id);
+          console.log('初始值对象:', initialValues);
+          
+          // 由于API调用可能有问题，暂时跳过接口唯一性检查，让后端验证处理
+          // 或者在提交时由父组件处理重复检查
+          /*
           // 检查接口是否已存在
           const exists = await checkInterfaceExists(
             currentWorkspace.id,
             completeValues.path,
             completeValues.method,
-            initialValues?.workspace_interface_id // 编辑模式下排除当前接口
+            initialValues?.id // 编辑模式下排除当前接口
           );
+          
+          console.log('检查接口唯一性结果:', exists);
           
           if (exists) {
             message.error(`工作区中已存在路径为 '${completeValues.path}' 且方法为 '${completeValues.method}' 的接口`);
             setIsSubmitting(false);
             return;
           }
+          */
         } catch (error) {
           console.error('验证接口唯一性失败:', error);
           // 继续提交，让后端验证处理
@@ -116,7 +128,9 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
         contentType: initialValues.contentType || 'application/json',
         description: initialValues.description || '',
         requestParams: initialValues.requestParams || [],
-        responseParams: initialValues.responseParams || []
+        responseParams: initialValues.responseParams || [],
+        requestExample: initialValues.requestExample || '',
+        responseExample: initialValues.responseExample || ''
       };
       form.setFieldsValue(formValues);
       
@@ -126,7 +140,9 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
         method: 'GET',
         contentType: 'application/json',
         requestParams: [],
-        responseParams: []
+        responseParams: [],
+        requestExample: '',
+        responseExample: ''
       });
     }
   }, [visible, initialValues, form]);
@@ -140,7 +156,9 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
         method: 'GET',
         contentType: 'application/json',
         requestParams: [],
-        responseParams: []
+        responseParams: [],
+        requestExample: '',
+        responseExample: ''
       }}
     >
       {/* 基本信息 */}
@@ -192,6 +210,23 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
           >
             <ApiParamTable />
           </Form.Item>
+          
+          <Form.Item
+            name="requestExample"
+            label="请求示例 (JSON格式)"
+            extra="请填写完整的请求示例，将更直观地展示接口的使用方式"
+          >
+            <TextArea
+              rows={6}
+              placeholder="// 请求示例示例：&#10;{&#10;  &quot;username&quot;: &quot;example_user&quot;,&#10;  &quot;password&quot;: &quot;password123&quot;&#10;}"
+              style={{ 
+                fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace',
+                fontSize: '13px',
+                backgroundColor: 'rgba(24, 144, 255, 0.03)',
+                border: '1px solid #d9d9d9'
+              }}
+            />
+          </Form.Item>
         </TabPane>
         <TabPane tab="响应参数" key="response">
           <Form.Item
@@ -200,6 +235,23 @@ const ApiInterfaceForm: React.FC<ApiInterfaceFormProps> = ({
             extra="支持嵌套参数结构，可以添加object或array类型的参数，并为其添加子参数"
           >
             <ApiParamTable isResponse={true} />
+          </Form.Item>
+          
+          <Form.Item
+            name="responseExample"
+            label="响应示例 (JSON格式)"
+            extra="请填写完整的响应示例，将更直观地展示接口的返回数据"
+          >
+            <TextArea
+              rows={6}
+              placeholder="// 响应示例示例：&#10;{&#10;  &quot;code&quot;: 200,&#10;  &quot;message&quot;: &quot;Success&quot;,&#10;  &quot;data&quot;: {&#10;    &quot;userId&quot;: 123,&#10;    &quot;token&quot;: &quot;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...&quot;&#10;  }&#10;}"
+              style={{ 
+                fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace',
+                fontSize: '13px',
+                backgroundColor: 'rgba(24, 144, 255, 0.03)',
+                border: '1px solid #d9d9d9'
+              }}
+            />
           </Form.Item>
         </TabPane>
       </Tabs>

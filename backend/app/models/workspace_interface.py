@@ -18,6 +18,8 @@ class WorkspaceInterface(Base):
     content_type = Column(String(100), nullable=True, comment="请求或响应的Content-Type")
     request_params_json = Column(JSON, nullable=True, comment="存储请求参数定义的JSON对象")
     response_params_json = Column(JSON, nullable=True, comment="存储响应内容定义的JSON对象")
+    request_example = Column(Text, nullable=True, comment="整体请求示例")
+    response_example = Column(Text, nullable=True, comment="整体响应示例")
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, comment="最后修改者的用户ID")
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False, comment="创建者的用户ID")
     created_at = Column(DateTime, default=get_local_time, comment="创建时间")

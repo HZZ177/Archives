@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, Typography, Tag, Space, Button, Collapse, Divider, Empty, Tooltip, Modal } from 'antd';
+import { Card, Typography, Tag, Space, Button, Collapse, Divider, Empty, Tooltip, Modal, message } from 'antd';
 import { EditOutlined, DeleteOutlined, EllipsisOutlined, DownOutlined, RightOutlined, EyeOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { ApiInterfaceCard as ApiCardType, ApiParam } from '../../../../types/modules';
 import { CSSTransition } from 'react-transition-group';
@@ -38,10 +38,8 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(isExpanded);
   const [expandedParams, setExpandedParams] = useState<string[]>([]);
-  // 添加示例值弹窗相关状态
-  const [exampleModalVisible, setExampleModalVisible] = useState(false);
-  const [currentExample, setCurrentExample] = useState<string>('');
-  const [currentParamName, setCurrentParamName] = useState<string>('');
+  const [showRequestExample, setShowRequestExample] = useState(false);
+  const [showResponseExample, setShowResponseExample] = useState(false);
 
   // 监听外部isExpanded属性变化
   useEffect(() => {
@@ -78,17 +76,7 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
     return METHOD_COLORS[method.toUpperCase()] || 'default';
   };
 
-  // 显示示例值弹窗
-  const showExampleModal = (example: string | null | undefined, paramName: string) => {
-    setCurrentExample(example || '-');
-    setCurrentParamName(paramName);
-    setExampleModalVisible(true);
-  };
 
-  // 关闭示例值弹窗
-  const closeExampleModal = () => {
-    setExampleModalVisible(false);
-  };
 
   // 渲染单个参数行
   const renderParamRow = (param: ApiParam, index: number, level: number = 0, isResponse: boolean = false) => {
@@ -129,19 +117,6 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
               <Text ellipsis>{param.description || '-'}</Text>
             </Tooltip>
           </div>
-          <div className="api-param-example">
-            <Button 
-              type="link" 
-              size="small" 
-              icon={<EyeOutlined />} 
-              onClick={(e) => {
-                e.stopPropagation();
-                showExampleModal(param.example, param.name);
-              }}
-            >
-              查看
-            </Button>
-          </div>
         </div>
         
         {/* 渲染子参数 */}
@@ -170,7 +145,6 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
             <div className="api-param-type">类型</div>
             {!isResponse && <div className="api-param-required">必填</div>}
             <div className="api-param-desc">描述</div>
-            <div className="api-param-example">示例值</div>
           </div>
           <div className="api-param-body">
             {params.map((param, index) => renderParamRow(param, index, 0, isResponse))}
@@ -234,17 +208,19 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
               </div>
           </div>
           <div className="api-card-desc">
-            {data.description ? (
-              <Tooltip title={data.description} color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
-                <Text type="secondary" ellipsis>
-                  {data.description}
+            <div>
+              {data.description ? (
+                <Tooltip title={data.description} color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+                  <Text type="secondary" ellipsis>
+                    {data.description}
+                  </Text>
+                </Tooltip>
+              ) : (
+                <Text type="secondary" className="api-card-empty-desc">
+                  暂无接口描述
                 </Text>
-              </Tooltip>
-            ) : (
-              <Text type="secondary" className="api-card-empty-desc">
-                暂无接口描述
-              </Text>
-            )}
+              )}
+            </div>
           </div>
         </div>
         <div className="api-card-actions">
@@ -306,11 +282,42 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
             )}
           </div>
 
-          <Divider orientation="left">请求参数</Divider>
+          <Divider orientation="left">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <span>请求参数</span>
+              <Button 
+                type="link" 
+                size="small" 
+                icon={<EyeOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowRequestExample(true);
+                }}
+              >
+                查看示例
+              </Button>
+            </div>
+          </Divider>
           {renderParamTable(data.requestParams)}
-
-          <Divider orientation="left">响应参数</Divider>
+          
+          <Divider orientation="left">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <span>响应参数</span>
+              <Button 
+                type="link" 
+                size="small" 
+                icon={<EyeOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowResponseExample(true);
+                }}
+              >
+                查看示例
+              </Button>
+            </div>
+          </Divider>
           {renderParamTable(data.responseParams, true)}
+          
         </div>
       </CSSTransition>
     </div>
@@ -328,28 +335,51 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
 
       {/* 示例值弹窗 */}
       <Modal
-        title={`参数 "${currentParamName}" 的示例值`}
-        open={exampleModalVisible}
-        onCancel={closeExampleModal}
-        footer={[
-          <Button key="close" onClick={closeExampleModal}>
-            关闭
-          </Button>
-        ]}
-        width={500}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <EyeOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+            <span>请求示例</span>
+          </div>
+        }
+        open={showRequestExample}
+        onCancel={() => setShowRequestExample(false)}
+        footer={null}
+        width={700}
       >
-        <div className="example-content">
-          {currentExample && currentExample !== '-' ? (
-            <pre className="example-code">
-              {typeof currentExample === 'object' 
-                ? JSON.stringify(currentExample, null, 2) 
-                : currentExample}
+        {data.requestExample ? (
+          <div className="api-example-container">
+            <pre className="api-example-code">
+              {data.requestExample}
             </pre>
-          ) : (
-            <Empty description="暂无示例值" />
-          )}
-        </div>
+          </div>
+        ) : (
+          <Empty description="暂无请求示例" />
+        )}
       </Modal>
+
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <EyeOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+            <span>响应示例</span>
+          </div>
+        }
+        open={showResponseExample}
+        onCancel={() => setShowResponseExample(false)}
+        footer={null}
+        width={700}
+      >
+        {data.responseExample ? (
+          <div className="api-example-container">
+            <pre className="api-example-code">
+              {data.responseExample}
+            </pre>
+          </div>
+        ) : (
+          <Empty description="暂无响应示例" />
+        )}
+      </Modal>
+
     </>
   );
 };

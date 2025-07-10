@@ -66,6 +66,8 @@ export interface WorkspaceInterface {
   content_type?: string;
   request_params_json?: ApiParam[];
   response_params_json?: ApiParam[];
+  request_example?: string;
+  response_example?: string;
   created_at: string;
   updated_at: string;
   user_id: number;
@@ -179,6 +181,8 @@ export interface WorkspaceInterfaceCreate {
   content_type?: string;
   request_params_json?: ApiParam[];
   response_params_json?: ApiParam[];
+  request_example?: string;
+  response_example?: string;
 }
 
 // 更新工作区接口请求
@@ -189,6 +193,8 @@ export interface WorkspaceInterfaceUpdate {
   content_type?: string;
   request_params_json?: ApiParam[];
   response_params_json?: ApiParam[];
+  request_example?: string;
+  response_example?: string;
 }
 
 // 模块内容引用工作区表和接口的类型

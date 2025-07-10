@@ -93,8 +93,7 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
       name: '',
       type: 'string',
       required: false,
-      description: '',
-      example: ''
+      description: ''
     };
     onChange?.([...safeValue, newParam]);
   };
@@ -128,8 +127,7 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
         name: '',
         type: 'string',
         required: false,
-        description: '',
-        example: ''
+        description: ''
       });
       
       const key = path.join('-');
@@ -214,17 +212,7 @@ const ApiParamTable: React.FC<ApiParamTableProps> = ({
         )
       )
     },
-    {
-      title: '示例值',
-      dataIndex: 'example',
-      key: 'example',
-      width: '20%',
-      render: (text: string, record: KeyedApiParam) => (
-        readOnly ? text : (
-          <Input value={text} onChange={(e) => handleParamChange(record.path, 'example', e.target.value)} placeholder="示例值" />
-        )
-      )
-    }
+
   ];
   
   // 如果不是响应参数，在"类型"列后插入"必填"列

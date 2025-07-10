@@ -13,6 +13,8 @@ class WorkspaceInterfaceBase(BaseModel):
     content_type: Optional[str] = None
     request_params_json: Optional[List[Dict[str, Any]]] = None  # 请求参数，与ApiInterfaceParameter兼容
     response_params_json: Optional[List[Dict[str, Any]]] = None  # 响应参数，与ApiInterfaceParameter兼容
+    request_example: Optional[str] = None  # 请求示例
+    response_example: Optional[str] = None  # 响应示例
 
 
 class WorkspaceInterfaceCreate(WorkspaceInterfaceBase):

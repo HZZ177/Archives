@@ -168,12 +168,17 @@ const WorkspaceInterfacesPage: React.FC = () => {
     if (!currentWorkspace) return;
     
     try {
+      console.log('提交的表单数据:', values);
+      console.log('请求示例:', values.requestExample);
+      console.log('响应示例:', values.responseExample);
+      
       // 检查是否存在相同路径和方法的接口
       const isEdit = !!currentInterface;
       const existingInterface = interfaces.find(item => 
         item.path.toLowerCase() === values.path.toLowerCase() && 
         item.method.toLowerCase() === values.method.toLowerCase() &&
-        (!isEdit || item.id !== currentInterface?.id)
+        // 如果是编辑模式，则排除当前正在编辑的接口
+        (isEdit ? item.id !== currentInterface?.id : true)
       );
       
       if (existingInterface) {
@@ -189,10 +194,14 @@ const WorkspaceInterfacesPage: React.FC = () => {
           description: values.description,
           content_type: values.contentType,
           request_params_json: values.requestParams,
-          response_params_json: values.responseParams
+          response_params_json: values.responseParams,
+          request_example: values.requestExample,
+          response_example: values.responseExample
         };
         
-        await updateWorkspaceInterface(currentWorkspace.id, currentInterface.id, updateData);
+        console.log('更新接口数据:', updateData);
+        const result = await updateWorkspaceInterface(currentWorkspace.id, currentInterface.id, updateData);
+        console.log('更新接口响应:', result);
         message.success('接口更新成功');
       } else {
         // 创建接口
@@ -203,10 +212,14 @@ const WorkspaceInterfacesPage: React.FC = () => {
           description: values.description,
           content_type: values.contentType,
           request_params_json: values.requestParams,
-          response_params_json: values.responseParams
+          response_params_json: values.responseParams,
+          request_example: values.requestExample,
+          response_example: values.responseExample
         };
         
-        await createWorkspaceInterface(currentWorkspace.id, createData);
+        console.log('创建接口数据:', createData);
+        const result = await createWorkspaceInterface(currentWorkspace.id, createData);
+        console.log('创建接口响应:', result);
         message.success('接口创建成功');
       }
       
@@ -247,7 +260,9 @@ const WorkspaceInterfacesPage: React.FC = () => {
       description: item.description || '',
       contentType: item.content_type || 'application/json',
       requestParams: item.request_params_json || [],
-      responseParams: item.response_params_json || []
+      responseParams: item.response_params_json || [],
+      requestExample: item.request_example || '',
+      responseExample: item.response_example || ''
     }));
 
     return (
@@ -294,7 +309,9 @@ const WorkspaceInterfacesPage: React.FC = () => {
       description: currentInterface.description || '',
       contentType: currentInterface.content_type || 'application/json',
       requestParams: currentInterface.request_params_json || [],
-      responseParams: currentInterface.response_params_json || []
+      responseParams: currentInterface.response_params_json || [],
+      requestExample: currentInterface.request_example || '',
+      responseExample: currentInterface.response_example || ''
     };
   };
 

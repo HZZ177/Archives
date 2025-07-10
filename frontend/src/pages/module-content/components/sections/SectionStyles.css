@@ -472,6 +472,9 @@
   border-right: 1px solid #e0e0e0;
   color: #333;
   font-weight: 600;
+  justify-content: flex-start; /* 添加左对齐样式 */
+  text-align: left; /* 添加左对齐样式 */
+  display: flex; /* 确保flex布局生效 */
 }
 
 .api-param-row {
@@ -504,11 +507,13 @@
   border-right: 1px solid #f0f0f0;
   display: flex; /* 添加flex布局 */
   align-items: center; /* 添加垂直居中对齐 */
+  justify-content: flex-start; /* 修改为左对齐 */
+  text-align: left; /* 添加左对齐样式 */
 }
 
 .api-param-type {
   flex: 1;
-  text-align: center;
+  text-align: left; /* 修改为左对齐 */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -517,18 +522,18 @@
   border-right: 1px solid #f0f0f0;
   display: flex; /* 添加flex布局 */
   align-items: center; /* 添加垂直居中对齐 */
-  justify-content: center; /* 水平居中 */
+  justify-content: flex-start; /* 修改为左对齐 */
 }
 
 .api-param-required {
   flex: 1;
-  text-align: center;
+  text-align: left; /* 修改为左对齐 */
   min-width: 50px;
   padding: 0 8px;
   border-right: 1px solid #f0f0f0;
   display: flex; /* 添加flex布局 */
   align-items: center; /* 添加垂直居中对齐 */
-  justify-content: center; /* 水平居中 */
+  justify-content: flex-start; /* 修改为左对齐 */
 }
 
 .api-param-desc {
@@ -541,6 +546,8 @@
   border-right: 1px solid #f0f0f0;
   display: flex; /* 添加flex布局 */
   align-items: center; /* 添加垂直居中对齐 */
+  justify-content: flex-start; /* 修改为左对齐 */
+  text-align: left; /* 添加左对齐样式 */
 }
 
 .api-param-example {
@@ -549,7 +556,8 @@
   min-width: 60px; /* 减小最小宽度，刚好容纳按钮 */
   display: flex; /* 添加flex布局 */
   align-items: center; /* 添加垂直居中对齐 */
-  justify-content: center; /* 水平居中 */
+  justify-content: flex-start; /* 修改为左对齐 */
+  text-align: left; /* 添加左对齐样式 */
 }
 
 /* 添加示例值弹窗内容样式 */
@@ -2974,4 +2982,48 @@
 .db-editor-table-wrapper .ant-table-footer {
     background: #fff;
     padding: 12px;
+}
+
+/* API示例容器样式 */
+.api-example-container {
+  margin: 8px 0;
+  border-radius: 4px;
+  background-color: #f5f5f5;
+  position: relative;
+}
+
+.api-example-code {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  color: #333;
+  white-space: pre-wrap;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* 示例指示器 */
+.api-example-badge {
+  margin-top: 4px;
+}
+
+.api-example-badge .ant-tag {
+  margin-right: 0;
+  font-size: 12px;
+}
+
+/* 高亮示例容器 */
+.api-example-highlighted {
+  border: 1px solid #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+  background-color: rgba(24, 144, 255, 0.03);
+}
+
+/* 示例标题样式 */
+.example-title {
+  color: #1890ff;
+  font-weight: bold;
 }

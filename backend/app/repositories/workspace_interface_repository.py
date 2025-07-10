@@ -112,6 +112,14 @@ class WorkspaceInterfaceRepository(BaseRepository[WorkspaceInterface, WorkspaceI
         创建工作区接口
         """
         try:
+            # 记录创建数据
+            logger.info(f"创建接口数据: {interface_data}")
+            
+            # 特别关注示例字段
+            request_example = interface_data.get('request_example')
+            response_example = interface_data.get('response_example')
+            logger.info(f"创建接口示例字段: 请求示例={request_example}, 响应示例={response_example}")
+            
             interface = WorkspaceInterface(
                 workspace_id=workspace_id,
                 user_id=user_id,
@@ -121,6 +129,10 @@ class WorkspaceInterfaceRepository(BaseRepository[WorkspaceInterface, WorkspaceI
             db.add(interface)
             await db.commit()
             await db.refresh(interface)
+            
+            # 记录创建后的状态
+            logger.info(f"创建接口后: ID={interface.id}, 请求示例={interface.request_example}, 响应示例={interface.response_example}")
+            
             return interface
         except Exception as e:
             await db.rollback()
@@ -142,8 +154,15 @@ class WorkspaceInterfaceRepository(BaseRepository[WorkspaceInterface, WorkspaceI
             if not interface:
                 return None
             
+            # 记录更新前的状态
+            logger.info(f"更新接口前: ID={interface_id}, 请求示例={interface.request_example}, 响应示例={interface.response_example}")
+            logger.info(f"更新数据: {interface_data}")
+            
             # 更新字段
             for key, value in interface_data.items():
+                # 特别关注示例字段的更新
+                if key in ['request_example', 'response_example']:
+                    logger.info(f"更新字段 {key}: 旧值='{getattr(interface, key, None)}', 新值='{value}'")
                 setattr(interface, key, value)
             
             # 更新最后修改者
@@ -151,6 +170,10 @@ class WorkspaceInterfaceRepository(BaseRepository[WorkspaceInterface, WorkspaceI
             
             await db.commit()
             await db.refresh(interface)
+            
+            # 记录更新后的状态
+            logger.info(f"更新接口后: ID={interface_id}, 请求示例={interface.request_example}, 响应示例={interface.response_example}")
+            
             return interface
         except Exception as e:
             await db.rollback()

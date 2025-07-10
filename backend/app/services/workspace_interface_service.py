@@ -148,6 +148,9 @@ class WorkspaceInterfaceService:
             # 验证工作区访问权限
             await self.validate_workspace_access(db, interface.workspace_id, user)
             
+            # 记录日志，查看是否包含示例字段
+            logger.info(f"获取接口详情: ID={interface_id}, 请求示例={interface.request_example}, 响应示例={interface.response_example}")
+            
             # 转换为详细响应
             response = WorkspaceInterfaceResponse.from_orm(interface)
             
@@ -188,6 +191,9 @@ class WorkspaceInterfaceService:
             # 验证工作区访问权限
             await self.validate_workspace_access(db, workspace_id, user, require_write=True)
             
+            # 记录日志，查看请求数据是否包含示例字段
+            logger.info(f"创建接口请求数据: 请求示例={interface_data.request_example}, 响应示例={interface_data.response_example}")
+            
             # 检查是否已存在相同路径和方法的接口
             interface_exists = await workspace_interface_repository.check_interface_exists(
                 db, workspace_id, interface_data.path, interface_data.method
@@ -201,9 +207,14 @@ class WorkspaceInterfaceService:
             
             # 创建接口
             interface_dict = interface_data.dict(exclude={"workspace_id"})
+            logger.info(f"创建接口数据字典: {interface_dict}")
+            
             interface = await workspace_interface_repository.create_interface(
                 db, workspace_id, user.id, interface_dict
             )
+            
+            # 记录日志，查看创建后的接口是否包含示例字段
+            logger.info(f"创建接口结果: ID={interface.id}, 请求示例={interface.request_example}, 响应示例={interface.response_example}")
             
             return WorkspaceInterfaceResponse.from_orm(interface)
         except HTTPException:
@@ -244,6 +255,9 @@ class WorkspaceInterfaceService:
             # 验证工作区访问权限
             await self.validate_workspace_access(db, interface.workspace_id, user, require_write=True)
             
+            # 记录日志，查看请求数据是否包含示例字段
+            logger.info(f"更新接口请求数据: ID={interface_id}, 请求示例={interface_data.request_example}, 响应示例={interface_data.response_example}")
+            
             # 检查是否与其他接口冲突
             if interface_data.path != interface.path or interface_data.method != interface.method:
                 interface_exists = await workspace_interface_repository.check_interface_exists(
@@ -258,6 +272,8 @@ class WorkspaceInterfaceService:
             
             # 更新接口
             interface_dict = interface_data.dict()
+            logger.info(f"更新接口数据字典: {interface_dict}")
+            
             updated_interface = await workspace_interface_repository.update_interface(
                 db, interface_id, user.id, interface_dict
             )
@@ -267,6 +283,9 @@ class WorkspaceInterfaceService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="接口不存在"
                 )
+            
+            # 记录日志，查看更新后的接口是否包含示例字段
+            logger.info(f"更新接口结果: ID={updated_interface.id}, 请求示例={updated_interface.request_example}, 响应示例={updated_interface.response_example}")
             
             return WorkspaceInterfaceResponse.from_orm(updated_interface)
         except HTTPException:

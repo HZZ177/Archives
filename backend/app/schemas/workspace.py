@@ -117,6 +117,8 @@ class WorkspaceInterfaceBase(BaseModel):
     content_type: Optional[str] = None
     request_params_json: Optional[List[ApiParam]] = None
     response_params_json: Optional[List[ApiParam]] = None
+    request_example: Optional[str] = None  # 请求示例
+    response_example: Optional[str] = None  # 响应示例
 
 
 class WorkspaceInterfaceCreate(WorkspaceInterfaceBase):
@@ -132,6 +134,8 @@ class WorkspaceInterfaceUpdate(BaseModel):
     content_type: Optional[str] = None
     request_params_json: Optional[List[ApiParam]] = None
     response_params_json: Optional[List[ApiParam]] = None
+    request_example: Optional[str] = None  # 请求示例
+    response_example: Optional[str] = None  # 响应示例
 
 
 class WorkspaceInterfaceInDB(WorkspaceInterfaceBase):
