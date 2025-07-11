@@ -14,6 +14,7 @@ import { debounce } from '../../utils/throttle';
 
 // 复用内容页面中的数据库表组件
 import DatabaseTablesSection, { ValidationHandle } from '../module-content/components/sections/DatabaseTablesSection';
+import TableBatchEditModal from './components/TableBatchEditModal';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -189,6 +190,9 @@ const WorkspaceTablesPage: React.FC = () => {
   const [sqlImportModalVisible, setSqlImportModalVisible] = useState<boolean>(false);
   const [sqlInput, setSqlInput] = useState<string>('');
   const [importLoading, setImportLoading] = useState<boolean>(false);
+  
+  // 添加批量编辑相关状态
+  const [batchEditModalVisible, setBatchEditModalVisible] = useState<boolean>(false);
   
   // 搜索相关状态
   const [searchKeyword, setSearchKeyword] = useState<string>('');
@@ -438,6 +442,11 @@ const WorkspaceTablesPage: React.FC = () => {
     setSqlImportModalVisible(true);
   };
 
+  // 打开批量编辑弹窗
+  const handleBatchEdit = () => {
+    setBatchEditModalVisible(true);
+  };
+
   // 关闭SQL导入弹窗
   const closeSqlImportModal = () => {
     setSqlImportModalVisible(false);
@@ -611,6 +620,15 @@ const WorkspaceTablesPage: React.FC = () => {
             />
             <div>
               <Button
+                icon={<EditOutlined />}
+                onClick={handleBatchEdit}
+                disabled={!currentWorkspace}
+                style={{ marginRight: 6 }}
+                size="middle"
+              >
+                批量编辑
+              </Button>
+              <Button
                 icon={<ImportOutlined />}
                 onClick={showSqlImportModal}
                 disabled={!currentWorkspace}
@@ -720,6 +738,16 @@ const WorkspaceTablesPage: React.FC = () => {
           </div>
         </div>
       </Modal>
+      
+      {/* 批量编辑弹窗 */}
+      <TableBatchEditModal
+        visible={batchEditModalVisible}
+        onCancel={() => setBatchEditModalVisible(false)}
+        workspaceId={currentWorkspace?.id}
+        onSuccess={() => {
+          loadTables(); // 保持在当前页
+        }}
+      />
     </div>
   );
 };

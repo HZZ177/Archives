@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Typography, Spin, Empty, message, Modal, Input, Pagination } from 'antd';
-import { PlusOutlined, ApiOutlined, SearchOutlined, ImportOutlined } from '@ant-design/icons';
+import { PlusOutlined, ApiOutlined, SearchOutlined, ImportOutlined, EditOutlined } from '@ant-design/icons';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { usePermission } from '../../contexts/PermissionContext';
 import { getWorkspaceInterfaces, createWorkspaceInterface, updateWorkspaceInterface, deleteWorkspaceInterface } from '../../apis/workspaceService';
@@ -15,6 +15,7 @@ import { debounce } from '../../utils/throttle';
 import InterfaceSection from '../module-content/components/sections/InterfaceSection';
 import ApiInterfaceForm from '../module-content/components/sections/ApiInterfaceForm';
 import InterfaceImportModal from './components/InterfaceImportModal';
+import InterfaceBatchEditModal from './components/InterfaceBatchEditModal';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -30,6 +31,9 @@ const WorkspaceInterfacesPage: React.FC = () => {
   
   // 添加导入相关状态
   const [importModalVisible, setImportModalVisible] = useState<boolean>(false);
+  
+  // 添加批量编辑相关状态
+  const [batchEditModalVisible, setBatchEditModalVisible] = useState<boolean>(false);
   
   // 搜索相关状态
   const [searchKeyword, setSearchKeyword] = useState<string>('');
@@ -237,6 +241,11 @@ const WorkspaceInterfacesPage: React.FC = () => {
     setImportModalVisible(true);
   };
 
+  // 打开批量编辑弹窗
+  const handleBatchEdit = () => {
+    setBatchEditModalVisible(true);
+  };
+
   // 渲染接口列表
   const renderInterfaceList = () => {
     if (loading) {
@@ -337,6 +346,15 @@ const WorkspaceInterfacesPage: React.FC = () => {
             />
             <div>
               <Button 
+                icon={<EditOutlined />} 
+                onClick={handleBatchEdit}
+                disabled={!currentWorkspace}
+                style={{ marginRight: 6 }}
+                size="middle"
+              >
+                批量编辑
+              </Button>
+              <Button 
                 icon={<ImportOutlined />} 
                 onClick={handleImport}
                 disabled={!currentWorkspace}
@@ -409,6 +427,16 @@ const WorkspaceInterfacesPage: React.FC = () => {
         workspaceId={currentWorkspace?.id}
         onSuccess={() => {
           loadInterfaces(1); // 导入后回到第一页，但不关闭弹窗
+        }}
+      />
+      
+      {/* 添加批量编辑Modal */}
+      <InterfaceBatchEditModal
+        visible={batchEditModalVisible}
+        onCancel={() => setBatchEditModalVisible(false)}
+        workspaceId={currentWorkspace?.id}
+        onSuccess={() => {
+          loadInterfaces(); // 保持在当前页
         }}
       />
     </div>
