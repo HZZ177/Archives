@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useLayoutEffect, useEffect, useMemo } from 'react';
-import { Button, Tooltip, message } from 'antd';
+import { Button, Tooltip, message, Input } from 'antd';
 import { 
   PlusOutlined, 
   DeleteOutlined, 
@@ -8,7 +8,9 @@ import {
   DownOutlined, 
   DragOutlined,
   FileOutlined,
-  FolderOutlined 
+  FolderOutlined,
+  SearchOutlined,
+  UpOutlined
 } from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable, DropResult, DragUpdate } from 'react-beautiful-dnd';
 import { ModuleStructureNode } from '../../../types/modules';
@@ -50,6 +52,10 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
   const [showDragTip, setShowDragTip] = useState(false);
   const [dragTipPos, setDragTipPos] = useState({ x: 0, y: 0 });
   const [hasMoved, setHasMoved] = useState(false);
+  // 搜索相关状态
+  const [searchValue, setSearchValue] = useState<string>('');
+  const [matchedNodeIds, setMatchedNodeIds] = useState<number[]>([]);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState<number>(0);
 
   // 优化树渲染性能：使用useLayoutEffect，减少React渲染次数
   useLayoutEffect(() => {
@@ -91,6 +97,169 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
   const handleSelect = (node: ModuleStructureNode) => {
     setSelectedKey(node.id);
     if (onNodeSelect) onNodeSelect(node);
+  };
+
+  // 搜索节点函数
+  const searchNodes = (value: string) => {
+    if (!value.trim()) {
+      // 如果搜索值为空，清除搜索结果
+      setSearchValue('');
+      setMatchedNodeIds([]);
+      setCurrentMatchIndex(0);
+      
+      // 强制重渲染树，确保所有高亮状态都被清除
+      setTimeout(() => {
+        setLocalTreeData([...localTreeData]);
+      }, 10);
+      return;
+    }
+
+    const lowerCaseValue = value.toLowerCase();
+    const matches: number[] = [];
+    
+    // 递归查找匹配的节点
+    const findMatchingNodes = (nodes: ModuleStructureNode[]) => {
+      nodes.forEach(node => {
+        if (node.name.toLowerCase().includes(lowerCaseValue)) {
+          matches.push(node.id);
+        }
+        if (node.children && node.children.length > 0) {
+          findMatchingNodes(node.children);
+        }
+      });
+    };
+    
+    findMatchingNodes(localTreeData);
+    
+    // 使用setTimeout确保状态更新按顺序处理
+    setTimeout(() => {
+      setSearchValue(value);
+      setMatchedNodeIds(matches);
+      setCurrentMatchIndex(0);
+      
+      // 强制重渲染树以应用高亮状态
+      setLocalTreeData([...localTreeData]);
+      
+      if (matches.length > 0) {
+        // 收集所有匹配节点的父节点ID
+        const allParentIds: number[] = [];
+        
+        // 为每个匹配的节点获取其父节点路径
+        matches.forEach(matchId => {
+          const parentIds = getNodeParentIds(localTreeData, matchId);
+          allParentIds.push(...parentIds);
+        });
+        
+        // 自动展开所有匹配节点的父节点
+        setExpandedKeys(prevKeys => {
+          // 合并现有展开的节点和所有匹配节点的父节点，去重
+          const newKeys = [...new Set([...prevKeys, ...allParentIds])];
+          return newKeys;
+        });
+
+        // 自动选中第一个匹配的节点
+        const firstMatchId = matches[0];
+        setSelectedKey(firstMatchId);
+        const matchedNode = findNodeById(localTreeData, firstMatchId);
+        if (matchedNode && onNodeSelect) {
+          onNodeSelect(matchedNode);
+        }
+      }
+    }, 10);
+  };
+  
+  // 根据节点ID查找节点
+  const findNodeById = (nodes: ModuleStructureNode[], nodeId: number): ModuleStructureNode | null => {
+    for (const node of nodes) {
+      if (node.id === nodeId) {
+        return node;
+      }
+      if (node.children && node.children.length > 0) {
+        const foundNode = findNodeById(node.children, nodeId);
+        if (foundNode) {
+          return foundNode;
+        }
+      }
+    }
+    return null;
+  };
+  
+  // 获取节点的所有父节点ID
+  const getNodeParentIds = (nodes: ModuleStructureNode[], nodeId: number, path: number[] = []): number[] => {
+    for (const node of nodes) {
+      if (node.id === nodeId) {
+        return path;
+      }
+      
+      if (node.children && node.children.length > 0) {
+        const newPath = [...path, node.id];
+        const result = getNodeParentIds(node.children, nodeId, newPath);
+        if (result.length > 0) {
+          return result;
+        }
+      }
+    }
+    return [];
+  };
+
+  // 跳转到下一个搜索结果
+  const goToNextMatch = () => {
+    if (matchedNodeIds.length === 0) return;
+    
+    const nextIndex = (currentMatchIndex + 1) % matchedNodeIds.length;
+    const nextMatchId = matchedNodeIds[nextIndex];
+    
+    // 更新当前匹配索引并强制重渲染
+    setTimeout(() => {
+      setCurrentMatchIndex(nextIndex);
+      
+      // 展开所有父节点
+      const parentIds = getNodeParentIds(localTreeData, nextMatchId);
+      setExpandedKeys(prevKeys => {
+        const newKeys = [...new Set([...prevKeys, ...parentIds])];
+        return newKeys;
+      });
+      
+      // 选中该节点
+      setSelectedKey(nextMatchId);
+      const matchedNode = findNodeById(localTreeData, nextMatchId);
+      if (matchedNode && onNodeSelect) {
+        onNodeSelect(matchedNode);
+      }
+      
+      // 强制重渲染树
+      setLocalTreeData([...localTreeData]);
+    }, 10);
+  };
+  
+  // 跳转到上一个搜索结果
+  const goToPrevMatch = () => {
+    if (matchedNodeIds.length === 0) return;
+    
+    const prevIndex = (currentMatchIndex - 1 + matchedNodeIds.length) % matchedNodeIds.length;
+    const prevMatchId = matchedNodeIds[prevIndex];
+    
+    // 更新当前匹配索引并强制重渲染
+    setTimeout(() => {
+      setCurrentMatchIndex(prevIndex);
+      
+      // 展开所有父节点
+      const parentIds = getNodeParentIds(localTreeData, prevMatchId);
+      setExpandedKeys(prevKeys => {
+        const newKeys = [...new Set([...prevKeys, ...parentIds])];
+        return newKeys;
+      });
+      
+      // 选中该节点
+      setSelectedKey(prevMatchId);
+      const matchedNode = findNodeById(localTreeData, prevMatchId);
+      if (matchedNode && onNodeSelect) {
+        onNodeSelect(matchedNode);
+      }
+      
+      // 强制重渲染树
+      setLocalTreeData([...localTreeData]);
+    }, 10);
   };
 
   // 递归查找节点及其父节点
@@ -283,7 +452,7 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
             {nodes.map((node, index) => {
               const currentIndentInfo = [...indentInfo, index === nodes.length - 1];
               return (
-              <React.Fragment key={node.id}>
+              <React.Fragment key={`${node.id}-${searchValue ? 'search' : 'normal'}-${matchedNodeIds.includes(node.id) ? 'match' : 'nomatch'}`}>
                   {/* 使用优化后的DraggableNode组件 */}
                   <DraggableNode
                     node={node}
@@ -293,6 +462,8 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
                     isSelected={selectedKey === node.id}
                     isExpanded={expandedKeys.includes(node.id)}
                     isValidDrop={isValidDrop}
+                    isHighlighted={searchValue.trim() !== '' && matchedNodeIds.includes(node.id)}
+                    searchValue={searchValue}
                     onSelect={handleSelect}
                     onExpand={handleExpand}
                     onAddChild={onAddChild}
@@ -313,7 +484,7 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
         )}
       </Droppable>
     );
-  }, [expandedKeys, selectedKey, isValidDrop, isDragging, handleSelect, handleExpand, onAddChild, onDelete]);
+  }, [expandedKeys, selectedKey, isValidDrop, isDragging, handleSelect, handleExpand, onAddChild, onDelete, searchValue, matchedNodeIds, localTreeData]);
 
   return (
     <div 
@@ -327,6 +498,55 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
       }}
     >
       <div className="tree-header">
+        {/* 搜索框 */}
+        <div className="search-container">
+          <Input.Search
+            placeholder="搜索模块"
+            allowClear
+            onSearch={searchNodes}
+            onChange={(e) => {
+              if (!e.target.value) {
+                // 清空搜索条件时立即清除所有高亮状态
+                setTimeout(() => {
+                  setSearchValue('');
+                  setMatchedNodeIds([]);
+                  setCurrentMatchIndex(0);
+                  // 强制重渲染树
+                  setLocalTreeData([...localTreeData]);
+                }, 10);
+              }
+            }}
+            style={{ width: '100%', marginBottom: 8 }}
+            enterButton
+            prefix={<SearchOutlined style={{ color: '#1890ff' }} />}
+          />
+          
+          {/* 搜索结果导航 */}
+          {matchedNodeIds.length > 0 && (
+            <div className="search-navigation" style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>找到 {matchedNodeIds.length} 个结果</span>
+              <div>
+                <Button 
+                  size="small" 
+                  onClick={goToPrevMatch} 
+                  style={{ marginRight: 8 }}
+                  icon={<UpOutlined />}
+                  title="上一个结果"
+                >
+                  上一个
+                </Button>
+                <Button 
+                  size="small" 
+                  onClick={goToNextMatch}
+                  icon={<DownOutlined />}
+                  title="下一个结果"
+                >
+                  下一个
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
         <Button
           type="primary"
           icon={<PlusOutlined />}

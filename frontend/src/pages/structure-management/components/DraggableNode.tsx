@@ -19,11 +19,38 @@ interface DraggableNodeProps {
   isSelected: boolean;
   isExpanded: boolean;
   isValidDrop: boolean;
+  isHighlighted?: boolean; // 是否高亮显示（搜索匹配时）
+  searchValue?: string; // 新增：搜索关键词，用于高亮匹配的文本
   onSelect: (node: ModuleStructureNode) => void;
   onExpand: (id: number) => void;
   onAddChild: (node: ModuleStructureNode) => void;
   onDelete: (node: ModuleStructureNode) => void;
 }
+
+/**
+ * 高亮文本中匹配的部分
+ * @param text 原始文本
+ * @param search 搜索关键词
+ * @returns 包含高亮标记的 JSX 元素
+ */
+const highlightText = (text: string, search: string): React.ReactNode => {
+  if (!search || search.trim() === '') {
+    return text;
+  }
+  
+  const parts = text.split(new RegExp(`(${search})`, 'gi'));
+  return (
+    <>
+      {parts.map((part, index) => (
+        part.toLowerCase() === search.toLowerCase() ? (
+          <span key={index} className="text-highlight">{part}</span>
+        ) : (
+          part
+        )
+      ))}
+    </>
+  );
+};
 
 /**
  * 可拖拽树节点组件 - 使用React.memo优化性能
@@ -37,6 +64,8 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
   isSelected,
   isExpanded,
   isValidDrop,
+  isHighlighted,
+  searchValue = '',
   onSelect,
   onExpand,
   onAddChild,
@@ -62,7 +91,6 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
             overflow: 'hidden',
             display: 'flex',
             alignItems: 'center',
-            background: isSelected ? '#e6f7ff' : undefined,
           }}
           onClick={() => onSelect(node)}
           onMouseEnter={e => e.currentTarget.classList.add('ant-tree-treenode-hover')}
@@ -103,7 +131,9 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
               <span className="custom-tree-icon file-icon"><FileTextOutlined style={{ marginRight: 6 }} /></span> : 
               <span className="custom-tree-icon folder-icon"><FolderOpenOutlined style={{ marginRight: 6 }} /></span>
             }
-            <span className="node-content" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 0 }}>{node.name}</span>
+            <span className="node-content" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 0 }}>
+              {searchValue ? highlightText(node.name, searchValue) : node.name}
+            </span>
           </div>
           {/* 右侧：操作按钮区 */}
           <div className={`node-actions${node.is_content_page ? ' content-node-actions' : ''}`} style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'static', right: 'unset', top: 'unset', transform: 'none' }} onClick={e => e.stopPropagation()}>
@@ -146,6 +176,8 @@ export default memo(DraggableNode, (prevProps, nextProps) => {
     prevProps.index === nextProps.index &&
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.isExpanded === nextProps.isExpanded &&
-    prevProps.isValidDrop === nextProps.isValidDrop
+    prevProps.isValidDrop === nextProps.isValidDrop &&
+    prevProps.isHighlighted === nextProps.isHighlighted &&
+    prevProps.searchValue === nextProps.searchValue
   );
 }); 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Spin, Tabs, Button, Form, Input, Radio, message, Space, Divider, Card, Tag, Tooltip, Statistic, Row, Col, Progress } from 'antd';
+import { Spin, Tabs, Button, Form, Input, Radio, message, Space, Divider, Card, Tag, Tooltip, Statistic, Row, Col, Progress, TreeSelect } from 'antd';
 import { 
   EditOutlined, 
   SaveOutlined, 
@@ -27,7 +27,7 @@ import {
   BarChartOutlined,
   ClockCircleOutlined
 } from '@ant-design/icons';
-import { ModuleStructureNode, ModuleStructureNodeRequest, ModuleContent } from '../../../types/modules';
+import { ModuleStructureNode, ModuleStructureNodeRequest } from '../../../types/modules';
 import { updateModuleNode, fetchModuleContent, getDiagram, getModuleSectionConfig } from '../../../apis/moduleService';
 import { useModules } from '../../../contexts/ModuleContext';
 import { refreshModuleTreeEvent } from '../../../layouts/MainLayout';
@@ -54,11 +54,77 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
   const [saving, setSaving] = useState<boolean>(false);
   const [creator, setCreator] = useState<{id: number, username: string} | null>(null);
   const [loadingCreator, setLoadingCreator] = useState<boolean>(false);
-  const [moduleContent, setModuleContent] = useState<ModuleContent | null>(null);
+  const [moduleContent, setModuleContent] = useState<any | null>(null); // 修改类型以适应新的模块内容结构
   const [loadingContent, setLoadingContent] = useState<boolean>(false);
   const [enabledModules, setEnabledModules] = useState<{[key: string]: boolean}>({});
   const [loadingModuleConfig, setLoadingModuleConfig] = useState<boolean>(false);
   const { fetchModules } = useModules();
+
+  // 处理树数据，过滤不适合作为父节点的选项
+  const processTreeData = (
+    treeNodes: ModuleStructureNode[], 
+    currentNodeId?: number
+  ): any[] => {
+    // 如果没有节点或是空数组，返回空数组
+    if (!treeNodes || treeNodes.length === 0) {
+      return [];
+    }
+
+    // 递归查找节点所有子节点的ID
+    const findAllChildrenIds = (node: ModuleStructureNode): number[] => {
+      let ids: number[] = [node.id];
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => {
+          ids = [...ids, ...findAllChildrenIds(child)];
+        });
+      }
+      return ids;
+    };
+
+    // 获取当前节点的所有子节点ID
+    let disabledIds: number[] = [];
+    if (currentNodeId) {
+      const findNode = (nodes: ModuleStructureNode[], id: number): ModuleStructureNode | null => {
+        for (const n of nodes) {
+          if (n.id === id) return n;
+          if (n.children && n.children.length > 0) {
+            const found = findNode(n.children, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const currentNode = findNode(treeNodes, currentNodeId);
+      if (currentNode) {
+        disabledIds = findAllChildrenIds(currentNode);
+      }
+    }
+
+    // 转换树节点为TreeSelect需要的格式
+    return treeNodes.map(item => {
+      // 内容页面不能作为父节点，本身和子节点也不能选择
+      const isDisabled = item.is_content_page || 
+                         (disabledIds.includes(item.id));
+      
+      const node = {
+        title: item.name,
+        value: item.id,
+        key: item.id,
+        disabled: isDisabled,
+        children: item.children && item.children.length > 0 
+          ? processTreeData(item.children, currentNodeId)
+          : undefined
+      };
+
+      return node;
+    });
+  };
+
+  // 处理后的树数据，用于父节点选择
+  const processedTreeData = useMemo(() => {
+    return processTreeData(treeData, node?.id);
+  }, [treeData, node?.id]);
 
   // 加载模块配置信息
   const loadModuleConfig = async () => {
@@ -120,7 +186,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
     if (node) {
       form.setFieldsValue({
         name: node.name,
-        module_type: node.is_content_page ? 'content_page' : 'structure_node',
+        parent_id: node.parent_id || undefined
       });
       setEditing(false);
       
@@ -566,7 +632,9 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
       
       const nodeData: ModuleStructureNodeRequest = {
         name: values.name,
-        is_content_page: values.module_type === 'content_page'
+        is_content_page: node.is_content_page, // 使用当前节点的is_content_page
+        // 明确处理parent_id，当用户清除选择时，将其设置为null（顶级节点）
+        parent_id: values.parent_id === undefined ? null : values.parent_id
       };
       
       // 调用API更新节点
@@ -592,7 +660,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
     if (node) {
       form.setFieldsValue({
         name: node.name,
-        module_type: node.is_content_page ? 'content_page' : 'structure_node',
+        parent_id: node.parent_id || undefined // 确保parent_id存在
       });
     }
     setEditing(false);
@@ -751,33 +819,35 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             </Form.Item>
             
             <Form.Item
-              name="module_type"
-              label="模块类型"
-              rules={[{ required: true, message: '请选择模块类型' }]}
-                extra="注意：修改节点类型可能会影响其功能和行为"
+              name="parent_id"
+              label="父节点"
+              help="选择新的父节点可以更改模块在结构中的层级位置，清除选择则将其设置为顶级节点"
             >
-              <Radio.Group disabled>
-                <Radio value="structure_node">节点 (可添加子模块)</Radio>
-                <Radio value="content_page">内容页面 (可编辑模块功能)</Radio>
-              </Radio.Group>
+              <TreeSelect
+                showSearch
+                style={{ width: '100%' }}
+                dropdownStyle={{ maxHeight: 400, overflow: 'auto' }}
+                placeholder="请选择父节点"
+                allowClear
+                treeDefaultExpandAll
+                treeData={processedTreeData}
+                treeNodeFilterProp="title"
+              />
             </Form.Item>
             
-            <Form.Item>
+            <div className="form-actions" style={{ marginTop: '20px', textAlign: 'right' }}>
               <Space>
-                <Button
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  onClick={handleSubmit}
-                >
+                <Button onClick={handleCancel}>取消</Button>
+                <Button type="primary" icon={<SaveOutlined />} onClick={handleSubmit} loading={saving}>
                   保存
                 </Button>
-                <Button onClick={handleCancel}>取消</Button>
               </Space>
-            </Form.Item>
+            </div>
           </Form>
           </Card>
         )}
       </div>
+      
     </Spin>
   );
 };

@@ -30,15 +30,59 @@
   background-repeat: repeat-y;
 }
 
+/* 树结构头部样式 */
 .tree-header {
   margin-bottom: 16px;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  padding-bottom: 8px;
 }
+
+/* 搜索框容器样式 */
+.search-container {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+/* 文本高亮样式 - 替换原来的节点高亮样式 */
+.text-highlight {
+  background-color: #ffeaa7;
+  border-radius: 2px;
+  padding: 0 1px;
+  font-weight: bold;
+  border-bottom: 1px solid #fdcb6e;
+}
+
+/* 移除原来的高亮节点样式
+.tree-node-wrapper.highlighted-node {
+  background-color: #ffeaa7 !important;
+  border-left: 2px solid #fdcb6e !important;
+  animation: highlight-pulse 1.5s infinite alternate ease-in-out;
+  z-index: 1;
+}
+
+@keyframes highlight-pulse {
+  from {
+    box-shadow: 0 0 0 0 rgba(253, 203, 110, 0.4);
+  }
+  to {
+    box-shadow: 0 0 0 3px rgba(253, 203, 110, 0.4);
+  }
+}
+
+.tree-node-wrapper.highlighted-node:hover {
+  background-color: #ffdd94 !important;
+}
+
+.tree-node-wrapper.highlighted-node.ant-tree-node-selected {
+  background-color: #ffeaa7 !important;
+}
+*/
 
 .add-root-button {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-radius: 4px;
+  align-self: flex-end;
 }
 
 /* 树组件样式覆盖 */

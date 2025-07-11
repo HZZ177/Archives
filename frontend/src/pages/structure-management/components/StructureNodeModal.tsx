@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Form, Input, message, Radio } from 'antd';
+import { Modal, Form, Input, message, Radio, TreeSelect } from 'antd';
 import { ModuleStructureNode, ModuleStructureNodeRequest } from '../../../types/modules';
 import { createModuleNode, updateModuleNode } from '../../../apis/moduleService';
 
@@ -10,6 +10,7 @@ interface StructureNodeModalProps {
   parentNode: ModuleStructureNode | null;
   onCancel: () => void;
   onComplete: () => void;
+  treeData: ModuleStructureNode[]; // 用于构建父节点选择器的树数据
 }
 
 export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
@@ -19,12 +20,77 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
   parentNode,
   onCancel,
   onComplete,
+  treeData,
 }) => {
   // 确保form实例在组件渲染时已创建
   const [form] = Form.useForm();
   const [loading, setLoading] = useState<boolean>(false);
   // 创建输入框ref，用于手动聚焦
   const inputRef = useRef<any>(null);
+
+  // 处理树数据，过滤不适合作为父节点的选项
+  const processTreeData = (
+    treeNodes: ModuleStructureNode[], 
+    currentNodeId?: number
+  ): any[] => {
+    // 如果没有节点或是空数组，返回空数组
+    if (!treeNodes || treeNodes.length === 0) {
+      return [];
+    }
+
+    // 递归查找节点所有子节点的ID
+    const findAllChildrenIds = (node: ModuleStructureNode): number[] => {
+      let ids: number[] = [node.id];
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => {
+          ids = [...ids, ...findAllChildrenIds(child)];
+        });
+      }
+      return ids;
+    };
+
+    // 获取当前节点的所有子节点ID（如果是编辑模式）
+    let disabledIds: number[] = [];
+    if (type === 'edit' && currentNodeId) {
+      const findNode = (nodes: ModuleStructureNode[], id: number): ModuleStructureNode | null => {
+        for (const n of nodes) {
+          if (n.id === id) return n;
+          if (n.children && n.children.length > 0) {
+            const found = findNode(n.children, id);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const currentNode = findNode(treeNodes, currentNodeId);
+      if (currentNode) {
+        disabledIds = findAllChildrenIds(currentNode);
+      }
+    }
+
+    // 转换树节点为TreeSelect需要的格式
+    return treeNodes.map(item => {
+      // 内容页面不能作为父节点，本身和子节点也不能选择
+      const isDisabled = item.is_content_page || 
+                         (disabledIds.includes(item.id));
+      
+      const node = {
+        title: item.name,
+        value: item.id,
+        key: item.id,
+        disabled: isDisabled,
+        children: item.children && item.children.length > 0 
+          ? processTreeData(item.children, currentNodeId)
+          : undefined
+      };
+
+      return node;
+    });
+  };
+
+  // 处理后的树数据，用于父节点选择
+  const processedTreeData = processTreeData(treeData, node?.id);
 
   // 当模态框打开时，初始化表单
   useEffect(() => {
@@ -34,16 +100,18 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
         form.setFieldsValue({
           name: node.name,
           module_type: node.is_content_page ? 'content_page' : 'structure_node',
+          parent_id: node.parent_id || undefined
         });
       } else if (type === 'add') {
         // 在添加模式下，重置表单并强制设置默认值
         form.setFieldsValue({
           name: '',
           module_type: 'structure_node',
+          parent_id: parentNode?.id || undefined
         });
       }
     }
-  }, [visible, type, node, form]);
+  }, [visible, type, node, form, parentNode]);
 
   // 用于在模态框打开后聚焦到输入框
   useEffect(() => {
@@ -77,6 +145,15 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
       // 如果是添加子节点，设置parent_id
       if (type === 'add' && parentNode) {
         nodeData.parent_id = parentNode.id;
+      }
+      
+      // 在编辑模式下，如果选择了父节点，设置parent_id
+      if (type === 'edit') {
+        // 只有当明确选择了父节点值或明确设置为undefined时才包含这个字段
+        // 这样可以避免在不需要修改父节点时发送null值
+        if ('parent_id' in values) {
+          nodeData.parent_id = values.parent_id;
+        }
       }
       
       if (type === 'edit' && node) {
@@ -160,6 +237,25 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
             ref={inputRef} 
           />
         </Form.Item>
+        
+        {type === 'edit' && (
+          <Form.Item
+            name="parent_id"
+            label="父节点"
+            help="选择新的父节点可以更改模块在结构中的层级位置"
+          >
+            <TreeSelect
+              showSearch
+              style={{ width: '100%' }}
+              dropdownStyle={{ maxHeight: 400, overflow: 'auto' }}
+              placeholder="请选择父节点"
+              allowClear
+              treeDefaultExpandAll
+              treeData={processedTreeData}
+              treeNodeFilterProp="title"
+            />
+          </Form.Item>
+        )}
         
         <Form.Item
           name="module_type"

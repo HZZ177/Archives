@@ -122,6 +122,7 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
         parentNode={parentNode}
         onCancel={() => setModalVisible(false)}
         onComplete={handleModalComplete}
+        treeData={treeData}
       />
     </div>
   );
