@@ -589,8 +589,21 @@ class BugService:
             else:
                 start_date = end_date - timedelta(days=30)
             
-            # 获取模块健康分（基础：按严重度统计）
-            module_health_query = select(
+            # 首先获取所有模块节点信息
+            all_modules_query = select(
+                ModuleStructureNode.id,
+                ModuleStructureNode.name,
+                ModuleStructureNode.parent_id,
+                ModuleStructureNode.is_content_page
+            ).where(
+                ModuleStructureNode.workspace_id == workspace_id
+            )
+
+            all_modules_result = await db.execute(all_modules_query)
+            all_modules = all_modules_result.all()
+
+            # 只对内容节点计算直接的健康分（基础：按严重度统计）
+            content_health_query = select(
                 ModuleStructureNode.id,
                 ModuleStructureNode.name,
                 func.count(BugProfile.id).label('total_bugs'),
@@ -605,122 +618,170 @@ class BugService:
             ).outerjoin(
                 BugProfile, BugModuleLink.bug_id == BugProfile.id
             ).where(
-                ModuleStructureNode.workspace_id == workspace_id
+                and_(
+                    ModuleStructureNode.workspace_id == workspace_id,
+                    ModuleStructureNode.is_content_page == True
+                )
             ).group_by(
                 ModuleStructureNode.id, ModuleStructureNode.name
             )
             
-            module_result = await db.execute(module_health_query)
-            module_health_data = module_result.all()
+            content_result = await db.execute(content_health_query)
+            content_health_data = content_result.all()
             
-            # 发生频率：统计时间范围内每个模块的日志次数
-            occurrences_query = select(
-                ModuleStructureNode.id.label('module_id'),
-                func.count(BugLog.id).label('occ_count')
-            ).select_from(
-                ModuleStructureNode
-            ).outerjoin(
-                BugModuleLink, ModuleStructureNode.id == BugModuleLink.module_id
-            ).outerjoin(
-                BugLog, BugModuleLink.bug_id == BugLog.bug_id
-            ).where(
-                and_(
-                    ModuleStructureNode.workspace_id == workspace_id,
-                    BugLog.occurred_at >= start_date,
-                    BugLog.occurred_at <= end_date
-                )
-            ).group_by(ModuleStructureNode.id)
+            # 严重程度分数配置
+            severity_scores = {
+                'CRITICAL': 10,
+                'HIGH': 8,
+                'MEDIUM': 5,
+                'LOW': 1
+            }
 
-            occ_result = await db.execute(occurrences_query)
-            occ_rows = occ_result.all()
-            module_to_occ_count = {row.module_id: (row.occ_count or 0) for row in occ_rows}
-
-            # 时间衰减：按日志时间做线性衰减求和（0~30天线性下降到0，>30天为0）
-            window_days = 30
-
-            decay_query = select(
-                ModuleStructureNode.id.label('module_id'),
+            # 按严重程度和时间衰减计算扣分：获取30天内每个模块的Bug发生记录
+            # 直接根据BugLog的module_id统计，确保每次发生只计入对应的模块
+            penalty_query = select(
+                BugLog.module_id,
+                BugProfile.severity,
                 BugLog.occurred_at
             ).select_from(
-                ModuleStructureNode
-            ).outerjoin(
-                BugModuleLink, ModuleStructureNode.id == BugModuleLink.module_id
-            ).outerjoin(
-                BugLog, BugModuleLink.bug_id == BugLog.bug_id
+                BugLog
+            ).join(
+                BugProfile, BugLog.bug_id == BugProfile.id
+            ).join(
+                ModuleStructureNode, BugLog.module_id == ModuleStructureNode.id
             ).where(
                 and_(
                     ModuleStructureNode.workspace_id == workspace_id,
+                    BugLog.module_id.is_not(None),  # 只统计有明确模块的发生记录
                     BugLog.occurred_at >= start_date,
                     BugLog.occurred_at <= end_date
                 )
             )
 
-            decay_result = await db.execute(decay_query)
-            decay_rows = decay_result.all()
-            module_to_decay_sum: Dict[int, float] = {}
-            for row in decay_rows:
+            penalty_result = await db.execute(penalty_query)
+            penalty_rows = penalty_result.all()
+
+            # 计算每个模块的扣分
+            module_penalties = {}
+            window_days = 30
+
+            for row in penalty_rows:
                 module_id = row.module_id
+                severity = row.severity
                 occurred_at = row.occurred_at
-                # 兼容可能的字符串/日期类型
+
+                # 计算时间衰减系数
                 if isinstance(occurred_at, str):
-                    # 若为字符串（YYYY-MM-DD 或含时间），仅用于相对天数估算，此处转为日期部分
                     try:
-                        # 尝试按标准格式解析
                         occurred_dt = datetime.fromisoformat(occurred_at)
                     except Exception:
-                        # 回退：仅取日期部分
                         occurred_dt = datetime.strptime(occurred_at[:10], '%Y-%m-%d')
                 else:
                     occurred_dt = occurred_at
+
                 days_since = max(0, (end_date - occurred_dt).days)
-                # 线性权重：0天=1，30天=0，超过即0
-                weight = max(0.0, 1.0 - (days_since / window_days))
-                module_to_decay_sum[module_id] = module_to_decay_sum.get(module_id, 0.0) + weight
+                # 线性衰减：0天=1.0，30天=0.0
+                decay_factor = max(0.0, 1.0 - (days_since / window_days))
 
-            # 权重参数（可按需调整/配置）
-            severity_weights = {
-                'CRITICAL': 10,
-                'HIGH': 5,
-                'MEDIUM': 2,
-                'LOW': 1
-            }
-            alpha_freq = 1.0   # 频率扣分系数
-            beta_decay = 2.0   # 时间线性衰减扣分系数
+                # 计算扣分：严重程度分数 × 时间衰减系数
+                severity_score = severity_scores.get(severity, 1)
+                penalty = severity_score * decay_factor
 
-            module_health_scores = []
-            for row in module_health_data:
-                # 基于严重度的基础扣分（按关联 Bug 档案数量统计）
-                # 使用关联 Bug 档案的严重度统计
-                critical = row.critical_count or 0
-                high = row.high_count or 0
-                medium = row.medium_count or 0
-                low = row.low_count or 0
-                base_penalty = (
-                    severity_weights['CRITICAL'] * critical +
-                    severity_weights['HIGH'] * high +
-                    severity_weights['MEDIUM'] * medium +
-                    severity_weights['LOW'] * low
-                )
+                if module_id not in module_penalties:
+                    module_penalties[module_id] = 0.0
+                module_penalties[module_id] += penalty
 
-                # 发生频率扣分（时间范围内日志数量）
-                occ_count = module_to_occ_count.get(row.id, 0)
-                freq_penalty = alpha_freq * occ_count
-
-                # 时间衰减权重扣分（越近影响越大）
-                decay_sum = module_to_decay_sum.get(row.id, 0.0)
-                recency_penalty = beta_decay * decay_sum
-
-                total_penalty = base_penalty + freq_penalty + recency_penalty
+            # 先计算内容节点的健康分
+            content_scores = {}
+            for row in content_health_data:
+                # 获取该模块的总扣分
+                total_penalty = module_penalties.get(row.id, 0.0)
                 health_score = max(0, 100 - total_penalty)
-                
+
+                content_scores[row.id] = {
+                    'health_score': health_score,
+                    'critical_count': row.critical_count or 0,
+                    'high_count': row.high_count or 0,
+                    'medium_count': row.medium_count or 0,
+                    'low_count': row.low_count or 0
+                }
+
+            # 构建模块树结构，用于聚合计算
+            modules_by_id = {module.id: module for module in all_modules}
+            children_by_parent = {}
+            for module in all_modules:
+                parent_id = module.parent_id
+                if parent_id not in children_by_parent:
+                    children_by_parent[parent_id] = []
+                children_by_parent[parent_id].append(module.id)
+
+            # 递归计算结构节点的健康分（基于子节点聚合）
+            def calculate_node_score(node_id):
+                module = modules_by_id[node_id]
+
+                if module.is_content_page:
+                    # 内容节点直接返回已计算的分数
+                    return content_scores.get(node_id, {
+                        'health_score': 100,
+                        'critical_count': 0,
+                        'high_count': 0,
+                        'medium_count': 0,
+                        'low_count': 0
+                    })
+                else:
+                    # 结构节点聚合子节点分数
+                    child_ids = children_by_parent.get(node_id, [])
+                    if not child_ids:
+                        return {
+                            'health_score': 100,
+                            'critical_count': 0,
+                            'high_count': 0,
+                            'medium_count': 0,
+                            'low_count': 0
+                        }
+
+                    child_scores = [calculate_node_score(child_id) for child_id in child_ids]
+
+                    # 聚合子节点的统计数据
+                    total_critical = sum(score['critical_count'] for score in child_scores)
+                    total_high = sum(score['high_count'] for score in child_scores)
+                    total_medium = sum(score['medium_count'] for score in child_scores)
+                    total_low = sum(score['low_count'] for score in child_scores)
+
+                    # 健康分使用加权平均（权重可以是Bug数量）
+                    total_bugs = total_critical + total_high + total_medium + total_low
+                    if total_bugs > 0:
+                        # 按Bug数量加权平均
+                        weighted_score = sum(
+                            score['health_score'] * (
+                                score['critical_count'] + score['high_count'] +
+                                score['medium_count'] + score['low_count']
+                            ) for score in child_scores
+                        ) / total_bugs
+                    else:
+                        # 无Bug时使用简单平均
+                        weighted_score = sum(score['health_score'] for score in child_scores) / len(child_scores)
+
+                    return {
+                        'health_score': weighted_score,
+                        'critical_count': total_critical,
+                        'high_count': total_high,
+                        'medium_count': total_medium,
+                        'low_count': total_low
+                    }
+
+            # 为所有模块计算健康分
+            module_health_scores = []
+            for module in all_modules:
+                score_data = calculate_node_score(module.id)
                 health_score_obj = ModuleHealthScore(
-                    module_id=row.id,
-                    module_name=row.name,
-                    health_score=health_score,
-                    critical_count=row.critical_count or 0,
-                    high_count=row.high_count or 0,
-                    medium_count=row.medium_count or 0,
-                    low_count=row.low_count or 0
+                    module_id=module.id,
+                    module_name=module.name,
+                    health_score=score_data['health_score'],
+                    critical_count=score_data['critical_count'],
+                    high_count=score_data['high_count'],
+                    medium_count=score_data['medium_count'],
+                    low_count=score_data['low_count']
                 )
                 module_health_scores.append(health_score_obj)
             

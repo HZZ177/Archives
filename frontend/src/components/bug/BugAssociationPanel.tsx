@@ -24,6 +24,7 @@ import {
   ExclamationCircleOutlined,
   SearchOutlined
 } from '@ant-design/icons';
+import '../../pages/module-content/components/sections/SectionStyles.css';
 
 import { usePermission } from '../../contexts/PermissionContext';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
@@ -94,8 +95,8 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
       };
 
       const response = await request.post('/bugs/get-module-bugs', { module_id: moduleId, ...params });
-      const data = unwrapResponse(response.data);
-      
+      const data = unwrapResponse(response.data) as any;
+
       setBugList(data.items);
       setTotal(data.total);
     } catch (error) {
@@ -123,7 +124,7 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
           page_size: 10
         }
       });
-      const data = unwrapResponse(response.data);
+      const data = unwrapResponse(response.data) as any;
       setSearchResults(data.items);
     } catch (error) {
       message.error('搜索Bug失败');
@@ -204,16 +205,15 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
   }
 
   return (
-    <Card
-      title={
-        <Space>
-          <BugOutlined />
-          关联缺陷记录
-          <Badge count={total} showZero />
-        </Space>
-      }
-      size="small"
-      extra={
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <BugOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+          <span style={{ fontWeight: 600, fontSize: 16 }}>关联缺陷记录</span>
+          <span style={{ marginLeft: '8px', color: total > 0 ? '#1890ff' : '#999', fontSize: '12px' }}>
+            ({total || 0})
+          </span>
+        </div>
         <Space>
           {canLink && (
             <Tooltip title="关联已有问题">
@@ -244,8 +244,7 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
             </Tooltip>
           )}
         </Space>
-      }
-    >
+      </div>
       {loading ? (
         <div style={{ textAlign: 'center', padding: '20px' }}>
           <Spin />
@@ -298,10 +297,18 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
                   title={
                     <Space>
                       <span style={{ fontSize: '14px' }}>{bug.title}</span>
-                      <Tag color={severityOption?.color} size="small">
+                      <Tag color={severityOption?.color} style={{ fontSize: '12px' }}>
                         {severityOption?.label}
                       </Tag>
-                      <Badge count={bug.occurrence_count} showZero size="small" />
+                      <span style={{
+                        color: bug.occurrence_count > 0 ? '#1890ff' : '#999',
+                        fontSize: '12px',
+                        backgroundColor: '#f0f0f0',
+                        padding: '2px 6px',
+                        borderRadius: '4px'
+                      }}>
+                        {bug.occurrence_count || 0}次
+                      </span>
                     </Space>
                   }
                   description={
@@ -314,10 +321,10 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
                       {bug.tags && bug.tags.length > 0 && (
                         <div style={{ marginTop: 4 }}>
                           {bug.tags.slice(0, 3).map(tag => (
-                            <Tag key={tag} size="small">{tag}</Tag>
+                            <Tag key={tag} style={{ fontSize: '11px' }}>{tag}</Tag>
                           ))}
                           {bug.tags.length > 3 && (
-                            <Tag size="small">+{bug.tags.length - 3}</Tag>
+                            <Tag style={{ fontSize: '11px' }}>+{bug.tags.length - 3}</Tag>
                           )}
                         </div>
                       )}
@@ -335,8 +342,8 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
               size: 'small',
               showSizeChanger: false,
               showQuickJumper: false,
-              showTotal: (total) => `共 ${total} 个`,
-              onChange: (page) => setCurrentPage(page)
+              showTotal: (total: number) => `共 ${total} 个`,
+              onChange: (page: number) => setCurrentPage(page)
             } : false
           }
         />
@@ -358,7 +365,7 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
           <Input.Search
             placeholder="搜索Bug标题或描述"
             value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchKeyword(e.target.value)}
             onSearch={searchBugs}
             loading={searchLoading}
             enterButton
@@ -530,7 +537,7 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
           </Form.Item>
         </Form>
       </Modal>
-    </Card>
+    </div>
   );
 };
 

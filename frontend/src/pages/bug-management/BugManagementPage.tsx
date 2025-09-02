@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Typography, Button, Input, Space, Table, Tag, Select, Modal, Form, message, Popconfirm, Row, Col, Badge, Divider, TreeSelect, Spin, Timeline, Tabs, Descriptions, Tree } from 'antd';
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, ExclamationCircleOutlined, FileTextOutlined, FolderOpenOutlined } from '@ant-design/icons';
 import { usePermission } from '../../contexts/PermissionContext';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { BugProfileResponse, BugSeverity, BugStatus, BugListParams, BugProfileCreate, BugProfileUpdate, SEVERITY_OPTIONS, STATUS_OPTIONS, BugLogResponse, BugAnalysisResponse } from '../../types/bug';
 import { ModuleStructure } from '../../types/module';
 import { unwrapResponse } from '../../utils/request';
 import request from '../../utils/request';
+import '../module-content/components/sections/SectionStyles.css';
 
 
 const { Title } = Typography;
@@ -19,14 +20,53 @@ const formatDate = (dateString: string) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 };
 
-// 构建模块树形数据
+// 检查节点下是否有内容页面节点
+const hasContentPageDescendant = (node: ModuleStructure): boolean => {
+  if (node.is_content_page) return true;
+  if (node.children && node.children.length > 0) {
+    return node.children.some(child => hasContentPageDescendant(child));
+  }
+  return false;
+};
+
+// 构建模块树形数据（用于TreeSelect）
 const buildModuleTree = (modules: ModuleStructure[]): any[] => {
-  return modules.map(module => ({
-    title: module.name,
-    value: module.id,
-    key: module.id,
-    children: module.children ? buildModuleTree(module.children) : undefined
-  }));
+  return modules.map(module => {
+    const hasContentPage = hasContentPageDescendant(module);
+    return {
+      title: module.name,
+      value: module.id,
+      key: module.id,
+      children: module.children ? buildModuleTree(module.children) : undefined,
+      // 只有内容页面节点可以被选择
+      disabled: !module.is_content_page
+    };
+  });
+};
+
+// 构建模块树形数据（用于Tree组件，带样式）
+const buildModuleTreeWithStyle = (modules: ModuleStructure[]): any[] => {
+  return modules.map(module => {
+    const hasContentPage = hasContentPageDescendant(module);
+    return {
+      title: module.name,
+      key: module.id.toString(),
+      children: module.children ? buildModuleTreeWithStyle(module.children) : undefined,
+      icon: module.is_content_page
+        ? <span className="custom-tree-icon file-icon"><FileTextOutlined /></span>
+        : <span className="custom-tree-icon folder-icon"><FolderOpenOutlined /></span>,
+      className: module.is_content_page
+        ? 'content-node'
+        : hasContentPage
+          ? 'structure-node'
+          : 'empty-structure-node',
+      // 只有内容页面节点可以被选择
+      disabled: !module.is_content_page,
+      isContentPage: module.is_content_page,
+      hasContentPage: hasContentPage,
+      moduleId: module.id
+    };
+  });
 };
 
 
@@ -56,6 +96,7 @@ const BugManagementPage: React.FC = () => {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logModalVisible, setLogModalVisible] = useState(false);
   const [logSubmitting, setLogSubmitting] = useState(false);
+  const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
   
   // 表单实例
   const [createForm] = Form.useForm();
@@ -202,7 +243,7 @@ const BugManagementPage: React.FC = () => {
       key: 'occurrence_count',
       width: 100,
       render: (count: number) => (
-        <Badge count={count} showZero />
+        <span style={{ color: count > 0 ? '#1890ff' : '#999' }}>{count || 0}</span>
       )
     },
     {
@@ -576,11 +617,15 @@ const BugManagementPage: React.FC = () => {
                       style={{ marginBottom: 16 }}
                     />
                     <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
-                      评分规则：综合严重度、发生频率与时间衰减。
-                      严重度权重 CRITICAL=10、HIGH=5、MEDIUM=2、LOW=1；
-                      频率按时间范围内日志次数计分；
-                      时间衰减采用线性比例（0〜30天按比例扣分，超过30天不计分）。
-                      最终分数 = max(0, 100 − (严重度扣分 + 频率扣分 + 衰减扣分)).
+                      <strong>评分规则：</strong><br/>
+                      <strong>内容节点：</strong>健康分 = max(0, 100 − 总扣分)<br/>
+                      • 严重程度分数：CRITICAL=10分，HIGH=8分，MEDIUM=5分，LOW=1分<br/>
+                      • 时间衰减系数：距今0天=1.0，距今30天=0.0，线性衰减<br/>
+                      • 扣分计算：每次发生单独计算（严重程度分数 × 时间衰减系数），然后累加<br/>
+                      <strong>结构节点：</strong>由子节点聚合计算<br/>
+                      • 有Bug时：按Bug数量加权平均子节点健康分<br/>
+                      • 无Bug时：简单平均子节点健康分<br/>
+                      • Bug统计：直接累加子节点Bug数量
                     </Typography.Paragraph>
                     <Table
                       dataSource={analysisData.module_health_scores}
@@ -607,7 +652,10 @@ const BugManagementPage: React.FC = () => {
       <Modal
         title="创建Bug档案"
         open={createModalVisible}
-        onCancel={() => setCreateModalVisible(false)}
+        onCancel={() => {
+          setCreateModalVisible(false);
+          createForm.resetFields();
+        }}
         footer={null}
         width={800}
       >
@@ -688,7 +736,10 @@ const BugManagementPage: React.FC = () => {
               <Button type="primary" htmlType="submit">
                 创建
               </Button>
-              <Button onClick={() => setCreateModalVisible(false)}>
+              <Button onClick={() => {
+                setCreateModalVisible(false);
+                createForm.resetFields();
+              }}>
                 取消
               </Button>
             </Space>
@@ -786,7 +837,10 @@ const BugManagementPage: React.FC = () => {
               <Button type="primary" htmlType="submit">
                 更新
               </Button>
-              <Button onClick={() => setEditModalVisible(false)}>
+              <Button onClick={() => {
+                setEditModalVisible(false);
+                editForm.resetFields();
+              }}>
                 取消
               </Button>
             </Space>
@@ -887,7 +941,7 @@ const BugManagementPage: React.FC = () => {
                     <Timeline.Item key={log.id}>
                       <Typography.Text>{formatDate(log.occurred_at)}</Typography.Text>
                       <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
-                        {log.module_name ? `（模块：${log.module_name}）` : (log.module_id ? `（模块ID：${log.module_id}）` : '')}
+                        {log.module_name ? `（${log.module_name}）` : (log.module_id ? `（ID：${log.module_id}）` : '')}
                       </Typography.Text>
                       {log.notes && (
                         <Typography.Paragraph type="secondary" style={{ margin: '4px 0 0' }}>
@@ -912,18 +966,43 @@ const BugManagementPage: React.FC = () => {
         onCancel={() => {
           setLogModalVisible(false);
           logForm.resetFields();
+          setSelectedModuleId(null);
         }}
         footer={null}
         width={520}
       >
         <Form form={logForm} layout="vertical" onFinish={handleLogOccurrence}>
           <Form.Item name="module_id" label="发生所在模块" rules={[{ required: true, message: '请选择发生所在模块' }]}>
-            <TreeSelect
-              treeData={buildModuleTree(moduleList)}
-              placeholder="请选择模块"
-              style={{ width: '100%' }}
-              loading={moduleLoading}
-            />
+            <div className="module-tree-container">
+              <Tree
+                treeData={buildModuleTreeWithStyle(moduleList)}
+                selectable={true}
+                showIcon={true}
+                height={200}
+                selectedKeys={selectedModuleId ? [selectedModuleId.toString()] : []}
+                onSelect={(selectedKeys, info) => {
+                  if (selectedKeys.length > 0 && !info.node.disabled) {
+                    const moduleId = parseInt(selectedKeys[0].toString());
+                    setSelectedModuleId(moduleId);
+                    logForm.setFieldsValue({ module_id: moduleId });
+                  } else {
+                    setSelectedModuleId(null);
+                    logForm.setFieldsValue({ module_id: undefined });
+                  }
+                }}
+                className="modules-tree"
+              />
+            </div>
+            <div className="select-help-text">
+              <span className="custom-tree-icon file-icon" style={{ marginRight: 4, verticalAlign: 'middle' }}>
+                <FileTextOutlined />
+              </span>
+              内容页面节点可选择，
+              <span className="custom-tree-icon folder-icon" style={{ marginLeft: 8, marginRight: 4, verticalAlign: 'middle' }}>
+                <FolderOpenOutlined />
+              </span>
+              结构节点不可选择
+            </div>
           </Form.Item>
           <Form.Item name="notes" label="备注">
             <Input.TextArea rows={3} placeholder="可选，补充说明本次发生的情况" />
@@ -933,7 +1012,11 @@ const BugManagementPage: React.FC = () => {
               <Button type="primary" htmlType="submit" loading={logSubmitting}>
                 确认记录
               </Button>
-              <Button onClick={() => { setLogModalVisible(false); logForm.resetFields(); }} disabled={logSubmitting}>
+              <Button onClick={() => {
+                setLogModalVisible(false);
+                logForm.resetFields();
+                setSelectedModuleId(null);
+              }} disabled={logSubmitting}>
                 取消
               </Button>
             </Space>

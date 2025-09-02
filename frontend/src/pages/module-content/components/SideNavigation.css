@@ -165,6 +165,37 @@
 /* 在JS中增加初始化和更新逻辑，动态计算线条长度 */
 /* 这部分可以通过添加ResizeObserver来实现，但超出CSS范围 */
 
+/* Timeline组件样式优化 */
+.side-navigation .ant-timeline {
+  margin-top: 0;
+  padding-left: 0;
+}
+
+.side-navigation .ant-timeline-item {
+  padding-bottom: 20px;
+}
+
+.side-navigation .ant-timeline-item-tail {
+  border-left: 2px solid #1890ff;
+  opacity: 0.8;
+}
+
+.side-navigation .ant-timeline-item-head {
+  background-color: transparent;
+  border: none;
+  width: auto;
+  height: auto;
+}
+
+.timeline-content:hover {
+  color: #1890ff !important;
+  transform: translateX(3px);
+}
+
+.timeline-content.active:hover {
+  transform: none;
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
   .side-navigation {
@@ -204,32 +235,31 @@
     margin-left: 0;
   }
   
-  .nav-line {
+  /* 移动端Timeline样式调整 */
+  .side-navigation .ant-timeline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .side-navigation .ant-timeline-item {
+    display: inline-flex;
+    align-items: center;
+    padding-bottom: 0;
+    margin-right: 15px;
+    margin-bottom: 10px;
+  }
+
+  .side-navigation .ant-timeline-item-tail {
     display: none;
   }
-  
-  .nav-item {
-    padding: 8px 5px;
-    margin-right: 10px;
-    display: inline-flex;
+
+  .timeline-content {
+    font-size: 12px !important;
+    margin-top: 0 !important;
   }
-  
-  .nav-node {
-    width: 6px;
-    height: 6px;
-    margin-right: 8px;
-    box-shadow: 0 0 0 2px white;
-    left: 0; /* 移动设备上保持默认位置，因为竖线不显示 */
-  }
-  
-  .nav-title {
-    font-size: 12px;
-    max-width: none;
-    left: 0;
-  }
-  
-  /* 移动设备上的文字悬停效果 */
-  .nav-item:hover .nav-title {
-    transform: none;
+
+  .timeline-content:hover {
+    transform: none !important;
   }
 } 

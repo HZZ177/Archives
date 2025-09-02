@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Table, Space, Tag, Button, Select, Input, message, Modal, Form } from 'antd';
 import { EyeOutlined, PlusOutlined } from '@ant-design/icons';
-import { BugProfileResponse, BugSeverity, BugStatus, STATUS_OPTIONS, SEVERITY_OPTIONS } from '../../types/bug';
+import { BugProfileResponse, BugSeverity, BugStatus, STATUS_OPTIONS, SEVERITY_OPTIONS, BugProfileCreate } from '../../types/bug';
 import request from '../../utils/request';
 import { unwrapResponse } from '../../utils/request';
+import '../../pages/module-content/components/sections/SectionStyles.css';
 
 const { Option } = Select;
 
@@ -32,6 +33,11 @@ const ModuleBugList: React.FC<ModuleBugListProps> = ({ moduleId, onViewBug, onAf
   const [logForm] = Form.useForm();
   const [currentBug, setCurrentBug] = useState<BugProfileResponse | null>(null);
   const [logSubmitting, setLogSubmitting] = useState(false);
+
+  // 新建Bug相关状态
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createForm] = Form.useForm();
 
   const fetchData = async () => {
     if (!moduleId) return;
@@ -86,6 +92,9 @@ const ModuleBugList: React.FC<ModuleBugListProps> = ({ moduleId, onViewBug, onAf
       const opt = STATUS_OPTIONS.find(o => o.value === upper) || STATUS_OPTIONS.find(o => o.value === raw as any);
       return <Tag color={opt?.color}>{opt?.label || raw || '-'}</Tag>;
     }},
+    { title: '发生次数', dataIndex: 'occurrence_count', key: 'occurrence_count', width: 100, render: (count: number) => (
+      <span style={{ color: count > 0 ? '#1890ff' : '#999' }}>{count || 0}</span>
+    )},
     { title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 160, render: (d: string) => formatDate(d) },
     { title: '操作', key: 'actions', width: 180, render: (_: any, record: BugProfileResponse) => (
       <Space size="small">
@@ -113,9 +122,44 @@ const ModuleBugList: React.FC<ModuleBugListProps> = ({ moduleId, onViewBug, onAf
     }
   };
 
+  // 处理新建Bug
+  const handleCreateBug = async (values: any) => {
+    setCreateSubmitting(true);
+    try {
+      // 创建Bug档案
+      const bugData: BugProfileCreate = {
+        title: values.title,
+        description: values.description || '',
+        severity: values.severity,
+        status: values.status || BugStatus.OPEN,
+        tags: values.tags || []
+      };
+
+      const createResp = await request.post('/bugs/', bugData);
+      const newBug = unwrapResponse(createResp.data) as any;
+
+      // 自动记录一次发生（关联到当前模块）
+      await request.post('/bugs/log-occurrence', {
+        bug_id: newBug.id,
+        module_id: moduleId,
+        notes: values.notes || undefined
+      });
+
+      message.success('Bug创建成功并已记录一次发生');
+      setCreateModalVisible(false);
+      createForm.resetFields();
+      fetchData();
+      onAfterChange && onAfterChange();
+    } catch (e) {
+      message.error('创建失败');
+    } finally {
+      setCreateSubmitting(false);
+    }
+  };
+
   return (
-    <Card title="缺陷">
-      <div style={{ marginBottom: 12 }}>
+    <div>
+      <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Space size="small" wrap>
           <Input placeholder="关键词" value={keyword} onChange={e => setKeyword(e.target.value)} allowClear style={{ width: 220 }} />
           <Select value={severity} onChange={setSeverity} style={{ width: 140 }}>
@@ -127,6 +171,14 @@ const ModuleBugList: React.FC<ModuleBugListProps> = ({ moduleId, onViewBug, onAf
             {STATUS_OPTIONS.map(op => <Option key={op.value} value={op.value}>{op.label}</Option>)}
           </Select>
         </Space>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setCreateModalVisible(true)}
+          size="small"
+        >
+          新建Bug
+        </Button>
       </div>
       <Table
         columns={columns as any}
@@ -139,8 +191,8 @@ const ModuleBugList: React.FC<ModuleBugListProps> = ({ moduleId, onViewBug, onAf
           total,
           showSizeChanger: true,
           showQuickJumper: true,
-          onChange: (p, s) => { setPage(p); setPageSize(s || 10); },
-          showTotal: (t) => `共 ${t} 条`
+          onChange: (p: number, s?: number) => { setPage(p); setPageSize(s || 10); },
+          showTotal: (t: number) => `共 ${t} 条`
         }}
       />
 
@@ -163,7 +215,93 @@ const ModuleBugList: React.FC<ModuleBugListProps> = ({ moduleId, onViewBug, onAf
           </Form.Item>
         </Form>
       </Modal>
-    </Card>
+
+      {/* 新建Bug模态框 */}
+      <Modal
+        title="新建Bug"
+        open={createModalVisible}
+        onCancel={() => {
+          setCreateModalVisible(false);
+          createForm.resetFields();
+        }}
+        footer={null}
+        width={600}
+      >
+        <Form form={createForm} layout="vertical" onFinish={handleCreateBug}>
+          <div style={{ display: 'flex', gap: 16 }}>
+            <div style={{ flex: 1 }}>
+              <Form.Item
+                name="title"
+                label="Bug标题"
+                rules={[{ required: true, message: '请输入Bug标题' }]}
+              >
+                <Input placeholder="请输入Bug标题" />
+              </Form.Item>
+            </div>
+            <div style={{ flex: 1 }}>
+              <Form.Item
+                name="severity"
+                label="严重程度"
+                rules={[{ required: true, message: '请选择严重程度' }]}
+              >
+                <Select placeholder="请选择严重程度">
+                  {SEVERITY_OPTIONS.map(option => (
+                    <Select.Option key={option.value} value={option.value}>
+                      {option.label}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </div>
+          </div>
+
+          <Form.Item
+            name="description"
+            label="Bug描述"
+          >
+            <Input.TextArea
+              rows={3}
+              placeholder="请描述Bug的详细情况"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="tags"
+            label="标签"
+          >
+            <Select
+              mode="tags"
+              placeholder="请输入标签，按回车确认"
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="notes"
+            label="发生说明"
+          >
+            <Input.TextArea
+              rows={2}
+              placeholder="可选，补充说明本次在该模块下的发生情况"
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={createSubmitting}>
+                创建并记录发生
+              </Button>
+              <Button onClick={() => {
+                setCreateModalVisible(false);
+                createForm.resetFields();
+              }} disabled={createSubmitting}>
+                取消
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
   );
 };
 

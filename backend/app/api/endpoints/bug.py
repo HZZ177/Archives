@@ -147,8 +147,8 @@ async def get_bug_detail(
                     "reporter_id": log.reporter_id,
                     "notes": log.notes,
                     "created_at": log.created_at,
-                    "module_id": getattr(log, 'module_id', None),
-                    "module_name": getattr(log, 'module').name if getattr(log, 'module', None) else None
+                    "module_id": log.module_id,
+                    "module_name": log.module.name if log.module else None
                 } for log in bug_profile.logs
             ],
             "module_links": [
@@ -316,8 +316,8 @@ async def get_bug_logs(
                     "reporter_id": log.reporter_id,
                     "notes": log.notes,
                     "created_at": log.created_at,
-                    "module_id": getattr(log, 'module_id', None),
-                    "module_name": getattr(log, 'module').name if getattr(log, 'module', None) else None
+                    "module_id": log.module_id,
+                    "module_name": log.module.name if log.module else None
                 } for log in result["items"]
             ],
             "total": result["total"],
@@ -401,24 +401,42 @@ async def get_module_bugs(
         params = BugLogListParams(page=page, page_size=page_size)
         result = await bug_service.get_module_bugs(db, module_id, params, current_user)
         
-        # 转换为响应格式
+        # 转换为响应格式，并获取每个Bug的发生次数和最近发生时间
+        bug_list = []
+        for bug in result["items"]:
+            # 获取发生次数
+            from sqlalchemy import select, func, desc
+            from backend.app.models.bug import BugLog
+
+            log_count_query = select(func.count()).where(BugLog.bug_id == bug.id)
+            log_count_result = await db.execute(log_count_query)
+            occurrence_count = log_count_result.scalar()
+
+            # 获取最近发生时间
+            last_log_query = select(BugLog.occurred_at).where(
+                BugLog.bug_id == bug.id
+            ).order_by(desc(BugLog.occurred_at)).limit(1)
+            last_log_result = await db.execute(last_log_query)
+            last_occurrence = last_log_result.scalar_one_or_none()
+
+            bug_dict = {
+                "id": bug.id,
+                "title": bug.title,
+                "description": bug.description,
+                "severity": bug.severity,
+                "status": bug.status,
+                "tags": bug.tags,
+                "reporter_id": bug.reporter_id,
+                "workspace_id": bug.workspace_id,
+                "created_at": bug.created_at,
+                "updated_at": bug.updated_at,
+                "occurrence_count": occurrence_count,
+                "last_occurrence": last_occurrence
+            }
+            bug_list.append(bug_dict)
+
         response_data = {
-            "items": [
-                {
-                    "id": bug.id,
-                    "title": bug.title,
-                    "description": bug.description,
-                    "severity": bug.severity,
-                    "status": bug.status,
-                    "tags": bug.tags,
-                    "reporter_id": bug.reporter_id,
-                    "workspace_id": bug.workspace_id,
-                    "created_at": bug.created_at,
-                    "updated_at": bug.updated_at,
-                    "occurrence_count": 0,  # 需要单独查询
-                    "last_occurrence": None
-                } for bug in result["items"]
-            ],
+            "items": bug_list,
             "total": result["total"],
             "page": result["page"],
             "page_size": result["page_size"]

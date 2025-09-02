@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Button } from 'antd';
+import { Button, Timeline } from 'antd';
 import { SaveOutlined, EditOutlined, CloseOutlined } from '@ant-design/icons';
 import './SideNavigation.css';
 
@@ -96,19 +96,41 @@ const SideNavigation: React.FC<SideNavigationProps> = ({
         </div>
       )}
       
-      <div className="nav-line"></div>
-      {items.map((item) => (
-        <div 
-          key={item.key} 
-          className={`nav-item ${activeKey === item.key ? 'active' : ''}`}
-          onClick={() => onNavClick(item.key)}
-        >
-          <div className={`nav-node ${item.filled ? 'filled' : ''}`}>
-            <span className="nav-icon">{item.icon}</span>
-          </div>
-          <div className="nav-title">{item.title}</div>
-        </div>
-      ))}
+      <Timeline
+        items={items.map((item) => ({
+          dot: (
+            <div
+              className={`timeline-dot ${item.filled ? 'filled' : ''} ${activeKey === item.key ? 'active' : ''}`}
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                backgroundColor: item.filled ? '#1890ff' : '#d9d9d9',
+                border: activeKey === item.key ? '2px solid #1890ff' : 'none',
+                transform: activeKey === item.key ? 'scale(1.2)' : 'scale(1)',
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
+              }}
+            />
+          ),
+          children: (
+            <div
+              className={`timeline-content ${activeKey === item.key ? 'active' : ''}`}
+              onClick={() => onNavClick(item.key)}
+              style={{
+                cursor: 'pointer',
+                color: activeKey === item.key ? '#1890ff' : '#595959',
+                fontWeight: activeKey === item.key ? 500 : 400,
+                fontSize: '13px',
+                transition: 'all 0.3s ease',
+                marginTop: '-4px'
+              }}
+            >
+              {item.title}
+            </div>
+          )
+        }))}
+      />
     </div>
   );
 };

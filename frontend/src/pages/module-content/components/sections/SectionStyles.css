@@ -292,6 +292,37 @@
   background-color: transparent;
 }
 
+/* 模块卡片统一样式 */
+.module-section-card {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
+.module-section-card:hover {
+  border-color: #d9d9d9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.section-title-container {
+  display: flex;
+  align-items: center;
+}
+
+.section-icon {
+  font-size: 16px;
+  color: #1890ff;
+  margin-right: 8px;
+}
+
 .collapse-all-button {
   margin-left: 12px; /* 与标题文字的间距 */
   font-size: 12px;
