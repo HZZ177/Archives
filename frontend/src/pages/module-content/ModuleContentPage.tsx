@@ -5,7 +5,10 @@ import { ModuleStructureNode } from '../../types/modules';
 import { fetchModuleNode, getModuleSectionConfig } from '../../apis/moduleService';
 import ModuleContentEditor, { ModuleContentEditorHandle } from './components/ModuleContentEditor';
 import SideNavigation from './components/SideNavigation';
+import BugAssociationPanel from '../../components/bug/BugAssociationPanel';
+import ModuleBugList from '../../components/bug/ModuleBugList';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { usePermission } from '../../contexts/PermissionContext';
 import { Workspace } from '../../types/workspace';
 import './ModuleContentPage.css';
 
@@ -21,6 +24,8 @@ const defaultNavItems = [
   { key: 'tableRelation', title: '表关联关系图', icon: '🔄', filled: false },
   { key: 'related', title: '关联模块', icon: '🔗', filled: false },
   { key: 'interface', title: '涉及接口', icon: '🔌', filled: false },
+  // 新增：缺陷模块（若后端配置未返回，则使用此默认项）
+  { key: 'bugs', title: '缺陷', icon: '🐞', filled: false },
 ];
 
 const ModuleContentPage: React.FC = () => {
@@ -35,6 +40,7 @@ const ModuleContentPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [navItems, setNavItems] = useState(defaultNavItems);
   const { currentWorkspace, workspaces, setCurrentWorkspace, isChangingWorkspace } = useWorkspace();
+  const { hasPermission } = usePermission();
 
   // 加载模块配置
   useEffect(() => {
@@ -42,11 +48,15 @@ const ModuleContentPage: React.FC = () => {
       try {
         const response = await getModuleSectionConfig();
         const enabled = response.data.data.filter((item: any) => item.is_enabled);
-        const navs = enabled.map((item: any) => ({
+        let navs = enabled.map((item: any) => ({
           key: item.section_key,
           title: item.section_name,
           icon: <span>{item.section_icon}</span>
         }));
+        // 如果后端未配置“缺陷”模块，则追加默认“缺陷”项
+        if (!navs.some((n: any) => n.key === 'bugs')) {
+          navs = [...navs, { key: 'bugs', title: '缺陷', icon: <span>🐞</span> }];
+        }
         setNavItems(navs);
 
         const localConfig = { navs, timestamp: Date.now() };
@@ -105,7 +115,13 @@ const ModuleContentPage: React.FC = () => {
   // 处理导航点击
   const handleNavClick = (key: string) => {
     setActiveSection(key);
-    // 调用编辑器组件的滚动方法
+    if (key === 'bugs') {
+      const el = document.getElementById('section-bugs');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
     if (editorRef.current) {
       editorRef.current.scrollToSection(key);
     }
@@ -196,6 +212,23 @@ const ModuleContentPage: React.FC = () => {
                 enabledSections={navItems.map(item => item.key)}
                 enableWorkspaceResources={true}
               />
+
+              {/* 缺陷模块：与其他内容并列，作为同页内的一个模块区块 */}
+              <div id="section-bugs" style={{ marginTop: 24 }}>
+                <ModuleBugList
+                  moduleId={parseInt(moduleId || '0')}
+                  onViewBug={() => {
+                    message.info('请在“缺陷管理”页查看详情或后续集成内联详情弹窗');
+                  }}
+                  onAfterChange={() => {}}
+                />
+                <div style={{ marginTop: 16 }}>
+                  <BugAssociationPanel
+                    moduleId={parseInt(moduleId || '0')}
+                    moduleName={moduleNode.name}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </>

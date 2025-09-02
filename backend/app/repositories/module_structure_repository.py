@@ -27,7 +27,7 @@ class ModuleStructureRepository(BaseRepository[ModuleStructureNode, ModuleStruct
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"获取模块节点失败: {str(e)}")
+            logger.error(f"获取模点失败: {str(e)}")
             raise
     
     async def get_all_nodes(self, db: AsyncSession) -> List[ModuleStructureNode]:

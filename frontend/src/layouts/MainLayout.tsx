@@ -16,7 +16,8 @@ import {
   BranchesOutlined,
   BookOutlined,
   DatabaseOutlined,
-  ApiOutlined
+  ApiOutlined,
+  BugOutlined
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
@@ -137,6 +138,12 @@ const staticMenuItems: ExtendedMenuItem[] = [
         icon: <ApiOutlined />,
         label: '接口池',
         page_path: '/workspaces/interfaces',
+      },
+      {
+        key: '/workspaces/bug-management',
+        icon: <BugOutlined />,
+        label: '缺陷管理',
+        page_path: '/workspaces/bug-management',
       },
     ],
   },

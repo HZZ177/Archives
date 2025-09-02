@@ -42,6 +42,7 @@ export const ROUTES = {
   WORKSPACES_EDIT: '/workspaces/:id',
   WORKSPACE_TABLES: '/workspaces/tables',
   WORKSPACE_INTERFACES: '/workspaces/interfaces',
+  BUG_MANAGEMENT: '/workspaces/bug-management',
 };
 
 // 状态码

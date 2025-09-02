@@ -38,4 +38,5 @@ class Workspace(Base):
     
     # 使用导入的模型定义关系
     tables = relationship("WorkspaceTable", back_populates="workspace", cascade="all, delete-orphan")
-    interfaces = relationship("WorkspaceInterface", back_populates="workspace", cascade="all, delete-orphan") 
+    interfaces = relationship("WorkspaceInterface", back_populates="workspace", cascade="all, delete-orphan")
+    bug_profiles = relationship("BugProfile", back_populates="workspace", cascade="all, delete-orphan") 

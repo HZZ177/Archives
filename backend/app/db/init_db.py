@@ -126,6 +126,17 @@ async def create_system_permissions(session: AsyncSession) -> None:
             "icon": "api",
             "parent_id": 8, # 数据资源节点
             "description": "管理工作区内的API接口"
+        },
+        # 缺陷管理 - 作为数据资源的子页面
+        {
+            "code": "workspace:resources:bugs",
+            "name": "缺陷管理",
+            "page_path": "/workspaces/bug-management",
+            "sort": 123,
+            "is_visible": True,
+            "icon": "bug",
+            "parent_id": 8, # 数据资源节点
+            "description": "管理工作区内的Bug档案和发生记录"
         }
     ]
 

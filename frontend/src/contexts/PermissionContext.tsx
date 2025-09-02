@@ -125,6 +125,8 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
         return true;
       }
       
+
+      
       return false;
     });
     
