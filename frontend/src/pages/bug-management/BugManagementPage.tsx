@@ -855,7 +855,12 @@ const BugManagementPage: React.FC = () => {
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
         footer={[
-          <Button key="log" type="primary" onClick={() => setLogModalVisible(true)} disabled={!currentBug}>
+          <Button key="log" type="primary" onClick={() => {
+            // 打开弹窗前重置所有相关状态
+            setSelectedModuleId(null);
+            logForm.resetFields();
+            setLogModalVisible(true);
+          }} disabled={!currentBug}>
             记录一次发生
           </Button>,
           <Button key="close" onClick={() => setDetailModalVisible(false)}>

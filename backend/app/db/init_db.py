@@ -316,15 +316,14 @@ async def create_default_workspace(session: AsyncSession) -> None:
 async def init_module_section_configs(session: AsyncSession) -> None:
     """初始化模块配置数据"""
     logger.info("开始检查模块配置...")
-    
-    # 定义默认配置
-    default_configs = [
+
+    # 定义默认的全局模块配置
+    default_global_configs = [
         {
             "section_key": "overview",
             "section_name": "功能概述",
             "section_icon": "📝",
             "section_type": 1,
-            "is_enabled": True,
             "display_order": 1
         },
         {
@@ -332,7 +331,6 @@ async def init_module_section_configs(session: AsyncSession) -> None:
             "section_name": "名称解释",
             "section_icon": "📖",
             "section_type": 10,
-            "is_enabled": True,
             "display_order": 2
         },
         {
@@ -340,7 +338,6 @@ async def init_module_section_configs(session: AsyncSession) -> None:
             "section_name": "功能详解",
             "section_icon": "🔍",
             "section_type": 1,
-            "is_enabled": True,
             "display_order": 3
         },
         {
@@ -348,7 +345,6 @@ async def init_module_section_configs(session: AsyncSession) -> None:
             "section_name": "业务流程图",
             "section_icon": "📊",
             "section_type": 3,
-            "is_enabled": True,
             "display_order": 4
         },
         {
@@ -356,7 +352,6 @@ async def init_module_section_configs(session: AsyncSession) -> None:
             "section_name": "表关联关系图",
             "section_icon": "🔄",
             "section_type": 3,
-            "is_enabled": True,
             "display_order": 5
         },
         {
@@ -364,7 +359,6 @@ async def init_module_section_configs(session: AsyncSession) -> None:
             "section_name": "数据库表",
             "section_icon": "💾",
             "section_type": 6,
-            "is_enabled": True,
             "display_order": 6
         },
         {
@@ -372,7 +366,6 @@ async def init_module_section_configs(session: AsyncSession) -> None:
             "section_name": "关联模块",
             "section_icon": "🔗",
             "section_type": 8,
-            "is_enabled": True,
             "display_order": 7
         },
         {
@@ -380,7 +373,6 @@ async def init_module_section_configs(session: AsyncSession) -> None:
             "section_name": "涉及接口",
             "section_icon": "🔌",
             "section_type": 7,
-            "is_enabled": True,
             "display_order": 8
         },
         {
@@ -388,34 +380,61 @@ async def init_module_section_configs(session: AsyncSession) -> None:
             "section_name": "缺陷",
             "section_icon": "🐞",
             "section_type": 0,
-            "is_enabled": True,
             "display_order": 9
         }
     ]
-    
-    # 获取现有的所有配置记录
+
+    # 1. 初始化全局模块配置
     result = await session.execute(select(ModuleSectionConfig))
-    existing_configs = result.scalars().all()
-    
-    # 创建现有配置的键集合，用于快速查找
-    existing_keys = {config.section_key for config in existing_configs}
-    
-    # 计数器
-    added_count = 0
-    
-    # 检查每个默认配置，如果不存在则添加
-    for config in default_configs:
-        if config["section_key"] not in existing_keys:
+    existing_global_configs = result.scalars().all()
+    existing_global_keys = {config.section_key for config in existing_global_configs}
+
+    global_added_count = 0
+    for config in default_global_configs:
+        if config["section_key"] not in existing_global_keys:
             db_config = ModuleSectionConfig(**config)
             session.add(db_config)
-            added_count += 1
-    
-    # 如果有新增配置，提交事务
-    if added_count > 0:
+            global_added_count += 1
+
+    if global_added_count > 0:
         await session.commit()
-        logger.info(f"新增了 {added_count} 条模块配置")
+        logger.info(f"新增了 {global_added_count} 条全局模块配置")
+
+    # 2. 为所有工作区初始化工作区模块配置
+    from backend.app.models.workspace import Workspace
+    from backend.app.models.module_section_config import WorkspaceModuleConfig
+
+    workspace_result = await session.execute(select(Workspace))
+    workspaces = workspace_result.scalars().all()
+
+    if not workspaces:
+        logger.warning("没有找到工作区，跳过工作区模块配置初始化")
+        return
+
+    # 获取现有的工作区模块配置
+    workspace_config_result = await session.execute(select(WorkspaceModuleConfig))
+    existing_workspace_configs = workspace_config_result.scalars().all()
+    existing_workspace_keys = {(config.workspace_id, config.section_key) for config in existing_workspace_configs}
+
+    workspace_added_count = 0
+    for workspace in workspaces:
+        for config in default_global_configs:
+            config_key = (workspace.id, config["section_key"])
+            if config_key not in existing_workspace_keys:
+                workspace_config = WorkspaceModuleConfig(
+                    workspace_id=workspace.id,
+                    section_key=config["section_key"],
+                    is_enabled=True,  # 默认启用
+                    display_order=config["display_order"]
+                )
+                session.add(workspace_config)
+                workspace_added_count += 1
+
+    if workspace_added_count > 0:
+        await session.commit()
+        logger.info(f"为 {len(workspaces)} 个工作区新增了 {workspace_added_count} 条工作区模块配置")
     else:
-        logger.info("所有模块配置已存在，无需新增")
+        logger.info("所有工作区的模块配置已存在，无需新增")
 
 
 async def init_db() -> None:

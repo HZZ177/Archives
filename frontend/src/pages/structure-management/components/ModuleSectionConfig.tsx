@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Table, Switch, message, Button, Space, Card, Tag } from 'antd';
 import { DragOutlined, ReloadOutlined } from '@ant-design/icons';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -6,6 +6,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import { updateModuleSectionConfig, getModuleSectionConfig } from '../../../apis/moduleService';
+import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import './ModuleSectionConfig.css';
 
 // 模块类型枚举
@@ -55,6 +56,7 @@ const ModuleSectionConfig: React.FC = () => {
   const [sections, setSections] = useState<ModuleSection[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterType, setFilterType] = useState<FilterType>('all');
+  const { currentWorkspace } = useWorkspace();
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -70,7 +72,7 @@ const ModuleSectionConfig: React.FC = () => {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const response = await getModuleSectionConfig();
+      const response = await getModuleSectionConfig(currentWorkspace?.id);
       setSections(response.data.data || []);
       // 重置筛选状态
       setFilterType('all');
@@ -118,9 +120,10 @@ const ModuleSectionConfig: React.FC = () => {
 
   const saveConfig = async (newSections: ModuleSection[]) => {
     try {
-      await updateModuleSectionConfig(newSections);
-      // 更新本地存储
-      localStorage.setItem('moduleSections', JSON.stringify(newSections));
+      await updateModuleSectionConfig(newSections, currentWorkspace?.id);
+      // 更新本地存储（按工作区存储）
+      const storageKey = `moduleSections_${currentWorkspace?.id || 'default'}`;
+      localStorage.setItem(storageKey, JSON.stringify(newSections));
       // 触发自定义事件，通知其他组件配置已更新
       window.dispatchEvent(new Event('moduleConfigUpdated'));
     } catch (error) {

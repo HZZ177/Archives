@@ -50,7 +50,16 @@ class WorkspaceService:
         except Exception as e:
             # 记录错误但不影响创建过程
             logger.error(f"将管理员添加到工作区失败: {str(e)}")
-        
+
+        # 为新工作区初始化模块配置
+        try:
+            from backend.app.services.workspace_module_config_service import workspace_module_config_service
+            await workspace_module_config_service.init_workspace_module_configs(db, workspace.id)
+            logger.info(f"已为新工作区(ID:{workspace.id})初始化模块配置")
+        except Exception as e:
+            # 记录错误但不影响创建过程
+            logger.error(f"为新工作区初始化模块配置失败: {str(e)}")
+
         return workspace
 
     async def get_workspace(self, db: AsyncSession, workspace_id: int) -> Workspace:
@@ -388,6 +397,15 @@ class WorkspaceService:
             await workspace_repository.add_user_to_workspace(
                 db, default_workspace.id, admin_user.id, "owner"
             )
+
+            # 为默认工作区初始化模块配置
+            try:
+                from backend.app.services.workspace_module_config_service import workspace_module_config_service
+                await workspace_module_config_service.init_workspace_module_configs(db, default_workspace.id)
+                logger.info(f"已为默认工作区(ID:{default_workspace.id})初始化模块配置")
+            except Exception as e:
+                # 记录错误但不影响创建过程
+                logger.error(f"为默认工作区初始化模块配置失败: {str(e)}")
         
         # 获取用户
         user = await auth_repository.get_user_by_id(db, user_id)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { message, Spin, Typography, Divider } from 'antd';
 import { BugOutlined } from '@ant-design/icons';
@@ -63,7 +63,7 @@ const ModuleContentPage: React.FC = () => {
   // 加载模块配置
   const loadModuleConfig = async () => {
     try {
-      const response = await getModuleSectionConfig();
+      const response = await getModuleSectionConfig(currentWorkspace?.id);
 
       // API返回格式: {data: {success: true, data: [...], message: "..."}}
       const apiResponse = response.data;

@@ -261,11 +261,13 @@ export const getDiagram = async (moduleId: number, diagramType: 'business' | 'ta
 };
 
 // 获取模块配置
-export const getModuleSectionConfig = () => {
-  return request.get('/module-sections/config');
+export const getModuleSectionConfig = (workspaceId?: number) => {
+  const params = workspaceId ? { workspace_id: workspaceId } : {};
+  return request.get('/module-sections/config', { params });
 };
 
 // 更新模块配置
-export const updateModuleSectionConfig = (sections: any[]) => {
-  return request.put('/module-sections/config', sections);
-}; 
+export const updateModuleSectionConfig = (sections: any[], workspaceId?: number) => {
+  const params = workspaceId ? { workspace_id: workspaceId } : {};
+  return request.put('/module-sections/config', sections, { params });
+};
