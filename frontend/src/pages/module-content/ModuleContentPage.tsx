@@ -61,38 +61,58 @@ const ModuleContentPage: React.FC = () => {
   };
 
   // 加载模块配置
-  useEffect(() => {
-    const loadModuleConfig = async () => {
-      try {
-        const response = await getModuleSectionConfig();
-        if (response.data && Array.isArray(response.data)) {
-          const configItems = response.data
-            .filter((item: any) => item.is_enabled)
-            .sort((a: any, b: any) => a.display_order - b.display_order)
-            .map((item: any) => ({
-              key: item.section_key,
-              title: item.section_name,
-              icon: item.section_icon || '📄',
-              filled: false
-            }));
-          
-          // 合并配置项和默认项，确保缺陷模块始终存在
-          const mergedItems = [...configItems];
-          const hasBugsSection = mergedItems.some(item => item.key === 'bugs');
-          if (!hasBugsSection) {
-            mergedItems.push({ key: 'bugs', title: '缺陷', icon: '🐞', filled: false });
-          }
-          
-          setNavItems(mergedItems);
-        }
-      } catch (error) {
-        console.error('加载模块配置失败:', error);
-        // 使用默认配置
+  const loadModuleConfig = async () => {
+    try {
+      const response = await getModuleSectionConfig();
+
+      // API返回格式: {data: {success: true, data: [...], message: "..."}}
+      const apiResponse = response.data;
+      if (apiResponse && apiResponse.success && Array.isArray(apiResponse.data)) {
+        const configItems = apiResponse.data
+          .filter((item: any) => item.is_enabled)
+          .sort((a: any, b: any) => a.display_order - b.display_order)
+          .map((item: any) => ({
+            key: item.section_key,
+            title: item.section_name,
+            icon: item.section_icon || '📄',
+            filled: false
+          }));
+
+
+        setNavItems(configItems);
+      } else {
+        console.warn('配置数据格式不正确:', apiResponse);
         setNavItems(defaultNavItems);
+      }
+    } catch (error) {
+      console.error('加载模块配置失败:', error);
+      // 使用默认配置
+      setNavItems(defaultNavItems);
+    }
+  };
+
+  useEffect(() => {
+    loadModuleConfig();
+
+    // 监听localStorage变化，当模块配置更新时重新加载
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'moduleSections') {
+        loadModuleConfig();
       }
     };
 
-    loadModuleConfig();
+    // 监听自定义事件，用于同一页面内的配置更新
+    const handleConfigUpdate = () => {
+      loadModuleConfig();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('moduleConfigUpdated', handleConfigUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('moduleConfigUpdated', handleConfigUpdate);
+    };
   }, []);
 
   useEffect(() => {
@@ -185,9 +205,9 @@ const ModuleContentPage: React.FC = () => {
               />
             </div>
             <div className="content-column">
-              <ModuleContentEditor 
+              <ModuleContentEditor
                 ref={editorRef}
-                moduleNodeId={parseInt(moduleId || '0')} 
+                moduleNodeId={parseInt(moduleId || '0')}
                 onSectionVisibilityChange={handleSectionVisibilityChange}
                 isEditMode={isEditMode}
                 setIsEditMode={setIsEditMode}
@@ -196,29 +216,12 @@ const ModuleContentPage: React.FC = () => {
                 onSectionsUpdate={handleSectionsUpdate}
                 enabledSections={navItems.map(item => item.key)}
                 enableWorkspaceResources={true}
+                // 缺陷模块相关props
+                onViewBug={handleViewBug}
+                moduleName={moduleNode.name}
               />
 
-              {/* 缺陷模块：与其他内容并列，作为同页内的一个模块区块 */}
-              <div id="section-bugs" className="content-section" style={{ marginTop: 24 }}>
-                <Title level={4} className="section-title">
-                  <span className="section-title-icon"><BugOutlined /></span>
-                  缺陷记录
-                </Title>
-                <Divider className="section-divider" />
-                <div className="section-content">
-                  <ModuleBugList
-                    moduleId={parseInt(moduleId || '0')}
-                    onViewBug={handleViewBug}
-                    onAfterChange={() => {}}
-                  />
-                  <div style={{ marginTop: 16 }}>
-                    <BugAssociationPanel
-                      moduleId={parseInt(moduleId || '0')}
-                      moduleName={moduleNode.name}
-                    />
-                  </div>
-                </div>
-              </div>
+
             </div>
           </div>
         </>

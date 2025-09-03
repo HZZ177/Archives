@@ -28,6 +28,7 @@ import {
   DatabaseOutlined,
   ApiOutlined,
   LinkOutlined,
+  BugOutlined,
   ExpandOutlined,
   CompressOutlined,
 } from '@ant-design/icons';
@@ -64,6 +65,9 @@ import RelatedModuleCard from './RelatedModuleCard';
 import { API_BASE_URL } from '../../../config/constants';
 import './ModuleContentEditor.css';
 import ModuleGraph from '../../../components/ModuleGraph/ModuleGraph';
+// 缺陷模块相关组件
+import ModuleBugList from '../../../components/bug/ModuleBugList';
+import BugAssociationPanel from '../../../components/bug/BugAssociationPanel';
 
 const { Title } = Typography;
 
@@ -76,6 +80,7 @@ const sectionConfig: { [key: string]: { title: string; icon: React.ReactNode } }
   database: { title: '数据库表', icon: <DatabaseOutlined /> },
   related: { title: '关联模块', icon: <LinkOutlined /> },
   interface: { title: '涉及接口', icon: <ApiOutlined /> },
+  bugs: { title: '缺陷', icon: <BugOutlined /> },
 };
 
 // 处理图片URL，确保图片能正确显示
@@ -132,6 +137,9 @@ interface ModuleContentEditorProps {
   onSectionsUpdate: (filledKeys: Set<string>) => void;
   enabledSections: string[];  // 新增：启用的模块列表
   enableWorkspaceResources?: boolean; // 是否启用工作区资源引用
+  // 缺陷模块相关props
+  onViewBug?: (bug: any) => void;
+  moduleName?: string;
 }
 
 const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHandle, ModuleContentEditorProps> = ({
@@ -144,6 +152,9 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
   onSectionsUpdate,
   enabledSections,
   enableWorkspaceResources,
+  // 缺陷模块相关props
+  onViewBug,
+  moduleName,
 }, ref) => {
   // 使用传递的props，或者提供默认值
   const isEditMode = propIsEditMode ?? false;
@@ -179,6 +190,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
   const tableRelationRef = useRef<HTMLDivElement>(null);
   const relatedRef = useRef<HTMLDivElement>(null);
   const interfaceRef = useRef<HTMLDivElement>(null);
+  const bugsRef = useRef<HTMLDivElement>(null);
 
   const [collapsedTables, setCollapsedTables] = useState<Set<number>>(new Set());
   
@@ -653,6 +665,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
       'tableRelation': tableRelationRef,
       'related': relatedRef,
       'interface': interfaceRef,
+      'bugs': bugsRef,
     };
 
     const ref = refMap[key];
@@ -828,6 +841,9 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         return relatedModuleIds.length > 0;
       case 'interface':
         return apiInterfaces.length > 0;
+      case 'bugs':
+        // 缺陷模块始终显示，因为它包含动态加载的Bug数据
+        return true;
       default:
         return false;
     }
@@ -980,7 +996,7 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
       )}
       
       <div className="editor-content">
-        {filteredContent && (
+        {enabledSections.length > 0 && (
           <>
             {/* 根据enabledSections的顺序渲染各个模块 */}
             {enabledSections.map(sectionKey => {
@@ -1003,10 +1019,12 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                           value={overviewText} 
                           onChange={(value) => {
                             setOverviewText(value); // 更新overviewText状态
-                            const updatedSections = filteredContent.sections.map(section =>
-                              section.key === 'overview' ? { ...section, content: value } : section
-                            );
-                            setContent({ ...filteredContent, sections: updatedSections });
+                            if (filteredContent) {
+                              const updatedSections = filteredContent.sections.map(section =>
+                                section.key === 'overview' ? { ...section, content: value } : section
+                              );
+                              setContent({ ...filteredContent, sections: updatedSections });
+                            }
                           }}
                         />
                       ) : (
@@ -1060,10 +1078,12 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                           value={detailsText} 
                           onChange={(value) => {
                             setDetailsText(value); // 更新detailsText状态
-                            const updatedSections = filteredContent.sections.map(section =>
-                              section.key === 'keyTech' ? { ...section, content: value } : section
-                            );
-                            setContent({ ...filteredContent, sections: updatedSections });
+                            if (filteredContent) {
+                              const updatedSections = filteredContent.sections.map(section =>
+                                section.key === 'keyTech' ? { ...section, content: value } : section
+                              );
+                              setContent({ ...filteredContent, sections: updatedSections });
+                            }
                           }}
                         />
                       ) : (
@@ -1205,6 +1225,30 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                     </div>
                   );
                 
+                case 'bugs':
+                  return (
+                    <div key={sectionKey} id="section-bugs" className="content-section" ref={bugsRef}>
+                      <Title level={4} className="section-title">
+                        <span className="section-title-icon">{config.icon}</span>
+                        {config.title}
+                      </Title>
+                      <Divider className="section-divider" />
+                      <div className="section-content">
+                        <ModuleBugList
+                          moduleId={moduleNodeId}
+                          onViewBug={onViewBug || (() => {})}
+                          onAfterChange={() => {}}
+                        />
+                        <div style={{ marginTop: 16 }}>
+                          <BugAssociationPanel
+                            moduleId={moduleNodeId}
+                            moduleName={moduleName || ''}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+
                 default:
                   return null;
               }

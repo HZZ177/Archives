@@ -52,7 +52,7 @@
 }
 
 .content-section {
-  margin-bottom: 60px;
+  margin-bottom: 60px; /* 从60px增加到80px，增加模块间隔 */
   scroll-margin-top: 85px; /* 增加顶部边距，考虑固定头部的高度和一点额外空间 */
   position: relative;
   min-height: 40vh; /* 将最小高度减少为视口高度的40%，原来是80% */

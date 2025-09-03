@@ -10,7 +10,7 @@
 
 /* 模式面板样式 */
 .nav-mode-panel {
-  margin-bottom: 20px;
+  margin-bottom: 28px; /* 从20px增加到28px，增加与第一个导航项的间距 */
   padding: 12px 8px;
   background: rgba(240, 245, 255, 0.6);
   border-radius: 8px;
@@ -81,7 +81,7 @@
 
 /* 当有模式面板时，调整线条起始位置 */
 .nav-mode-panel + .nav-line {
-  top: 185px; /* 进一步增加top值，确保不超出第一个节点 */
+  top: 205px; /* 进一步增加top值，确保不超出第一个节点 */
 }
 
 /* 编辑模式下模式面板更高，需要进一步调整线条起始位置 */
@@ -172,7 +172,7 @@
 }
 
 .side-navigation .ant-timeline-item {
-  padding-bottom: 20px;
+  padding-bottom: 30px; /* 从20px增加到28px，增加导航项间距 */
 }
 
 .side-navigation .ant-timeline-item-tail {

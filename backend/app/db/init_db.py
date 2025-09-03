@@ -382,6 +382,14 @@ async def init_module_section_configs(session: AsyncSession) -> None:
             "section_type": 7,
             "is_enabled": True,
             "display_order": 8
+        },
+        {
+            "section_key": "bugs",
+            "section_name": "缺陷",
+            "section_icon": "🐞",
+            "section_type": 0,
+            "is_enabled": True,
+            "display_order": 9
         }
     ]
     

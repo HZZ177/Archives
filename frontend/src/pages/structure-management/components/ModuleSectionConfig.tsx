@@ -121,6 +121,8 @@ const ModuleSectionConfig: React.FC = () => {
       await updateModuleSectionConfig(newSections);
       // 更新本地存储
       localStorage.setItem('moduleSections', JSON.stringify(newSections));
+      // 触发自定义事件，通知其他组件配置已更新
+      window.dispatchEvent(new Event('moduleConfigUpdated'));
     } catch (error) {
       message.error('保存配置失败');
     }
