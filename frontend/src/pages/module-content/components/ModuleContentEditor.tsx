@@ -66,7 +66,6 @@ import { API_BASE_URL } from '../../../config/constants';
 import './ModuleContentEditor.css';
 import ModuleGraph from '../../../components/ModuleGraph/ModuleGraph';
 // 缺陷模块相关组件
-import ModuleBugList from '../../../components/bug/ModuleBugList';
 import BugAssociationPanel from '../../../components/bug/BugAssociationPanel';
 
 const { Title } = Typography;
@@ -810,6 +809,9 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
         // 更新时间戳以触发图谱重新加载
         setGraphUpdateTime(Date.now());
         setSaving(false);
+
+        // 保存成功后切换回阅读模式
+        setIsEditMode(false);
       } else {
         message.error('保存失败');
       }
@@ -1234,17 +1236,10 @@ const ModuleContentEditor: React.ForwardRefRenderFunction<ModuleContentEditorHan
                       </Title>
                       <Divider className="section-divider" />
                       <div className="section-content">
-                        <ModuleBugList
+                        <BugAssociationPanel
                           moduleId={moduleNodeId}
-                          onViewBug={onViewBug || (() => {})}
-                          onAfterChange={() => {}}
+                          moduleName={moduleName || ''}
                         />
-                        <div style={{ marginTop: 16 }}>
-                          <BugAssociationPanel
-                            moduleId={moduleNodeId}
-                            moduleName={moduleName || ''}
-                          />
-                        </div>
                       </div>
                     </div>
                   );

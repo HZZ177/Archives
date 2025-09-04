@@ -150,7 +150,7 @@ const ModuleContentPage: React.FC = () => {
 
   const handleSave = async () => {
     if (editorRef.current) {
-      await editorRef.current.save();
+      await editorRef.current.saveContent();
     }
   };
 
@@ -161,7 +161,7 @@ const ModuleContentPage: React.FC = () => {
   const handleCancel = () => {
     setIsEditMode(false);
     if (editorRef.current) {
-      editorRef.current.cancel();
+      editorRef.current.reloadContent();
     }
   };
 

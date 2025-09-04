@@ -14,7 +14,7 @@ from backend.app.api.endpoints import module_section_config
 from backend.app.api.endpoints import images
 from backend.app.api.endpoints import workspace_tables
 from backend.app.api.endpoints import workspace_interfaces
-from backend.app.api.endpoints import bug
+from backend.app.api.endpoints import coding_bugs
 from backend.app.core.config import settings
 from backend.app.core.logger import logger
 from backend.app.db.init_db import init_db
@@ -59,7 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(workspace_tables.router, prefix=f"{settings.API_V1_STR}/workspace-tables", tags=["workspace-tables"])
     app.include_router(workspace_interfaces.router,
                        prefix=f"{settings.API_V1_STR}/workspace-interfaces", tags=["workspace-interfaces"])
-    app.include_router(bug.router, prefix=f"{settings.API_V1_STR}/bugs", tags=["bugs"])
+    app.include_router(coding_bugs.router, prefix=f"{settings.API_V1_STR}/coding-bugs", tags=["coding-bugs"])
 
     # 配置静态文件
     static_dir = settings.STATIC_DIR

@@ -7,6 +7,7 @@ from backend.app.models.permission import Permission
 from backend.app.models.image import Image
 from backend.app.models.workspace_table import WorkspaceTable
 from backend.app.models.workspace_interface import WorkspaceInterface
+from backend.app.models.coding_bug import CodingBug, CodingBugModuleLink, WorkspaceCodingConfig
 
 __all__ = [
     "User",
@@ -18,4 +19,7 @@ __all__ = [
     "Image",
     "WorkspaceTable",
     "WorkspaceInterface",
+    "CodingBug",
+    "CodingBugModuleLink",
+    "WorkspaceCodingConfig",
 ]

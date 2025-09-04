@@ -18,29 +18,50 @@ import {
 } from 'antd';
 import {
   BugOutlined,
-  PlusOutlined,
   LinkOutlined,
   DisconnectOutlined,
   ExclamationCircleOutlined,
-  SearchOutlined
+  SearchOutlined,
+  SyncOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import '../../pages/module-content/components/sections/SectionStyles.css';
 
 import { usePermission } from '../../contexts/PermissionContext';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
-import {
-  BugProfileResponse,
-  BugSeverity,
-  BugLogListParams,
-  SEVERITY_OPTIONS
-} from '../../types/bug';
 import { unwrapResponse } from '../../utils/request';
 import request from '../../utils/request';
 
+// 导入详情弹窗组件
+import BugDetailModal from './BugDetailModal';
+
 // 格式化日期显示
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
+const formatDate = (timestamp: number) => {
+  if (!timestamp) return '-';
+  const date = new Date(timestamp);
   return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+};
+
+// 优先级颜色映射
+const getPriorityColor = (priority: string) => {
+  switch (priority) {
+    case '紧急': return '#ff4d4f';
+    case '高': return '#ff7a45';
+    case '中': return '#faad14';
+    case '低': return '#52c41a';
+    default: return '#d9d9d9';
+  }
+};
+
+// 状态颜色映射
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case '待处理': return 'magenta';
+    case '处理中': return 'blue';
+    case '已解决': return 'green';
+    case '已关闭': return 'default';
+    default: return 'default';
+  }
 };
 
 interface BugAssociationPanelProps {
@@ -57,57 +78,83 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
 
   // 状态管理
   const [loading, setLoading] = useState(false);
-  const [bugList, setBugList] = useState<BugProfileResponse[]>([]);
+  const [bugList, setBugList] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
   // 模态框状态
-  const [linkModalVisible, setLinkModalVisible] = useState(false);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
-  const [logModalVisible, setLogModalVisible] = useState(false);
-  const [selectedBug, setSelectedBug] = useState<BugProfileResponse | null>(null);
+  const [selectedBug, setSelectedBug] = useState<any | null>(null);
 
-  // 表单
-  const [linkForm] = Form.useForm();
-  const [logForm] = Form.useForm();
+  // 详情弹窗状态
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [detailBug, setDetailBug] = useState<any | null>(null);
 
   // 搜索相关
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [searchResults, setSearchResults] = useState<BugProfileResponse[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [linkLoading, setLinkLoading] = useState<number | null>(null);
+
+  // 弹窗中的缺陷列表状态
+  const [modalBugList, setModalBugList] = useState<any[]>([]);
+  const [modalCurrentPage, setModalCurrentPage] = useState(1);
+  const [modalPageSize, setModalPageSize] = useState(10);
+  const [modalTotal, setModalTotal] = useState(0);
+  const [modalLoading, setModalLoading] = useState(false);
 
   // 权限检查
-  const canView = hasPermission('workspace:resources:bugs:view');
-  const canLink = hasPermission('workspace:resources:bugs:link');
-  const canLog = hasPermission('workspace:resources:bugs:log');
-  const canCreate = hasPermission('workspace:resources:bugs:create');
+  const canView = hasPermission('/workspaces/bug-management');
+  const canLink = hasPermission('/workspaces/bug-management');
 
-  // 获取模块关联的Bug列表
+  // 获取模块关联的Coding缺陷列表
   const fetchModuleBugs = async () => {
     if (!canView) return;
 
     setLoading(true);
     try {
-      const params: BugLogListParams = {
+      const response = await request.post('/coding-bugs/get-module-bugs', {
+        module_id: moduleId,
         page: currentPage,
         page_size: pageSize
-      };
-
-      const response = await request.post('/bugs/get-module-bugs', { module_id: moduleId, ...params });
+      });
       const data = unwrapResponse(response.data) as any;
 
-      setBugList(data.items);
-      setTotal(data.total);
+      setBugList(data.items || []);
+      setTotal(data.total || 0);
     } catch (error) {
-      message.error('获取关联Bug失败');
-      console.error('获取关联Bug失败:', error);
+      message.error('获取关联缺陷失败');
+      console.error('获取关联缺陷失败:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // 搜索Bug
+  // 获取弹窗中的所有缺陷列表
+  const fetchModalBugs = async (keyword: string = '') => {
+    setModalLoading(true);
+    try {
+      const response = await request.get('/coding-bugs', {
+        params: {
+          page: modalCurrentPage,
+          page_size: modalPageSize,
+          keyword: keyword || undefined
+        }
+      });
+      const data = unwrapResponse(response.data) as any;
+
+      setModalBugList(data.items || []);
+      setModalTotal(data.total || 0);
+    } catch (error) {
+      message.error('获取缺陷列表失败');
+      console.error('获取缺陷列表失败:', error);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // 搜索Coding缺陷
   const searchBugs = async () => {
     if (!searchKeyword.trim()) {
       setSearchResults([]);
@@ -116,7 +163,7 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
 
     setSearchLoading(true);
     try {
-      const response = await request.get('/bugs/', {
+      const response = await request.get('/coding-bugs/', {
         params: {
           keyword: searchKeyword,
           workspace_id: currentWorkspace?.id,
@@ -125,42 +172,55 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
         }
       });
       const data = unwrapResponse(response.data) as any;
-      setSearchResults(data.items);
+      setSearchResults(data.items || []);
     } catch (error) {
-      message.error('搜索Bug失败');
-      console.error('搜索Bug失败:', error);
+      message.error('搜索缺陷失败');
+      console.error('搜索缺陷失败:', error);
     } finally {
       setSearchLoading(false);
     }
   };
 
-  // 关联Bug到模块
-  const handleLinkBug = async (values: { manifestation_description?: string }) => {
-    if (!selectedBug) return;
+  // 检查缺陷是否已关联到当前模块
+  const isAlreadyLinked = (codingBugId: number) => {
+    return bugList.some(bug => bug.coding_bug_id === codingBugId);
+  };
 
+  // 关联Coding缺陷到模块
+  const handleLinkBug = async (codingBugId: number, manifestationDescription?: string) => {
+    setLinkLoading(codingBugId);
     try {
-      const response = await request.post('/bugs/link-module', {
-        bug_id: selectedBug.id,
+      const response = await request.post('/coding-bugs/link-module', {
+        coding_bug_id: codingBugId,
         module_id: moduleId,
-        manifestation_description: values.manifestation_description
+        manifestation_description: manifestationDescription || ''
       });
       unwrapResponse(response.data);
-      message.success('Bug关联成功');
-      setLinkModalVisible(false);
-      linkForm.resetFields();
-      setSelectedBug(null);
+      message.success('缺陷关联成功');
+      // 刷新已关联的缺陷列表
       fetchModuleBugs();
+      // 刷新弹窗中的缺陷列表以更新关联状态
+      fetchModalBugs(searchKeyword);
     } catch (error) {
-      message.error('关联Bug失败');
-      console.error('关联Bug失败:', error);
+      message.error('关联缺陷失败');
+      console.error('关联缺陷失败:', error);
+    } finally {
+      setLinkLoading(null);
     }
   };
 
+  // 查看缺陷详情
+  const handleViewDetail = (bug: any) => {
+    setDetailBug(bug);
+    setDetailModalVisible(true);
+  };
+
   // 取消关联
-  const handleUnlinkBug = async (bugId: number) => {
+  const handleUnlinkBug = async (codingBugId: number) => {
+    setLinkLoading(codingBugId);
     try {
-      const response = await request.post('/bugs/unlink-module', {
-        bug_id: bugId,
+      const response = await request.post('/coding-bugs/unlink-from-module', {
+        coding_bug_id: codingBugId,
         module_id: moduleId
       });
       unwrapResponse(response.data);
@@ -169,29 +229,11 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
     } catch (error) {
       message.error('取消关联失败');
       console.error('取消关联失败:', error);
+    } finally {
+      setLinkLoading(null);
     }
   };
 
-  // 记录Bug发生
-  const handleLogOccurrence = async (values: { notes?: string }) => {
-    if (!selectedBug) return;
-
-    try {
-      const response = await request.post('/bugs/log-occurrence', {
-        bug_id: selectedBug.id,
-        notes: values.notes
-      });
-      unwrapResponse(response.data);
-      message.success('Bug发生记录创建成功');
-      setLogModalVisible(false);
-      logForm.resetFields();
-      setSelectedBug(null);
-      fetchModuleBugs();
-    } catch (error) {
-      message.error('记录Bug发生失败');
-      console.error('记录Bug发生失败:', error);
-    }
-  };
 
   // 初始化
   useEffect(() => {
@@ -199,6 +241,13 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
       fetchModuleBugs();
     }
   }, [moduleId, currentPage, pageSize, canView]);
+
+  // 监听弹窗分页变化
+  useEffect(() => {
+    if (searchModalVisible) {
+      fetchModalBugs(searchKeyword);
+    }
+  }, [modalCurrentPage, modalPageSize]);
 
   if (!canView) {
     return null;
@@ -216,33 +265,33 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
         </div>
         <Space>
           {canLink && (
-            <Tooltip title="关联已有问题">
+            <Tooltip title="关联Coding缺陷">
               <Button
                 type="text"
                 icon={<LinkOutlined />}
-                onClick={() => setSearchModalVisible(true)}
-                size="small"
-              >
-                关联
-              </Button>
-            </Tooltip>
-          )}
-          {canCreate && (
-            <Tooltip title="记录新问题">
-              <Button
-                type="text"
-                icon={<PlusOutlined />}
                 onClick={() => {
-                  // 跳转到Bug管理页面，并预填充当前模块
-                  const url = `/workspace/${currentWorkspace?.id}/bug-management?module_id=${moduleId}`;
-                  window.open(url, '_blank');
+                  setSearchModalVisible(true);
+                  setModalCurrentPage(1);
+                  setSearchKeyword('');
+                  fetchModalBugs(); // 打开弹窗时立即加载缺陷列表
                 }}
                 size="small"
               >
-                新建
+                关联缺陷
               </Button>
             </Tooltip>
           )}
+          <Tooltip title="同步最新数据">
+            <Button
+              type="text"
+              icon={<SyncOutlined />}
+              onClick={fetchModuleBugs}
+              size="small"
+              loading={loading}
+            >
+              刷新
+            </Button>
+          </Tooltip>
         </Space>
       </div>
       {loading ? (
@@ -251,34 +300,29 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
         </div>
       ) : bugList.length === 0 ? (
         <Empty
-          description="暂无关联的Bug"
+          description="暂无关联的缺陷"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       ) : (
         <List
           dataSource={bugList}
           renderItem={(bug) => {
-            const severityOption = SEVERITY_OPTIONS.find(opt => opt.value === bug.severity);
             return (
               <List.Item
-                key={bug.id}
+                key={bug.coding_bug_id}
                 actions={[
-                  <Tooltip title="记录发生" key="log">
+                  <Tooltip title="查看详情" key="view">
                     <Button
                       type="text"
-                      icon={<ExclamationCircleOutlined />}
-                      onClick={() => {
-                        setSelectedBug(bug);
-                        setLogModalVisible(true);
-                      }}
-                      disabled={!canLog}
+                      icon={<EyeOutlined />}
+                      onClick={() => handleViewDetail(bug)}
                       size="small"
                     />
                   </Tooltip>,
                   <Tooltip title="取消关联" key="unlink">
                     <Popconfirm
-                      title="确定要取消关联这个Bug吗？"
-                      onConfirm={() => handleUnlinkBug(bug.id)}
+                      title="确定要取消关联这个缺陷吗？"
+                      onConfirm={() => handleUnlinkBug(bug.coding_bug_id)}
                       okText="确定"
                       cancelText="取消"
                     >
@@ -287,6 +331,7 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
                         icon={<DisconnectOutlined />}
                         danger
                         disabled={!canLink}
+                        loading={linkLoading === bug.coding_bug_id}
                         size="small"
                       />
                     </Popconfirm>
@@ -296,35 +341,42 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
                 <List.Item.Meta
                   title={
                     <Space>
+                      <Tag color="blue">#{bug.coding_bug_code}</Tag>
                       <span style={{ fontSize: '14px' }}>{bug.title}</span>
-                      <Tag color={severityOption?.color} style={{ fontSize: '12px' }}>
-                        {severityOption?.label}
+                      <Tag color={getPriorityColor(bug.priority)} style={{ fontSize: '12px', color: '#fff' }}>
+                        {bug.priority}
                       </Tag>
-                      <span style={{
-                        color: bug.occurrence_count > 0 ? '#1890ff' : '#999',
-                        fontSize: '12px',
-                        backgroundColor: '#f0f0f0',
-                        padding: '2px 6px',
-                        borderRadius: '4px'
-                      }}>
-                        {bug.occurrence_count || 0}次
-                      </span>
+                      <Tag color={getStatusColor(bug.status_name)} style={{ fontSize: '12px' }}>
+                        {bug.status_name}
+                      </Tag>
                     </Space>
                   }
                   description={
                     <div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>
-                        {bug.last_occurrence && (
-                          <span>最近发生: {formatDate(bug.last_occurrence)}</span>
+                      <div style={{ fontSize: '12px', color: '#666', marginBottom: 4 }}>
+                        {bug.description && (
+                          <div style={{ marginBottom: 4 }}>
+                            {bug.description.length > 100
+                              ? `${bug.description.substring(0, 100)}...`
+                              : bug.description
+                            }
+                          </div>
+                        )}
+                        <span>创建时间: {formatDate(bug.coding_created_at)}</span>
+                        {bug.assignees && bug.assignees.length > 0 && (
+                          <span style={{ marginLeft: 16 }}>
+                            指派人: {bug.assignees.slice(0, 2).join(', ')}
+                            {bug.assignees.length > 2 && ` 等${bug.assignees.length}人`}
+                          </span>
                         )}
                       </div>
-                      {bug.tags && bug.tags.length > 0 && (
+                      {bug.labels && bug.labels.length > 0 && (
                         <div style={{ marginTop: 4 }}>
-                          {bug.tags.slice(0, 3).map(tag => (
-                            <Tag key={tag} style={{ fontSize: '11px' }}>{tag}</Tag>
+                          {bug.labels.slice(0, 3).map((label: string, index: number) => (
+                            <Tag key={index} style={{ fontSize: '11px' }}>{label}</Tag>
                           ))}
-                          {bug.tags.length > 3 && (
-                            <Tag style={{ fontSize: '11px' }}>+{bug.tags.length - 3}</Tag>
+                          {bug.labels.length > 3 && (
+                            <Tag style={{ fontSize: '11px' }}>+{bug.labels.length - 3}</Tag>
                           )}
                         </div>
                       )}
@@ -349,9 +401,9 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
         />
       )}
 
-      {/* 搜索Bug模态框 */}
+      {/* 搜索Coding缺陷模态框 */}
       <Modal
-        title="关联已有问题"
+        title="关联Coding缺陷"
         open={searchModalVisible}
         onCancel={() => {
           setSearchModalVisible(false);
@@ -359,184 +411,130 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
           setSearchResults([]);
         }}
         footer={null}
-        width={600}
+        width={1100}
+        style={{ maxHeight: '80vh' }}
+        bodyStyle={{
+          maxHeight: '70vh',
+          overflowY: 'auto',
+          padding: '24px'
+        }}
       >
         <div style={{ marginBottom: 16 }}>
           <Input.Search
-            placeholder="搜索Bug标题或描述"
+            placeholder="搜索缺陷标题或描述"
             value={searchKeyword}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchKeyword(e.target.value)}
-            onSearch={searchBugs}
-            loading={searchLoading}
+            onSearch={(value) => {
+              setModalCurrentPage(1);
+              fetchModalBugs(value);
+            }}
+            loading={modalLoading}
             enterButton
           />
         </div>
 
-        {searchResults.length > 0 && (
-          <List
-            dataSource={searchResults}
-            renderItem={(bug) => {
-              const severityOption = SEVERITY_OPTIONS.find(opt => opt.value === bug.severity);
-              return (
-                <List.Item
-                  key={bug.id}
-                  actions={[
-                    <Button
-                      type="link"
-                      onClick={() => {
-                        setSelectedBug(bug);
-                        setSearchModalVisible(false);
-                        setLinkModalVisible(true);
-                      }}
-                    >
-                      关联
-                    </Button>
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={
-                      <Space>
-                        <span>{bug.title}</span>
-                        <Tag color={severityOption?.color} size="small">
-                          {severityOption?.label}
-                        </Tag>
-                      </Space>
-                    }
-                    description={
-                      <div>
-                        <div style={{ fontSize: '12px', color: '#666' }}>
-                          发生次数: {bug.occurrence_count}
-                          {bug.last_occurrence && (
-                            <span style={{ marginLeft: 16 }}>
-                              最近: {formatDate(bug.last_occurrence)}
-                            </span>
-                          )}
-                        </div>
-                        {bug.tags && bug.tags.length > 0 && (
-                          <div style={{ marginTop: 4 }}>
-                            {bug.tags.slice(0, 3).map(tag => (
-                              <Tag key={tag} size="small">{tag}</Tag>
-                            ))}
-                          </div>
-                        )}
+        <List
+          dataSource={modalBugList}
+          loading={modalLoading}
+          renderItem={(bug) => (
+            <List.Item
+              key={bug.coding_bug_id}
+              actions={[
+                isAlreadyLinked(bug.coding_bug_id) ? (
+                  <Button
+                    key="linked"
+                    size="small"
+                    disabled
+                    style={{ color: '#52c41a', borderColor: '#52c41a' }}
+                  >
+                    已关联
+                  </Button>
+                ) : (
+                  <Button
+                    key="link"
+                    type="primary"
+                    size="small"
+                    onClick={() => handleLinkBug(bug.coding_bug_id)}
+                    loading={linkLoading === bug.coding_bug_id}
+                  >
+                    关联
+                  </Button>
+                )
+              ]}
+            >
+              <List.Item.Meta
+                title={
+                  <Space>
+                    <Tag color="blue">#{bug.coding_bug_code}</Tag>
+                    <span>{bug.title}</span>
+                    <Tag color={getPriorityColor(bug.priority)} style={{ fontSize: '12px', color: '#fff' }}>
+                      {bug.priority}
+                    </Tag>
+                    <Tag color={getStatusColor(bug.status_name)} style={{ fontSize: '12px' }}>
+                      {bug.status_name}
+                    </Tag>
+                  </Space>
+                }
+                description={
+                  <div style={{ fontSize: '12px', color: '#666' }}>
+                    {bug.description && (
+                      <div style={{ marginBottom: 4 }}>
+                        {bug.description.length > 100
+                          ? `${bug.description.substring(0, 100)}...`
+                          : bug.description
+                        }
                       </div>
-                    }
-                  />
-                </List.Item>
-              );
-            }}
-          />
-        )}
-
-        {searchKeyword && searchResults.length === 0 && !searchLoading && (
-          <Empty description="未找到相关Bug" />
-        )}
+                    )}
+                    <span>项目: {bug.project_name}</span>
+                    <span style={{ marginLeft: 16 }}>创建时间: {formatDate(bug.coding_created_at)}</span>
+                    {bug.assignees && bug.assignees.length > 0 && (
+                      <span style={{ marginLeft: 16 }}>
+                        指派人: {bug.assignees.slice(0, 2).join(', ')}
+                        {bug.assignees.length > 2 && ` 等${bug.assignees.length}人`}
+                      </span>
+                    )}
+                    {bug.labels && bug.labels.length > 0 && (
+                      <div style={{ marginTop: 4 }}>
+                        {bug.labels.slice(0, 3).map((label: string, index: number) => (
+                          <Tag key={index}>{label}</Tag>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                }
+              />
+            </List.Item>
+          )}
+          pagination={{
+            current: modalCurrentPage,
+            pageSize: modalPageSize,
+            total: modalTotal,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            onChange: (page, size) => {
+              setModalCurrentPage(page);
+              if (size !== modalPageSize) {
+                setModalPageSize(size);
+              }
+            },
+            showTotal: (total) => `共 ${total} 条缺陷`
+          }}
+          locale={{
+            emptyText: modalBugList.length === 0 && !modalLoading ?
+              (searchKeyword ? '未找到相关缺陷' : '暂无缺陷数据') : undefined
+          }}
+        />
       </Modal>
 
-      {/* 关联Bug模态框 */}
-      <Modal
-        title="关联Bug到模块"
-        open={linkModalVisible}
-        onCancel={() => {
-          setLinkModalVisible(false);
-          linkForm.resetFields();
-          setSelectedBug(null);
+      {/* 缺陷详情弹窗 */}
+      <BugDetailModal
+        visible={detailModalVisible}
+        bug={detailBug}
+        onClose={() => {
+          setDetailModalVisible(false);
+          setDetailBug(null);
         }}
-        footer={null}
-        width={500}
-      >
-        {selectedBug && (
-          <div style={{ marginBottom: 16 }}>
-            <p><strong>Bug标题：</strong>{selectedBug.title}</p>
-            <p><strong>严重程度：</strong>
-              <Tag color={SEVERITY_OPTIONS.find(opt => opt.value === selectedBug.severity)?.color}>
-                {SEVERITY_OPTIONS.find(opt => opt.value === selectedBug.severity)?.label}
-              </Tag>
-            </p>
-          </div>
-        )}
-
-        <Form
-          form={linkForm}
-          layout="vertical"
-          onFinish={handleLinkBug}
-        >
-          <Form.Item
-            name="manifestation_description"
-            label="在该模块下的表现"
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="描述该Bug在此模块下的特定表现"
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                关联
-              </Button>
-              <Button onClick={() => {
-                setLinkModalVisible(false);
-                linkForm.resetFields();
-                setSelectedBug(null);
-              }}>
-                取消
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 记录Bug发生模态框 */}
-      <Modal
-        title="记录Bug发生"
-        open={logModalVisible}
-        onCancel={() => {
-          setLogModalVisible(false);
-          logForm.resetFields();
-          setSelectedBug(null);
-        }}
-        footer={null}
-        width={500}
-      >
-        {selectedBug && (
-          <div style={{ marginBottom: 16 }}>
-            <p><strong>Bug标题：</strong>{selectedBug.title}</p>
-          </div>
-        )}
-
-        <Form
-          form={logForm}
-          layout="vertical"
-          onFinish={handleLogOccurrence}
-        >
-          <Form.Item
-            name="notes"
-            label="补充说明"
-          >
-            <Input.TextArea
-              rows={3}
-              placeholder="请输入本次发生的补充说明"
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                记录
-              </Button>
-              <Button onClick={() => {
-                setLogModalVisible(false);
-                logForm.resetFields();
-                setSelectedBug(null);
-              }}>
-                取消
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
+      />
     </div>
   );
 };

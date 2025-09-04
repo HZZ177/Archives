@@ -113,7 +113,7 @@ async def create_system_permissions(session: AsyncSession) -> None:
             "sort": 121,
             "is_visible": True,
             "icon": "table",
-            "parent_id": 8, # 数据资源节点
+            "parent_code": "workspace:resources", # 使用父权限代码
             "description": "管理工作区内的数据表"
         },
         # 接口池 - 作为数据资源的子页面
@@ -124,7 +124,7 @@ async def create_system_permissions(session: AsyncSession) -> None:
             "sort": 122,
             "is_visible": True,
             "icon": "api",
-            "parent_id": 8, # 数据资源节点
+            "parent_code": "workspace:resources", # 使用父权限代码
             "description": "管理工作区内的API接口"
         },
         # 缺陷管理 - 作为数据资源的子页面
@@ -135,8 +135,8 @@ async def create_system_permissions(session: AsyncSession) -> None:
             "sort": 123,
             "is_visible": True,
             "icon": "bug",
-            "parent_id": 8, # 数据资源节点
-            "description": "管理工作区内的Bug档案和发生记录"
+            "parent_code": "workspace:resources", # 使用父权限代码
+            "description": "管理工作区内的Coding缺陷数据"
         }
     ]
 
@@ -159,23 +159,35 @@ async def create_system_permissions(session: AsyncSession) -> None:
     updated_count = 0
     
     # 按顺序处理权限，确保父权限先创建
-    for idx, data in enumerate(permissions_data):
+    for data in permissions_data:
         # 检查权限是否已存在
         if data["code"] not in existing_codes:
-            # 处理parent_id引用，如果是数字引用，转换为实际ID
-            if data["parent_id"] is not None and isinstance(data["parent_id"], int):
-                # 找到对应索引的权限代码
-                if data["parent_id"] <= len(permissions_data):
-                    parent_code = permissions_data[data["parent_id"]-1]["code"]
-                    # 如果父权限已经在数据库中，使用其实际ID
-                    if parent_code in id_mapping:
-                        data["parent_id"] = id_mapping[parent_code]
-            
+            # 处理parent_id引用
+            parent_id = None
+            if "parent_code" in data and data["parent_code"]:
+                # 使用parent_code查找父权限ID
+                if data["parent_code"] in id_mapping:
+                    parent_id = id_mapping[data["parent_code"]]
+            elif "parent_id" in data and data["parent_id"] is not None:
+                if isinstance(data["parent_id"], int):
+                    # 找到对应索引的权限代码
+                    if data["parent_id"] <= len(permissions_data):
+                        parent_code = permissions_data[data["parent_id"]-1]["code"]
+                        # 如果父权限已经在数据库中，使用其实际ID
+                        if parent_code in id_mapping:
+                            parent_id = id_mapping[parent_code]
+                else:
+                    parent_id = data["parent_id"]
+
+            # 准备权限数据
+            permission_data = {k: v for k, v in data.items() if k != "parent_code"}
+            permission_data["parent_id"] = parent_id
+
             # 创建新权限
-            permission = Permission(**data)
+            permission = Permission(**permission_data)
             session.add(permission)
             await session.flush()  # 立即获取新创建权限的ID
-            
+
             # 更新ID映射
             id_mapping[data["code"]] = permission.id
             added_count += 1
