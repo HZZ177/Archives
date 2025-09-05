@@ -8,6 +8,8 @@ from backend.app.models.image import Image
 from backend.app.models.workspace_table import WorkspaceTable
 from backend.app.models.workspace_interface import WorkspaceInterface
 from backend.app.models.coding_bug import CodingBug, CodingBugModuleLink, WorkspaceCodingConfig
+from backend.app.models.ai_model_config import AIModelConfig, AIModelUsageStats
+from backend.app.models.ai_agent_execution import AIAgent, AIAgentExecution
 
 __all__ = [
     "User",
@@ -22,4 +24,8 @@ __all__ = [
     "CodingBug",
     "CodingBugModuleLink",
     "WorkspaceCodingConfig",
+    "AIModelConfig",
+    "AIModelUsageStats",
+    "AIAgent",
+    "AIAgentExecution",
 ]

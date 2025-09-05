@@ -61,6 +61,17 @@ async def create_system_permissions(session: AsyncSession) -> None:
             "parent_id": 2,  # 系统管理分组
             "description": "角色管理页面"
         },
+        # AI模型管理 - 实际页面
+        {
+            "code": "system:ai:models:view",
+            "name": "AI模型管理",
+            "page_path": "/system/ai-models",
+            "sort": 103,
+            "is_visible": True,
+            "icon": "robot",
+            "parent_id": 2,  # 系统管理分组
+            "description": "AI模型配置管理页面"
+        },
         # 结构管理 - 作为父节点，添加实际页面路径
         {
             "code": "system:structure",

@@ -40,6 +40,7 @@ import request from '../../utils/request';
 import { ROUTES } from '../../config/constants';
 import CodingConfigModal from '../../components/coding/CodingConfigModal';
 import BugAnalysisPage from './components/BugAnalysisPage';
+import MonthlyReportSection from './components/MonthlyReportSection';
 import './components/BugAnalysisPage.css';
 import '../module-content/components/sections/SectionStyles.css';
 
@@ -403,8 +404,9 @@ const BugManagementPage: React.FC = () => {
       } else {
         message.error(response.data.message || '同步失败');
       }
-    } catch (error) {
-      message.error('同步失败，请检查Coding配置');
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || '同步失败，请检查Coding配置';
+      message.error(errorMessage);
     } finally {
       setSyncing(false);
     }
@@ -448,38 +450,7 @@ const BugManagementPage: React.FC = () => {
     );
   }
 
-  // 如果没有配置，显示配置界面
-  if (codingConfig === null) {
-    return (
-      <div style={{ padding: '24px' }}>
-        <Card>
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <ApiOutlined style={{ fontSize: '48px', color: '#1890ff', marginBottom: '16px' }} />
-            <Title level={3}>配置Coding同步</Title>
-            <p style={{ color: '#666', marginBottom: '24px' }}>
-              首次使用需要配置Coding平台的API连接信息和同步条件
-            </p>
-            <Button
-              type="primary"
-              size="large"
-              onClick={() => setConfigModalVisible(true)}
-            >
-              立即配置
-            </Button>
-          </div>
-        </Card>
-
-        <CodingConfigModal
-          visible={configModalVisible}
-          onClose={() => setConfigModalVisible(false)}
-          onSuccess={() => {
-            setConfigModalVisible(false);
-            fetchCodingConfig();
-          }}
-        />
-      </div>
-    );
-  }
+  // 注释：移除强制配置检查，直接显示主界面让用户自己配置
 
   // 表格列定义
   const columns = [
@@ -590,15 +561,15 @@ const BugManagementPage: React.FC = () => {
 
           {!codingConfig && (
             <Alert
-              message="未配置Coding API"
-              description="请先配置Coding API Token和项目名称，以便从Coding平台同步缺陷数据。"
-              type="warning"
+              message="Coding API 未配置"
+              description="配置Coding API Token和项目名称后，可以从Coding平台同步缺陷数据。您也可以手动管理缺陷。"
+              type="info"
               showIcon
               style={{ marginBottom: 16 }}
               action={
                 canConfig && (
-                  <Button size="small" onClick={() => setConfigModalVisible(true)}>
-                    立即配置
+                  <Button size="small" type="primary" onClick={() => setConfigModalVisible(true)}>
+                    配置Coding API
                   </Button>
                 )
               }
@@ -610,9 +581,9 @@ const BugManagementPage: React.FC = () => {
           <Tabs.TabPane tab="缺陷列表" key="list">
             <div style={{ marginBottom: 16 }}>
               <Row gutter={16}>
-                <Col span={6}>
+                <Col span={5}>
                   <Input
-                    placeholder="搜索缺陷标题或描述"
+                    placeholder="搜索标题或描述"
                     prefix={<SearchOutlined />}
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}
@@ -672,7 +643,7 @@ const BugManagementPage: React.FC = () => {
                     ))}
                   </Select>
                 </Col>
-                <Col span={8} style={{ textAlign: 'right' }}>
+                <Col span={9} style={{ textAlign: 'right' }}>
                   <Space>
                     <Button
                       onClick={fetchBugList}
@@ -680,11 +651,13 @@ const BugManagementPage: React.FC = () => {
                     >
                       查询
                     </Button>
-                    {canSync && codingConfig && (
+                    {canSync && (
                       <Button
                         type="primary"
                         loading={syncing}
                         onClick={handleSyncFromCoding}
+                        disabled={!codingConfig}
+                        title={!codingConfig ? "请先配置Coding API" : ""}
                       >
                         从Coding同步
                       </Button>
@@ -743,13 +716,17 @@ const BugManagementPage: React.FC = () => {
                 hideOnSinglePage: false
               }}
               locale={{
-                emptyText: codingConfig ? '暂无缺陷数据' : '请先配置Coding API'
+                emptyText: '暂无缺陷数据'
               }}
             />
           </Tabs.TabPane>
 
           <Tabs.TabPane tab="数据分析" key="analysis">
             <BugAnalysisPage key={analysisRefreshKey} />
+          </Tabs.TabPane>
+
+          <Tabs.TabPane tab="AI月度报告" key="monthly-report">
+            <MonthlyReportSection />
           </Tabs.TabPane>
         </Tabs>
       </Card>

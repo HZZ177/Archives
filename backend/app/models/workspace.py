@@ -42,3 +42,4 @@ class Workspace(Base):
     module_configs = relationship("WorkspaceModuleConfig", back_populates="workspace", cascade="all, delete-orphan")
     coding_bugs = relationship("CodingBug", back_populates="workspace", cascade="all, delete-orphan")
     coding_config = relationship("WorkspaceCodingConfig", back_populates="workspace", uselist=False, cascade="all, delete-orphan")
+    monthly_reports = relationship("MonthlyReport", back_populates="workspace", cascade="all, delete-orphan")

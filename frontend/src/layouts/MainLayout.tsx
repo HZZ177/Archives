@@ -11,21 +11,20 @@ import {
   AppstoreOutlined,
   FolderOutlined,
   FileTextOutlined,
-  SettingOutlined,
-  SafetyCertificateOutlined,
+
   BranchesOutlined,
   BookOutlined,
   DatabaseOutlined,
   ApiOutlined,
-  BugOutlined
+  BugOutlined,
+  RobotOutlined
 } from '@ant-design/icons';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
-import { usePermission } from '../contexts/PermissionContext';
-import { useWorkspace, WorkspaceProvider } from '../contexts/WorkspaceContext';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useModules } from '../contexts/ModuleContext';
 import { ROUTES } from '../config/constants';
-import { fetchModuleTree } from '../apis/moduleService';
+
 import { ModuleStructureNode } from '../types/modules';
 import { fetchUserPagePermissions } from '../apis/permissionService';
 // 使用新的PageTransition组件
@@ -98,6 +97,12 @@ const staticMenuItems: ExtendedMenuItem[] = [
         icon: <TeamOutlined />,
         label: '角色管理',
         page_path: '/system/roles',
+      },
+      {
+        key: '/system/ai-models',
+        icon: <RobotOutlined />,
+        label: 'AI模型管理',
+        page_path: '/system/ai-models',
       },
     ],
   },
@@ -173,79 +178,8 @@ const findMenuPathKeys = (
   return [];
 };
 
-// 菜单项定义
-interface MenuItem {
-  key: string;
-  icon: React.ReactNode;
-  label: string;
-  path: string;
-  children?: MenuItem[];
-  permission?: string;
-}
-
-// 菜单配置
-const menuItems: MenuItem[] = [
-  {
-    key: 'home',
-    icon: <HomeOutlined />,
-    label: '首页',
-    path: ROUTES.HOME,
-  },
-  {
-    key: 'system',
-    icon: <SettingOutlined />,
-    label: '系统管理',
-    path: '/system',
-    children: [
-      {
-        key: 'users',
-        icon: <TeamOutlined />,
-        label: '用户管理',
-        path: ROUTES.USER_LIST,
-        permission: 'users:view',
-      },
-      {
-        key: 'roles',
-        icon: <SafetyCertificateOutlined />,
-        label: '角色管理',
-        path: ROUTES.ROLE_LIST,
-        permission: 'roles:view',
-      },
-    ],
-  },
-  {
-    key: 'structure',
-    icon: <BranchesOutlined />,
-    label: '结构管理',
-    path: ROUTES.STRUCTURE_MANAGEMENT,
-  },
-  {
-    key: 'workspaces',
-    icon: <AppstoreOutlined />,
-    label: '工作区管理',
-    path: ROUTES.WORKSPACES_MANAGE,
-  },
-  {
-    key: 'workspace-resources',
-    icon: <BookOutlined />,
-    label: '数据资源',
-    path: '/workspaces/resources',
-    children: [
-      {
-        key: 'workspace-tables',
-        icon: <DatabaseOutlined />,
-        label: '数据库表池',
-        path: ROUTES.WORKSPACE_TABLES,
-      },
-      {
-        key: 'workspace-interfaces',
-        icon: <ApiOutlined />,
-        label: '接口池',
-        path: ROUTES.WORKSPACE_INTERFACES,
-      },
-    ],
-  },
-];
+// 注释：已删除未使用的 MenuItem 接口和 menuItems 配置
+// 实际使用的是 staticMenuItems 配置（第78行开始）
 
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -264,7 +198,7 @@ const MainLayout: React.FC = () => {
   const [filteredMenuItems, setFilteredMenuItems] = useState<ItemType[]>([]);
   const { currentWorkspace, initializing } = useWorkspace();
   const [openKeys, setOpenKeys] = useState<string[]>([]);
-  const [selectedKeys, setSelectedKeys] = useState<string[]>(['home']);
+  // 注释：selectedKeys 现在由路由自动管理，不需要手动状态
   
   const {
     token: { colorBgContainer },
@@ -320,7 +254,8 @@ const MainLayout: React.FC = () => {
       try {
         const workspaceId = currentWorkspace?.id;
         const pagePaths = await fetchUserPagePermissions(workspaceId);
-        setUserPermissions(Array.isArray(pagePaths) ? pagePaths : []);
+        const permissions = Array.isArray(pagePaths) ? pagePaths : [];
+        setUserPermissions(permissions);
       } catch (error) {
         console.error('获取用户权限失败:', error);
         setUserPermissions([]);
@@ -372,13 +307,15 @@ const MainLayout: React.FC = () => {
         if ('type' in item && item.type === 'divider') {
           return item;
         }
-        
+
         // 检查当前项是否有直接权限 - 严格匹配模式
         let hasDirectPermission = false;
         if ('page_path' in item && item.page_path) {
           // 严格匹配：只有当权限列表中包含完全相同的路径时才认为有权限
           hasDirectPermission = permissions.includes(item.page_path);
-          
+
+
+
           // 移除特殊处理模块内容页面的宽松匹配逻辑
           // 每个模块内容页面都需要有明确的权限
         }
@@ -472,16 +409,16 @@ const MainLayout: React.FC = () => {
     // 应用过滤
     // 对静态菜单项和模块菜单项分别过滤，传入不同的isSystemMenu参数
     const filteredStaticItems = filterMenuItems(staticMenuItems, userPermissions, true);
-    
+
     // 自定义模块权限检查
     // 如果有任何模块的page_path存在于用户权限中，则显示该模块
     const filteredModuleItems = userModuleMenuItems.length > 0
       ? filterMenuItems(userModuleMenuItems, userPermissions, false)
       : [];
-    
+
     // 只有当筛选后的模块菜单项不为空时，才包含分隔线
     const finalDividerItem = filteredModuleItems.length > 0 ? dividerItem : [];
-    
+
     // 合并过滤后的菜单项
     const finalMenuItems = [...filteredStaticItems, ...finalDividerItem, ...filteredModuleItems];
     
@@ -711,46 +648,7 @@ const MainLayout: React.FC = () => {
     setOpenKeys(keys);
   };
 
-  // 根据当前路径设置选中的菜单项
-  useEffect(() => {
-    const pathname = location.pathname;
-    
-    // 查找匹配的菜单项
-    let matchedKey = 'home';
-    let parentKey = '';
-    
-    const findMatchingMenuItem = (items: MenuItem[]) => {
-      for (const item of items) {
-        if (pathname === item.path || pathname.startsWith(`${item.path}/`)) {
-          matchedKey = item.key;
-          return true;
-        }
-        
-        if (item.children) {
-          const childMatch = item.children.some(child => {
-            if (pathname === child.path || pathname.startsWith(`${child.path}/`)) {
-              matchedKey = child.key;
-              parentKey = item.key;
-              return true;
-            }
-            return false;
-          });
-          
-          if (childMatch) {
-            return true;
-          }
-        }
-      }
-      return false;
-    };
-    
-    findMatchingMenuItem(menuItems);
-    setSelectedKeys([matchedKey]);
-    
-    if (parentKey && !openKeys.includes(parentKey)) {
-      setOpenKeys(prev => [...prev, parentKey]);
-    }
-  }, [location.pathname, openKeys]);
+  // 注释：菜单选中状态现在由 findMenuPathKeys 函数和路由变化自动处理
 
   // 如果工作区正在初始化，显示加载指示器
   if (initializing) {

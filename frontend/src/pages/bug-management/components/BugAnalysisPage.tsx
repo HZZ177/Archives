@@ -22,7 +22,7 @@ import FilterPanel from './FilterPanel';
 import ModuleHealthTree from './ModuleHealthTree';
 import BugStatistics from './BugStatistics';
 import BugTrendChart from './BugTrendChart';
-import AISummarySection from './AISummarySection';
+
 import {
   AnalysisData,
   FilterParams
@@ -162,12 +162,7 @@ const BugAnalysisPage: React.FC = () => {
               </Row>
             </Card>
 
-            {/* AI总结信息区域 */}
-            <Card className="ai-summary-card" title="AI分析报告">
-              <AISummarySection
-                summaries={analysisData.aiSummaries}
-              />
-            </Card>
+
           </>
         ) : (
           <Card>

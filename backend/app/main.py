@@ -15,6 +15,7 @@ from backend.app.api.endpoints import images
 from backend.app.api.endpoints import workspace_tables
 from backend.app.api.endpoints import workspace_interfaces
 from backend.app.api.endpoints import coding_bugs
+from backend.app.api.endpoints import ai_models, ai_agents, monthly_reports
 from backend.app.core.config import settings
 from backend.app.core.logger import logger
 from backend.app.db.init_db import init_db
@@ -60,6 +61,9 @@ def create_app() -> FastAPI:
     app.include_router(workspace_interfaces.router,
                        prefix=f"{settings.API_V1_STR}/workspace-interfaces", tags=["workspace-interfaces"])
     app.include_router(coding_bugs.router, prefix=f"{settings.API_V1_STR}/coding-bugs", tags=["coding-bugs"])
+    app.include_router(ai_models.router, prefix=f"{settings.API_V1_STR}/ai-models", tags=["ai-models"])
+    app.include_router(ai_agents.router, prefix=f"{settings.API_V1_STR}/ai-agents", tags=["ai-agents"])
+    app.include_router(monthly_reports.router, prefix=f"{settings.API_V1_STR}/monthly-reports", tags=["monthly-reports"])
 
     # 配置静态文件
     static_dir = settings.STATIC_DIR
@@ -110,11 +114,26 @@ async def health_check():
 @app.on_event("startup")
 async def startup_event():
     """
-    应用启动时初始化数据库
+    应用启动时初始化数据库和连接池
     """
     try:
         await init_db()
         logger.info("数据库初始化完成")
+
+        # 初始化LLM连接池
+        from backend.app.services.llm_pool_service import LLMPoolService
+        from backend.app.db.session import SessionLocal
+
+        try:
+            llm_pool_service = LLMPoolService()
+            # 使用SessionLocal直接创建会话
+            async with SessionLocal() as db:
+                await llm_pool_service._auto_initialize_if_needed(db)
+            logger.info("LLM连接池启动检查完成")
+        except Exception as e:
+            logger.warning(f"LLM连接池启动初始化失败: {str(e)}")
+            # 不抛出异常，允许应用继续启动
+
     except Exception as e:
         logger.error(f"启动时发生错误: {str(e)}")
         raise

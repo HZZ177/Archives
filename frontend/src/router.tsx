@@ -23,6 +23,7 @@ const ProfilePage = lazy(() => import('./pages/user/ProfilePage'));
 const WorkspaceTablesPage = lazy(() => import('./pages/workspace-resources/WorkspaceTablesPage'));
 const WorkspaceInterfacesPage = lazy(() => import('./pages/workspace-resources/WorkspaceInterfacesPage'));
 const BugManagementPage = lazy(() => import('./pages/bug-management/BugManagementPage'));
+const AIModelManagePage = lazy(() => import('./pages/ai-models/AIModelManagePage'));
 
 // 加载指示器组件
 const LoadingComponent = () => (
@@ -179,6 +180,10 @@ const router = createBrowserRouter([
       {
         path: '/workspaces/bug-management',
         element: <SuspenseWrapper component={BugManagementPage} />
+      },
+      {
+        path: '/system/ai-models',
+        element: <SuspenseWrapper component={AIModelManagePage} />
       },
     ]
   },

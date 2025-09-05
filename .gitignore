@@ -79,3 +79,4 @@ backend/alembic/versions/*.py
 /.augment/
 /.cursor/
 /.VSCodeCounter/
+/AI-third-Project/
