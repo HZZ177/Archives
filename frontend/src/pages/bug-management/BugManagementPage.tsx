@@ -92,6 +92,7 @@ const BugManagementPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [labelsFilter, setLabelsFilter] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('list');
+  const [analysisRefreshKey, setAnalysisRefreshKey] = useState(0);
 
   // 标签相关状态
   const [availableLabels, setAvailableLabels] = useState<string[]>([]);
@@ -430,6 +431,15 @@ const BugManagementPage: React.FC = () => {
     }
   }, [searchKeyword, priorityFilter, statusFilter, labelsFilter]);
 
+  // 处理Tab切换
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    // 切换到数据分析页面时触发刷新
+    if (key === 'analysis') {
+      setAnalysisRefreshKey(prev => prev + 1);
+    }
+  };
+
   if (!canView) {
     return (
       <Card>
@@ -596,7 +606,7 @@ const BugManagementPage: React.FC = () => {
           )}
         </div>
 
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
+        <Tabs activeKey={activeTab} onChange={handleTabChange}>
           <Tabs.TabPane tab="缺陷列表" key="list">
             <div style={{ marginBottom: 16 }}>
               <Row gutter={16}>
@@ -739,7 +749,7 @@ const BugManagementPage: React.FC = () => {
           </Tabs.TabPane>
 
           <Tabs.TabPane tab="数据分析" key="analysis">
-            <BugAnalysisPage />
+            <BugAnalysisPage key={analysisRefreshKey} />
           </Tabs.TabPane>
         </Tabs>
       </Card>
