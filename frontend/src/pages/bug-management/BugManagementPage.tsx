@@ -37,6 +37,7 @@ import { unwrapResponse } from '../../utils/request';
 import request from '../../utils/request';
 import { ROUTES } from '../../config/constants';
 import CodingConfigModal from '../../components/coding/CodingConfigModal';
+import BugAnalysisPage from './components/BugAnalysisPage';
 import '../module-content/components/sections/SectionStyles.css';
 
 const { Title } = Typography;
@@ -104,9 +105,7 @@ const BugManagementPage: React.FC = () => {
   const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
   const [linkLoading, setLinkLoading] = useState(false);
 
-  // 分析数据状态
-  const [analysisData, setAnalysisData] = useState<any>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
+
 
   // 删除相关状态
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -350,36 +349,7 @@ const BugManagementPage: React.FC = () => {
 
 
 
-  // 获取分析数据
-  const fetchAnalysisData = async () => {
-    if (!currentWorkspace?.id || !canView) return;
 
-    setAnalysisLoading(true);
-    try {
-      // 这里可以实现分析数据的获取
-      // 暂时使用模拟数据
-      const mockAnalysisData = {
-        total_bugs: bugList.length,
-        priority_distribution: {
-          '最高': bugList.filter(b => b.priority === '最高').length,
-          '高': bugList.filter(b => b.priority === '高').length,
-          '中': bugList.filter(b => b.priority === '中').length,
-          '低': bugList.filter(b => b.priority === '低').length,
-        },
-        status_distribution: {
-          '待处理': bugList.filter(b => b.status_name === '待处理').length,
-          '处理中': bugList.filter(b => b.status_name === '处理中').length,
-          '已解决': bugList.filter(b => b.status_name === '已解决').length,
-          '已关闭': bugList.filter(b => b.status_name === '已关闭').length,
-        }
-      };
-      setAnalysisData(mockAnalysisData);
-    } catch (error) {
-      message.error('获取分析数据失败');
-    } finally {
-      setAnalysisLoading(false);
-    }
-  };
 
   // 初始化
   useEffect(() => {
@@ -579,11 +549,11 @@ const BugManagementPage: React.FC = () => {
                 <Col span={3}>
                   <Select
                     placeholder="优先级"
-                    value={priorityFilter}
-                    onChange={setPriorityFilter}
+                    value={priorityFilter === 'ALL' ? undefined : priorityFilter}
+                    onChange={(value) => setPriorityFilter(value || 'ALL')}
+                    allowClear
                     style={{ width: '100%' }}
                   >
-                    <Option value="ALL">全部</Option>
                     <Option value="紧急">紧急</Option>
                     <Option value="高">高</Option>
                     <Option value="中">中</Option>
@@ -594,11 +564,11 @@ const BugManagementPage: React.FC = () => {
                 <Col span={3}>
                   <Select
                     placeholder="状态"
-                    value={statusFilter}
-                    onChange={setStatusFilter}
+                    value={statusFilter === 'ALL' ? undefined : statusFilter}
+                    onChange={(value) => setStatusFilter(value || 'ALL')}
+                    allowClear
                     style={{ width: '100%' }}
                   >
-                    <Option value="ALL">全部</Option>
                     <Option value="待处理">待处理</Option>
                     <Option value="处理中">处理中</Option>
                     <Option value="已解决">已解决</Option>
@@ -682,37 +652,7 @@ const BugManagementPage: React.FC = () => {
           </Tabs.TabPane>
 
           <Tabs.TabPane tab="数据分析" key="analysis">
-            <Spin spinning={analysisLoading}>
-              {analysisData ? (
-                <Row gutter={16}>
-                  <Col span={6}>
-                    <Statistic title="总缺陷数" value={analysisData.total_bugs} prefix={<BugOutlined />} />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic title="紧急" value={analysisData.priority_distribution['紧急']} valueStyle={{ color: '#ff4d4f' }} />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic title="高优先级" value={analysisData.priority_distribution['高']} valueStyle={{ color: '#ff7a45' }} />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic title="待处理" value={analysisData.status_distribution['待处理']} valueStyle={{ color: '#faad14' }} />
-                  </Col>
-                </Row>
-              ) : (
-                <Empty description="暂无分析数据" />
-              )}
-
-              <div style={{ marginTop: 16 }}>
-                <Button
-                  type="primary"
-                  icon={<BarChartOutlined />}
-                  onClick={fetchAnalysisData}
-                  loading={analysisLoading}
-                >
-                  生成分析报告
-                </Button>
-              </div>
-            </Spin>
+            <BugAnalysisPage />
           </Tabs.TabPane>
         </Tabs>
       </Card>

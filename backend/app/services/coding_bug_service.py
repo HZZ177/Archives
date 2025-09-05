@@ -4,13 +4,14 @@ Coding缺陷数据库操作服务
 
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func, desc
+from sqlalchemy import select, and_, or_, func, desc, text
 from sqlalchemy.orm import selectinload
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import HTTPException, status
 
 from backend.app.core.logger import logger
 from backend.app.models.coding_bug import CodingBug, CodingBugModuleLink
+from backend.app.models.module_structure import ModuleStructureNode
 from backend.app.schemas.coding_bug import (
     CodingBugResponse,
     CodingBugDetailResponse,
@@ -466,6 +467,603 @@ class CodingBugService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"批量删除缺陷失败: {str(e)}"
             )
+
+    def calculate_health_score(self, bugs: List[CodingBug], current_time: datetime = None) -> float:
+        """
+        计算模块健康分
+        基础分100分，根据bug影响扣分
+
+        Args:
+            bugs: 缺陷列表
+            current_time: 当前时间，用于计算时间衰减
+
+        Returns:
+            健康分数 (0-100)
+        """
+        if current_time is None:
+            current_time = datetime.now()
+
+        base_score = 100.0
+        total_deduction = 0.0
+
+        # 优先级扣分规则
+        priority_scores = {
+            '紧急': 10,
+            '高': 8,
+            '中': 5,
+            '低': 2,
+            '未指定': 1
+        }
+
+        for bug in bugs:
+            # 基础扣分
+            base_deduction = priority_scores.get(bug.priority, 1)
+
+            # 时间衰减计算
+            if bug.coding_created_at:
+                bug_created = datetime.fromtimestamp(bug.coding_created_at / 1000)
+                days_passed = (current_time - bug_created).days
+
+                if days_passed >= 30:
+                    decay_factor = 0  # 30天后影响归零
+                else:
+                    decay_factor = max(0, 1 - (days_passed / 30))
+            else:
+                decay_factor = 1.0  # 如果没有创建时间，按满分计算
+
+            # 状态调整（已解决的bug影响减半）
+            status_factor = 0.5 if bug.status_name in ['已解决', '已关闭'] else 1.0
+
+            current_deduction = base_deduction * decay_factor * status_factor
+            total_deduction += current_deduction
+
+        final_score = max(0, base_score - total_deduction)
+        return round(final_score, 1)
+
+    async def get_module_tree_with_health(
+        self,
+        db: AsyncSession,
+        workspace_id: int,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        labels: Optional[List[str]] = None,
+        priority: Optional[str] = None,
+        status: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        获取带健康分的模块树
+
+        Args:
+            db: 数据库会话
+            workspace_id: 工作区ID
+            start_date: 开始日期
+            end_date: 结束日期
+            labels: 标签筛选
+            priority: 优先级筛选
+            status: 状态筛选
+
+        Returns:
+            模块树数据
+        """
+        try:
+            # 构建缺陷查询条件
+            bug_conditions = [CodingBug.workspace_id == workspace_id]
+
+            # 时间筛选
+            if start_date:
+                start_timestamp = int(datetime.strptime(start_date, '%Y-%m-%d').timestamp() * 1000)
+                bug_conditions.append(CodingBug.coding_created_at >= start_timestamp)
+            if end_date:
+                end_timestamp = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp() * 1000)
+                bug_conditions.append(CodingBug.coding_created_at <= end_timestamp)
+
+            # 优先级筛选
+            if priority:
+                bug_conditions.append(CodingBug.priority == priority)
+
+            # 状态筛选
+            if status:
+                bug_conditions.append(CodingBug.status_name == status)
+
+            # 标签筛选
+            if labels:
+                label_conditions = []
+                for label in labels:
+                    label_conditions.append(CodingBug.labels.contains([label]))
+                if label_conditions:
+                    bug_conditions.append(or_(*label_conditions))
+
+            # 获取所有模块节点
+            modules_query = select(ModuleStructureNode).where(
+                ModuleStructureNode.workspace_id == workspace_id
+            ).order_by(ModuleStructureNode.order_index)
+
+            modules_result = await db.execute(modules_query)
+            all_modules = modules_result.scalars().all()
+
+            # 获取所有相关的缺陷数据
+            bugs_query = select(CodingBug, CodingBugModuleLink.module_id).join(
+                CodingBugModuleLink, CodingBug.id == CodingBugModuleLink.coding_bug_id
+            ).where(and_(*bug_conditions))
+
+            bugs_result = await db.execute(bugs_query)
+            bug_module_pairs = bugs_result.all()
+
+            # 按模块ID分组缺陷
+            module_bugs = {}
+            for bug, module_id in bug_module_pairs:
+                if module_id not in module_bugs:
+                    module_bugs[module_id] = []
+                module_bugs[module_id].append(bug)
+
+            # 构建模块树并计算健康分
+            def build_tree_node(module: ModuleStructureNode) -> Dict[str, Any]:
+                bugs = module_bugs.get(module.id, [])
+                health_score = self.calculate_health_score(bugs)
+
+                node = {
+                    'id': module.id,
+                    'name': module.name,
+                    'isContentPage': module.is_content_page,
+                    'healthScore': health_score,
+                    'bugCount': len(bugs),
+                    'children': []
+                }
+
+                # 递归构建子节点
+                child_modules = [m for m in all_modules if m.parent_id == module.id]
+                for child in child_modules:
+                    child_node = build_tree_node(child)
+                    node['children'].append(child_node)
+
+                    # 如果是结构节点，需要汇总子节点的健康分
+                    if not module.is_content_page and child_node['bugCount'] > 0:
+                        # 加权平均计算健康分
+                        total_bugs = node['bugCount'] + child_node['bugCount']
+                        if total_bugs > 0:
+                            node['healthScore'] = (
+                                (node['healthScore'] * node['bugCount'] +
+                                 child_node['healthScore'] * child_node['bugCount']) / total_bugs
+                            )
+                        node['bugCount'] = total_bugs
+
+                return node
+
+            # 构建根节点
+            root_modules = [m for m in all_modules if m.parent_id is None]
+            tree = []
+            for root in root_modules:
+                tree.append(build_tree_node(root))
+
+            return tree
+
+        except Exception as e:
+            logger.error(f"获取模块树健康分析失败: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"获取模块树失败: {str(e)}"
+            )
+
+    async def get_module_statistics(
+        self,
+        db: AsyncSession,
+        workspace_id: int,
+        module_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        labels: Optional[List[str]] = None,
+        priority: Optional[str] = None,
+        status: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        获取模块缺陷统计数据
+
+        Args:
+            db: 数据库会话
+            workspace_id: 工作区ID
+            module_id: 模块ID，为空时统计全部
+            start_date: 开始日期
+            end_date: 结束日期
+            labels: 标签筛选
+            priority: 优先级筛选
+            status: 状态筛选
+
+        Returns:
+            统计数据
+        """
+        try:
+            # 构建基础查询条件
+            bug_conditions = [CodingBug.workspace_id == workspace_id]
+
+            # 模块筛选
+            if module_id:
+                # 获取模块信息
+                module_query = select(ModuleStructureNode).where(ModuleStructureNode.id == module_id)
+                module_result = await db.execute(module_query)
+                module = module_result.scalar_one_or_none()
+
+                if not module:
+                    raise HTTPException(status_code=404, detail="模块不存在")
+
+                if module.is_content_page:
+                    # 内容节点，直接筛选
+                    bug_conditions.append(
+                        CodingBug.id.in_(
+                            select(CodingBugModuleLink.coding_bug_id).where(
+                                CodingBugModuleLink.module_id == module_id
+                            )
+                        )
+                    )
+                else:
+                    # 结构节点，需要递归获取所有子节点
+                    def get_all_child_modules(parent_id: int, all_modules: List[ModuleStructureNode]) -> List[int]:
+                        child_ids = []
+                        for m in all_modules:
+                            if m.parent_id == parent_id:
+                                child_ids.append(m.id)
+                                child_ids.extend(get_all_child_modules(m.id, all_modules))
+                        return child_ids
+
+                    # 获取所有模块
+                    all_modules_query = select(ModuleStructureNode).where(
+                        ModuleStructureNode.workspace_id == workspace_id
+                    )
+                    all_modules_result = await db.execute(all_modules_query)
+                    all_modules = all_modules_result.scalars().all()
+
+                    # 获取所有子模块ID（包括内容节点）
+                    child_module_ids = get_all_child_modules(module_id, all_modules)
+                    content_module_ids = [
+                        m.id for m in all_modules
+                        if m.id in child_module_ids and m.is_content_page
+                    ]
+
+                    if content_module_ids:
+                        bug_conditions.append(
+                            CodingBug.id.in_(
+                                select(CodingBugModuleLink.coding_bug_id).where(
+                                    CodingBugModuleLink.module_id.in_(content_module_ids)
+                                )
+                            )
+                        )
+                    else:
+                        # 没有内容子节点，返回空统计
+                        return {
+                            'totalBugs': 0,
+                            'newBugs': 0,
+                            'resolvedBugs': 0,
+                            'pendingBugs': 0,
+                            'priorityDistribution': {},
+                            'statusDistribution': {}
+                        }
+
+            # 时间筛选
+            if start_date:
+                start_timestamp = int(datetime.strptime(start_date, '%Y-%m-%d').timestamp() * 1000)
+                bug_conditions.append(CodingBug.coding_created_at >= start_timestamp)
+            if end_date:
+                end_timestamp = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp() * 1000)
+                bug_conditions.append(CodingBug.coding_created_at <= end_timestamp)
+
+            # 优先级筛选
+            if priority:
+                bug_conditions.append(CodingBug.priority == priority)
+
+            # 状态筛选
+            if status:
+                bug_conditions.append(CodingBug.status_name == status)
+
+            # 标签筛选
+            if labels:
+                label_conditions = []
+                for label in labels:
+                    label_conditions.append(CodingBug.labels.contains([label]))
+                if label_conditions:
+                    bug_conditions.append(or_(*label_conditions))
+
+            # 获取所有符合条件的缺陷
+            bugs_query = select(CodingBug).where(and_(*bug_conditions))
+            bugs_result = await db.execute(bugs_query)
+            bugs = bugs_result.scalars().all()
+
+            # 计算统计数据
+            total_bugs = len(bugs)
+
+            # 计算新增缺陷（最近7天）
+            seven_days_ago = datetime.now() - timedelta(days=7)
+            seven_days_timestamp = int(seven_days_ago.timestamp() * 1000)
+            new_bugs = len([b for b in bugs if b.coding_created_at and b.coding_created_at >= seven_days_timestamp])
+
+            # 按状态统计
+            resolved_bugs = len([b for b in bugs if b.status_name in ['已解决', '已关闭']])
+            pending_bugs = len([b for b in bugs if b.status_name in ['待处理', '处理中']])
+
+            # 优先级分布
+            priority_distribution = {}
+            for bug in bugs:
+                priority = bug.priority or '未指定'
+                priority_distribution[priority] = priority_distribution.get(priority, 0) + 1
+
+            # 状态分布
+            status_distribution = {}
+            for bug in bugs:
+                status = bug.status_name or '未知'
+                status_distribution[status] = status_distribution.get(status, 0) + 1
+
+            return {
+                'totalBugs': total_bugs,
+                'newBugs': new_bugs,
+                'resolvedBugs': resolved_bugs,
+                'pendingBugs': pending_bugs,
+                'priorityDistribution': priority_distribution,
+                'statusDistribution': status_distribution
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"获取模块统计数据失败: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"获取统计数据失败: {str(e)}"
+            )
+
+    async def get_bug_trend_analysis(
+        self,
+        db: AsyncSession,
+        workspace_id: int,
+        module_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        labels: Optional[List[str]] = None,
+        priority: Optional[str] = None,
+        status: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        获取缺陷趋势分析数据
+
+        Args:
+            db: 数据库会话
+            workspace_id: 工作区ID
+            module_id: 模块ID，为空时统计全部
+            start_date: 开始日期
+            end_date: 结束日期
+            labels: 标签筛选
+            priority: 优先级筛选
+            status: 状态筛选
+
+        Returns:
+            趋势数据
+        """
+        try:
+            # 设置默认时间范围（最近30天）
+            if not end_date:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+            if not start_date:
+                start_datetime = datetime.now() - timedelta(days=30)
+                start_date = start_datetime.strftime('%Y-%m-%d')
+
+            # 构建基础查询条件
+            bug_conditions = [CodingBug.workspace_id == workspace_id]
+
+            # 模块筛选（与统计方法相同的逻辑）
+            if module_id:
+                module_query = select(ModuleStructureNode).where(ModuleStructureNode.id == module_id)
+                module_result = await db.execute(module_query)
+                module = module_result.scalar_one_or_none()
+
+                if not module:
+                    raise HTTPException(status_code=404, detail="模块不存在")
+
+                if module.is_content_page:
+                    bug_conditions.append(
+                        CodingBug.id.in_(
+                            select(CodingBugModuleLink.coding_bug_id).where(
+                                CodingBugModuleLink.module_id == module_id
+                            )
+                        )
+                    )
+                else:
+                    # 结构节点逻辑
+                    def get_all_child_modules(parent_id: int, all_modules: List[ModuleStructureNode]) -> List[int]:
+                        child_ids = []
+                        for m in all_modules:
+                            if m.parent_id == parent_id:
+                                child_ids.append(m.id)
+                                child_ids.extend(get_all_child_modules(m.id, all_modules))
+                        return child_ids
+
+                    all_modules_query = select(ModuleStructureNode).where(
+                        ModuleStructureNode.workspace_id == workspace_id
+                    )
+                    all_modules_result = await db.execute(all_modules_query)
+                    all_modules = all_modules_result.scalars().all()
+
+                    child_module_ids = get_all_child_modules(module_id, all_modules)
+                    content_module_ids = [
+                        m.id for m in all_modules
+                        if m.id in child_module_ids and m.is_content_page
+                    ]
+
+                    if content_module_ids:
+                        bug_conditions.append(
+                            CodingBug.id.in_(
+                                select(CodingBugModuleLink.coding_bug_id).where(
+                                    CodingBugModuleLink.module_id.in_(content_module_ids)
+                                )
+                            )
+                        )
+                    else:
+                        return {'trendData': []}
+
+            # 优先级筛选
+            if priority:
+                bug_conditions.append(CodingBug.priority == priority)
+
+            # 状态筛选
+            if status:
+                bug_conditions.append(CodingBug.status_name == status)
+
+            # 标签筛选
+            if labels:
+                label_conditions = []
+                for label in labels:
+                    label_conditions.append(CodingBug.labels.contains([label]))
+                if label_conditions:
+                    bug_conditions.append(or_(*label_conditions))
+
+            # 获取所有符合条件的缺陷
+            bugs_query = select(CodingBug).where(and_(*bug_conditions))
+            bugs_result = await db.execute(bugs_query)
+            bugs = bugs_result.scalars().all()
+
+            # 生成日期范围
+            start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+            end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+
+            trend_data = []
+            current_date = start_datetime
+
+            while current_date <= end_datetime:
+                date_str = current_date.strftime('%Y-%m-%d')
+                current_timestamp = int(current_date.timestamp() * 1000)
+                next_day_timestamp = int((current_date + timedelta(days=1)).timestamp() * 1000)
+
+                # 统计当天的数据
+                day_bugs = [
+                    b for b in bugs
+                    if b.coding_created_at and current_timestamp <= b.coding_created_at < next_day_timestamp
+                ]
+
+                # 统计截止当天的累计数据
+                cumulative_bugs = [
+                    b for b in bugs
+                    if b.coding_created_at and b.coding_created_at <= next_day_timestamp
+                ]
+
+                resolved_bugs = len([
+                    b for b in cumulative_bugs
+                    if b.status_name in ['已解决', '已关闭']
+                ])
+
+                pending_bugs = len([
+                    b for b in cumulative_bugs
+                    if b.status_name in ['待处理', '处理中']
+                ])
+
+                trend_data.append({
+                    'date': date_str,
+                    'newBugs': len(day_bugs),
+                    'totalBugs': len(cumulative_bugs),
+                    'resolvedBugs': resolved_bugs,
+                    'pendingBugs': pending_bugs
+                })
+
+                current_date += timedelta(days=1)
+
+            return {'trendData': trend_data}
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"获取缺陷趋势分析失败: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"获取趋势分析失败: {str(e)}"
+            )
+
+    async def get_module_health_analysis(
+        self,
+        db: AsyncSession,
+        workspace_id: int,
+        module_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        labels: Optional[List[str]] = None,
+        priority: Optional[str] = None,
+        status: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        获取模块健康分析的完整数据
+
+        Args:
+            db: 数据库会话
+            workspace_id: 工作区ID
+            module_id: 选中的模块ID
+            start_date: 开始日期
+            end_date: 结束日期
+            labels: 标签筛选
+            priority: 优先级筛选
+            status: 状态筛选
+
+        Returns:
+            完整的分析数据
+        """
+        try:
+            # 获取模块树（带健康分）
+            module_tree = await self.get_module_tree_with_health(
+                db, workspace_id, start_date, end_date, labels, priority, status
+            )
+
+            # 获取统计数据
+            statistics = await self.get_module_statistics(
+                db, workspace_id, module_id, start_date, end_date, labels, priority, status
+            )
+
+            # 获取趋势数据
+            trend_analysis = await self.get_bug_trend_analysis(
+                db, workspace_id, module_id, start_date, end_date, labels, priority, status
+            )
+
+            # 生成AI总结占位数据
+            ai_summaries = self._generate_ai_summary_placeholder()
+
+            return {
+                'moduleTree': module_tree,
+                'statistics': statistics,
+                'trendData': trend_analysis['trendData'],
+                'aiSummaries': ai_summaries,
+                'selectedModuleId': module_id
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"获取模块健康分析失败: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"获取健康分析失败: {str(e)}"
+            )
+
+    def _generate_ai_summary_placeholder(self) -> List[Dict[str, Any]]:
+        """
+        生成AI总结占位数据
+
+        Returns:
+            AI总结占位数据
+        """
+        current_date = datetime.now()
+        summaries = []
+
+        # 生成最近6个月的占位数据
+        for i in range(6):
+            month_date = current_date - timedelta(days=30 * i)
+            month_str = month_date.strftime('%Y年%m月')
+
+            summaries.append({
+                'month': month_str,
+                'title': f'{month_str}缺陷分析报告',
+                'summary': '此功能正在开发中，将提供基于AI的智能缺陷分析和建议...',
+                'keyPoints': [
+                    '缺陷趋势分析',
+                    '问题热点识别',
+                    '改进建议',
+                    '风险评估'
+                ],
+                'status': 'placeholder'
+            })
+
+        return summaries
 
 
 # 创建全局服务实例

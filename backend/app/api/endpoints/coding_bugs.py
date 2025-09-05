@@ -572,3 +572,89 @@ async def test_coding_config(
     except Exception as e:
         logger.error(f"测试Coding配置失败: {str(e)}")
         return error_response(message=f"连接测试失败: {str(e)}")
+
+
+@router.get("/module-health-analysis", response_model=APIResponse[Dict[str, Any]])
+async def get_module_health_analysis(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    workspace_id: int = Query(..., description="工作区ID"),
+    module_id: Optional[int] = Query(None, description="选中的模块ID，为空时返回全部数据"),
+    start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+    labels: Optional[str] = Query(None, description="标签筛选，多个用逗号分隔"),
+    priority: Optional[str] = Query(None, description="优先级筛选"),
+    status: Optional[str] = Query(None, description="状态筛选")
+):
+    """获取模块健康分析数据"""
+    try:
+        # 权限检查
+        await check_permissions(db, current_user, ["workspace:resources:bugs"])
+
+        # 解析标签参数
+        label_list = None
+        if labels:
+            label_list = [label.strip() for label in labels.split(',') if label.strip()]
+
+        # 调用服务获取分析数据
+        result = await coding_bug_service.get_module_health_analysis(
+            db=db,
+            workspace_id=workspace_id,
+            module_id=module_id,
+            start_date=start_date,
+            end_date=end_date,
+            labels=label_list,
+            priority=priority,
+            status=status
+        )
+
+        return success_response(data=result, message="获取健康分析数据成功")
+
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"获取模块健康分析数据失败: {str(e)}")
+        return error_response(message=f"获取分析数据失败: {str(e)}")
+
+
+@router.get("/trend-analysis", response_model=APIResponse[Dict[str, Any]])
+async def get_bug_trend_analysis(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    workspace_id: int = Query(..., description="工作区ID"),
+    module_id: Optional[int] = Query(None, description="选中的模块ID"),
+    start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
+    labels: Optional[str] = Query(None, description="标签筛选，多个用逗号分隔"),
+    priority: Optional[str] = Query(None, description="优先级筛选"),
+    status: Optional[str] = Query(None, description="状态筛选")
+):
+    """获取缺陷趋势分析数据"""
+    try:
+        # 权限检查
+        await check_permissions(db, current_user, ["workspace:resources:bugs"])
+
+        # 解析标签参数
+        label_list = None
+        if labels:
+            label_list = [label.strip() for label in labels.split(',') if label.strip()]
+
+        # 调用服务获取趋势数据
+        result = await coding_bug_service.get_bug_trend_analysis(
+            db=db,
+            workspace_id=workspace_id,
+            module_id=module_id,
+            start_date=start_date,
+            end_date=end_date,
+            labels=label_list,
+            priority=priority,
+            status=status
+        )
+
+        return success_response(data=result, message="获取趋势分析数据成功")
+
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"获取缺陷趋势分析数据失败: {str(e)}")
+        return error_response(message=f"获取趋势分析数据失败: {str(e)}")

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",
+    "@ant-design/plots": "^2.2.6",
     "@antv/g6": "^5.0.47",
     "@antv/graphin": "^3.0.5",
     "@antv/graphin-components": "^2.4.1",
@@ -28,6 +29,7 @@
     "@types/uuid": "^10.0.0",
     "antd": "^5.12.2",
     "axios": "^1.6.2",
+    "dayjs": "^1.11.10",
     "d3": "^7.9.0",
     "md-editor-rt": "^5.5.1",
     "nanoid": "^5.1.5",
