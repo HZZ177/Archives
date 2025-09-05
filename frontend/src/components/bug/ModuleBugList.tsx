@@ -27,6 +27,7 @@ const getPriorityColor = (priority: string) => {
 // 状态颜色映射
 const getStatusColor = (status: string) => {
   switch (status) {
+    case '新': return 'red';
     case '待处理': return 'magenta';
     case '处理中': return 'blue';
     case '已解决': return 'green';
@@ -243,6 +244,7 @@ const ModuleBugList: React.FC<ModuleBugListProps> = ({ moduleId, onViewBug, onAf
           </Select>
           <Select value={status} onChange={setStatus} style={{ width: 140 }}>
             <Option value="ALL">全部状态</Option>
+            <Option value="新">新</Option>
             <Option value="待处理">待处理</Option>
             <Option value="处理中">处理中</Option>
             <Option value="已解决">已解决</Option>

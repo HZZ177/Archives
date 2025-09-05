@@ -7,13 +7,22 @@ import {
   Button,
   Space,
   Tag,
-  Input
+  Input,
+  message
 } from 'antd';
 import {
   FilterOutlined,
   ClearOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import locale from 'antd/es/date-picker/locale/zh_CN';
+import 'dayjs/locale/zh-cn';
+import { useWorkspace } from '../../../contexts/WorkspaceContext';
+import request from '../../../utils/request';
+import { unwrapResponse } from '../../../utils/request';
+
+// 设置dayjs为中文
+dayjs.locale('zh-cn');
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -37,13 +46,44 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   onChange,
   loading = false
 }) => {
+  const { currentWorkspace } = useWorkspace();
   const [localFilters, setLocalFilters] = useState<FilterParams>(filters);
-  const [labelInput, setLabelInput] = useState('');
+  const [availableLabels, setAvailableLabels] = useState<string[]>([]);
+  const [labelsLoading, setLabelsLoading] = useState(false);
+
+  // 获取可用标签
+  const fetchAvailableLabels = async () => {
+    if (!currentWorkspace?.id) return;
+
+    setLabelsLoading(true);
+    try {
+      const response = await request.get('/coding-bugs/available-labels', {
+        params: { workspace_id: currentWorkspace.id }
+      });
+
+      if (response.data.success) {
+        const labels = unwrapResponse(response.data) as string[];
+        setAvailableLabels(labels);
+      } else {
+        message.error(response.data.message || '获取标签失败');
+      }
+    } catch (error) {
+      message.error('获取标签失败');
+      console.error('获取可用标签失败:', error);
+    } finally {
+      setLabelsLoading(false);
+    }
+  };
 
   // 同步外部filters到本地状态
   useEffect(() => {
     setLocalFilters(filters);
   }, [filters]);
+
+  // 获取可用标签
+  useEffect(() => {
+    fetchAvailableLabels();
+  }, [currentWorkspace?.id]);
 
   // 处理日期范围变化
   const handleDateRangeChange = (dates: any) => {
@@ -86,46 +126,23 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     onChange(newFilters);
   };
 
-  // 处理标签输入
-  const handleLabelInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLabelInput(e.target.value);
-  };
-
-  // 添加标签
-  const handleAddLabel = () => {
-    if (labelInput.trim()) {
-      const currentLabels = localFilters.labels || [];
-      if (!currentLabels.includes(labelInput.trim())) {
-        const newLabels = [...currentLabels, labelInput.trim()];
-        const newFilters = {
-          ...localFilters,
-          labels: newLabels
-        };
-        setLocalFilters(newFilters);
-        onChange(newFilters);
-      }
-      setLabelInput('');
-    }
-  };
-
-  // 移除标签
-  const handleRemoveLabel = (labelToRemove: string) => {
-    const currentLabels = localFilters.labels || [];
-    const newLabels = currentLabels.filter(label => label !== labelToRemove);
+  // 处理标签变化
+  const handleLabelsChange = (selectedLabels: string[]) => {
     const newFilters = {
       ...localFilters,
-      labels: newLabels.length > 0 ? newLabels : undefined
+      labels: selectedLabels.length > 0 ? selectedLabels : undefined
     };
     setLocalFilters(newFilters);
     onChange(newFilters);
   };
+
+
 
   // 清空所有筛选条件
   const handleClearAll = () => {
     const emptyFilters: FilterParams = {};
     setLocalFilters(emptyFilters);
     onChange(emptyFilters);
-    setLabelInput('');
   };
 
   // 获取当前日期范围值
@@ -152,6 +169,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               style={{ width: '100%' }}
               disabled={loading}
               allowEmpty={[true, true]}
+              locale={locale}
             />
           </div>
         </Col>
@@ -185,6 +203,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
               style={{ width: '100%' }}
               disabled={loading}
             >
+              <Option value="新">新</Option>
               <Option value="待处理">待处理</Option>
               <Option value="处理中">处理中</Option>
               <Option value="已解决">已解决</Option>
@@ -195,24 +214,27 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
         <Col span={6}>
           <div className="filter-item">
-            <div style={{ display: 'flex', gap: '4px' }}>
-              <Input
-                value={labelInput}
-                onChange={handleLabelInputChange}
-                onPressEnter={handleAddLabel}
-                placeholder="输入标签名称"
-                style={{ flex: 1 }}
-                disabled={loading}
-              />
-              <Button
-                type="primary"
-                onClick={handleAddLabel}
-                disabled={!labelInput.trim() || loading}
-                style={{ flexShrink: 0 }}
-              >
-                添加
-              </Button>
-            </div>
+            <Select
+              mode="multiple"
+              value={localFilters.labels || []}
+              onChange={handleLabelsChange}
+              placeholder="选择标签"
+              style={{ width: '100%' }}
+              loading={labelsLoading}
+              showSearch
+              allowClear
+              filterOption={(input, option) =>
+                (option?.label as string)?.toLowerCase().includes(input.toLowerCase()) ||
+                (option?.value as string)?.toLowerCase().includes(input.toLowerCase())
+              }
+              maxTagCount="responsive"
+            >
+              {availableLabels.map(label => (
+                <Option key={label} value={label}>
+                  {label}
+                </Option>
+              ))}
+            </Select>
           </div>
         </Col>
 
@@ -233,28 +255,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         </Col>
       </Row>
 
-      {/* 显示已选择的标签 */}
-      {localFilters.labels && localFilters.labels.length > 0 && (
-        <Row style={{ marginTop: 12 }}>
-          <Col span={24}>
-            <div className="selected-labels">
-              <span className="labels-title">已选标签：</span>
-              <Space wrap>
-                {localFilters.labels.map(label => (
-                  <Tag
-                    key={label}
-                    closable
-                    onClose={() => handleRemoveLabel(label)}
-                    color="blue"
-                  >
-                    {label}
-                  </Tag>
-                ))}
-              </Space>
-            </div>
-          </Col>
-        </Row>
-      )}
+
 
 
     </div>

@@ -28,7 +28,8 @@ class CodingBugResponse(CodingBugBase):
     synced_at: datetime
     created_at: datetime
     updated_at: datetime
-    
+    module_links: Optional[List[Dict[str, Any]]] = []
+
     class Config:
         from_attributes = True
 

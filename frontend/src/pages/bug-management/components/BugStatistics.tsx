@@ -127,7 +127,7 @@ const BugStatistics: React.FC<BugStatisticsProps> = ({
 
       {/* 优先级分布 */}
       {Object.keys(statistics.priorityDistribution).length > 0 && (
-        <Card size="small" style={{ marginTop: 16 }} title="优先级分布">
+        <Card size="small" style={{ marginTop: 8 }} title="优先级分布">
           <Row gutter={8}>
             {['紧急', '高', '中', '低', '未指定'].filter(priority =>
               statistics.priorityDistribution[priority] > 0
@@ -151,7 +151,7 @@ const BugStatistics: React.FC<BugStatisticsProps> = ({
 
       {/* 状态分布 */}
       {Object.keys(statistics.statusDistribution).length > 0 && (
-        <Card size="small" style={{ marginTop: 16 }} title="状态分布">
+        <Card size="small" style={{ marginTop: 8 }} title="状态分布">
           <Row gutter={8}>
             {Object.entries(statistics.statusDistribution).map(([status, count]) => (
               <Col span={6} key={status}>
@@ -170,8 +170,6 @@ const BugStatistics: React.FC<BugStatisticsProps> = ({
           </Row>
         </Card>
       )}
-
-
     </div>
   );
 };

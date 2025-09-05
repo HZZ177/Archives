@@ -29,6 +29,7 @@ const getPriorityColor = (priority: string) => {
 // 状态颜色映射
 const getStatusColor = (status: string) => {
   switch (status) {
+    case '新': return 'red';
     case '待处理': return 'magenta';
     case '处理中': return 'blue';
     case '已解决': return 'green';

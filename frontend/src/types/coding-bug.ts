@@ -160,6 +160,7 @@ export const PRIORITY_OPTIONS = [
 
 // 状态选项
 export const STATUS_OPTIONS = [
+  { label: '新', value: '新', color: 'red' },
   { label: '待处理', value: '待处理', color: 'magenta' },
   { label: '处理中', value: '处理中', color: 'blue' },
   { label: '已解决', value: '已解决', color: 'green' },

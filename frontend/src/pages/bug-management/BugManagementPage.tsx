@@ -29,7 +29,9 @@ import {
   BugOutlined,
   ApiOutlined,
   DeleteOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  FileTextOutlined,
+  FolderOutlined
 } from '@ant-design/icons';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { usePermission } from '../../contexts/PermissionContext';
@@ -38,6 +40,7 @@ import request from '../../utils/request';
 import { ROUTES } from '../../config/constants';
 import CodingConfigModal from '../../components/coding/CodingConfigModal';
 import BugAnalysisPage from './components/BugAnalysisPage';
+import './components/BugAnalysisPage.css';
 import '../module-content/components/sections/SectionStyles.css';
 
 const { Title } = Typography;
@@ -87,7 +90,12 @@ const BugManagementPage: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [labelsFilter, setLabelsFilter] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('list');
+
+  // 标签相关状态
+  const [availableLabels, setAvailableLabels] = useState<string[]>([]);
+  const [labelsLoading, setLabelsLoading] = useState(false);
 
   // 配置相关状态
   const [configModalVisible, setConfigModalVisible] = useState(false);
@@ -104,6 +112,7 @@ const BugManagementPage: React.FC = () => {
   const [organizationTree, setOrganizationTree] = useState<any[]>([]);
   const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
   const [linkLoading, setLinkLoading] = useState(false);
+  const [currentBugLinks, setCurrentBugLinks] = useState<any[]>([]);
 
 
 
@@ -139,6 +148,19 @@ const BugManagementPage: React.FC = () => {
   // 关联模块
   const handleLinkModule = async (codingBugId: number) => {
     setSelectedBugId(codingBugId);
+
+    // 查找当前bug的关联信息
+    const currentBug = bugList.find(bug => bug.coding_bug_id === codingBugId);
+    const bugLinks = currentBug?.module_links || [];
+    setCurrentBugLinks(bugLinks);
+
+    // 如果已有关联，预选第一个关联的模块
+    if (bugLinks.length > 0) {
+      setSelectedModuleId(bugLinks[0].module_id);
+    } else {
+      setSelectedModuleId(null);
+    }
+
     setLinkModalVisible(true);
     await fetchOrganizationTree();
   };
@@ -152,6 +174,19 @@ const BugManagementPage: React.FC = () => {
 
     setLinkLoading(true);
     try {
+      // 检查是否已经关联到选中的模块
+      const alreadyLinked = currentBugLinks.some(link => link.module_id === selectedModuleId);
+
+      if (alreadyLinked) {
+        message.info('该缺陷已关联到此模块');
+        setLinkModalVisible(false);
+        setSelectedBugId(null);
+        setSelectedModuleId(null);
+        setCurrentBugLinks([]);
+        return;
+      }
+
+      // 创建关联（后端会自动处理一对一关系，删除旧关联）
       const response = await request.post('/coding-bugs/link-module', {
         coding_bug_id: selectedBugId,
         module_id: selectedModuleId,
@@ -159,16 +194,18 @@ const BugManagementPage: React.FC = () => {
       });
 
       if (response.data.success) {
-        message.success('关联成功');
+        message.success(currentBugLinks.length > 0 ? '修改关联成功' : '关联成功');
         setLinkModalVisible(false);
         setSelectedBugId(null);
         setSelectedModuleId(null);
-        // 可以选择刷新列表或者不刷新
+        setCurrentBugLinks([]);
+        // 刷新列表以更新关联状态
+        fetchBugList();
       } else {
         message.error(response.data.message || '关联失败');
       }
     } catch (error) {
-      message.error('关联失败');
+      message.error('操作失败');
     } finally {
       setLinkLoading(false);
     }
@@ -280,6 +317,30 @@ const BugManagementPage: React.FC = () => {
     });
   };
 
+  // 获取可用标签
+  const fetchAvailableLabels = async () => {
+    if (!currentWorkspace?.id) return;
+
+    setLabelsLoading(true);
+    try {
+      const response = await request.get('/coding-bugs/available-labels', {
+        params: { workspace_id: currentWorkspace.id }
+      });
+
+      if (response.data.success) {
+        const labels = unwrapResponse(response.data) as string[];
+        setAvailableLabels(labels);
+      } else {
+        message.error(response.data.message || '获取标签失败');
+      }
+    } catch (error) {
+      message.error('获取标签失败');
+      console.error('获取可用标签失败:', error);
+    } finally {
+      setLabelsLoading(false);
+    }
+  };
+
   // 获取缺陷列表
   const fetchBugList = async () => {
     if (!currentWorkspace?.id || !canView) return;
@@ -292,7 +353,8 @@ const BugManagementPage: React.FC = () => {
         page_size: pageSize,
         keyword: searchKeyword || undefined,
         priority: priorityFilter === 'ALL' ? undefined : priorityFilter,
-        status_name: statusFilter === 'ALL' ? undefined : statusFilter
+        status_name: statusFilter === 'ALL' ? undefined : statusFilter,
+        labels: labelsFilter.length > 0 ? labelsFilter.join(',') : undefined
       };
 
       const response = await request.get('/coding-bugs/', { params });
@@ -356,6 +418,7 @@ const BugManagementPage: React.FC = () => {
     if (currentWorkspace?.id) {
       fetchCodingConfig();
       fetchBugList();
+      fetchAvailableLabels();
     }
   }, [currentWorkspace?.id, currentPage, pageSize]);
 
@@ -365,7 +428,7 @@ const BugManagementPage: React.FC = () => {
       setCurrentPage(1); // 重置到第一页
       fetchBugList();
     }
-  }, [searchKeyword, priorityFilter, statusFilter]);
+  }, [searchKeyword, priorityFilter, statusFilter, labelsFilter]);
 
   if (!canView) {
     return (
@@ -491,7 +554,7 @@ const BugManagementPage: React.FC = () => {
             size="small"
             onClick={() => handleLinkModule(record.coding_bug_id)}
           >
-            关联
+            {record.module_links && record.module_links.length > 0 ? '修改关联' : '关联'}
           </Button>
           <Button
             type="link"
@@ -569,13 +632,37 @@ const BugManagementPage: React.FC = () => {
                     allowClear
                     style={{ width: '100%' }}
                   >
+                    <Option value="新">新</Option>
                     <Option value="待处理">待处理</Option>
                     <Option value="处理中">处理中</Option>
                     <Option value="已解决">已解决</Option>
                     <Option value="已关闭">已关闭</Option>
                   </Select>
                 </Col>
-                <Col span={12} style={{ textAlign: 'right' }}>
+                <Col span={4}>
+                  <Select
+                    mode="multiple"
+                    placeholder="标签"
+                    value={labelsFilter}
+                    onChange={setLabelsFilter}
+                    allowClear
+                    style={{ width: '100%' }}
+                    loading={labelsLoading}
+                    showSearch
+                    filterOption={(input, option) =>
+                      (option?.label as string)?.toLowerCase().includes(input.toLowerCase()) ||
+                      (option?.value as string)?.toLowerCase().includes(input.toLowerCase())
+                    }
+                    maxTagCount="responsive"
+                  >
+                    {availableLabels.map(label => (
+                      <Option key={label} value={label}>
+                        {label}
+                      </Option>
+                    ))}
+                  </Select>
+                </Col>
+                <Col span={8} style={{ textAlign: 'right' }}>
                   <Space>
                     <Button
                       onClick={fetchBugList}
@@ -800,24 +887,40 @@ const BugManagementPage: React.FC = () => {
 
       {/* 关联模块弹窗 */}
       <Modal
-        title="关联模块"
+        title={currentBugLinks.length > 0 ? "修改模块关联" : "关联模块"}
         open={linkModalVisible}
         onCancel={() => {
           setLinkModalVisible(false);
           setSelectedBugId(null);
           setSelectedModuleId(null);
+          setCurrentBugLinks([]);
         }}
         onOk={handleConfirmLink}
         confirmLoading={linkLoading}
         width={600}
       >
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 12 }}>
+          {currentBugLinks.length > 0 && (
+            <Alert
+              message={`当前已关联到：${currentBugLinks.map(link => link.module_name).join(', ')}`}
+              type="warning"
+              showIcon
+              style={{
+                marginBottom: 8,
+                padding: '8px 12px',
+                fontSize: '12px'
+              }}
+            />
+          )}
           <Alert
-            message="选择模块"
-            description="请选择要关联的内容模块，节点模块不可选择"
+            message="请选择要关联的内容模块（节点模块不可选择）"
             type="info"
             showIcon
-            style={{ marginBottom: 16 }}
+            style={{
+              marginBottom: 8,
+              padding: '8px 12px',
+              fontSize: '12px'
+            }}
           />
         </div>
 
@@ -845,19 +948,48 @@ const BugManagementPage: React.FC = () => {
             selectable={true}
             titleRender={(nodeData: any) => {
               const isContentModule = nodeData.is_content_page === true;
+              const isLinked = currentBugLinks.some(link => link.module_id === nodeData.id);
+
               return (
-                <span style={{
-                  color: isContentModule ? '#1890ff' : '#999',
-                  cursor: isContentModule ? 'pointer' : 'not-allowed'
-                }}>
-                  {nodeData.name}
-                </span>
+                <div className="module-tree-node">
+                  <div className="module-tree-node-info">
+                    <span
+                      className="module-tree-node-name"
+                      style={{
+                        color: isLinked ? '#52c41a' : (isContentModule ? '#262626' : '#999'),
+                        fontWeight: isLinked ? '600' : 'normal'
+                      }}
+                    >
+                      {nodeData.name}
+                      {isLinked && (
+                        <span style={{
+                          marginLeft: '6px',
+                          fontSize: '10px',
+                          color: '#52c41a',
+                          opacity: 0.8
+                        }}>
+                          ●
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
               );
+            }}
+            showIcon={true}
+            icon={(props: any) => {
+              const isContentModule = props.is_content_page === true;
+              return isContentModule ? <FileTextOutlined /> : <FolderOutlined />;
             }}
             fieldNames={{
               title: 'name',
               key: 'id',
               children: 'children'
+            }}
+            className="module-health-tree"
+            style={{
+              maxHeight: '400px',
+              overflow: 'auto'
             }}
           />
         ) : (

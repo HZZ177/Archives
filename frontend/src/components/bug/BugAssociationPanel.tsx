@@ -56,6 +56,7 @@ const getPriorityColor = (priority: string) => {
 // 状态颜色映射
 const getStatusColor = (status: string) => {
   switch (status) {
+    case '新': return 'red';
     case '待处理': return 'magenta';
     case '处理中': return 'blue';
     case '已解决': return 'green';
@@ -207,6 +208,29 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
     } finally {
       setLinkLoading(null);
     }
+  };
+
+  // 强制关联（处理已被其他模块关联的缺陷）
+  const handleForceLink = (bug: any) => {
+    const linkedModules = bug.module_links?.map((link: any) => link.module_name).join('、') || '未知模块';
+
+    Modal.confirm({
+      title: '确认强制关联',
+      content: (
+        <div>
+          <p>该缺陷已被以下模块关联：</p>
+          <p style={{ color: '#fa8c16', fontWeight: 'bold' }}>{linkedModules}</p>
+          <p>确定要变更关联到当前模块吗？</p>
+          <p style={{ color: '#999', fontSize: '12px' }}>注意：此操作会取消与其他模块的关联关系</p>
+        </div>
+      ),
+      okText: '确定关联',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: () => {
+        handleLinkBug(bug.coding_bug_id);
+      }
+    });
   };
 
   // 查看缺陷详情
@@ -449,6 +473,17 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
                   >
                     已关联
                   </Button>
+                ) : bug.module_links && bug.module_links.length > 0 ? (
+                  <Button
+                    key="force-link"
+                    type="primary"
+                    danger
+                    size="small"
+                    onClick={() => handleForceLink(bug)}
+                    loading={linkLoading === bug.coding_bug_id}
+                  >
+                    强制关联
+                  </Button>
                 ) : (
                   <Button
                     key="link"
@@ -473,6 +508,11 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
                     <Tag color={getStatusColor(bug.status_name)} style={{ fontSize: '12px' }}>
                       {bug.status_name}
                     </Tag>
+                    {bug.module_links && bug.module_links.length > 0 && (
+                      <Tag color="orange" style={{ fontSize: '11px' }}>
+                        已关联: {bug.module_links.map((link: any) => link.module_name).join('、')}
+                      </Tag>
+                    )}
                   </Space>
                 }
                 description={

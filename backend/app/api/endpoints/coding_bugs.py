@@ -87,6 +87,7 @@ async def get_coding_bugs(
     keyword: Optional[str] = Query(None, description="搜索关键词"),
     priority: Optional[str] = Query(None, description="严重程度筛选"),
     status_name: Optional[str] = Query(None, description="状态筛选"),
+    labels: Optional[str] = Query(None, description="标签筛选，多个用逗号分隔"),
     workspace_id: Optional[int] = Query(None, description="工作区ID，不指定则使用用户默认工作区")
 ):
     """从本地数据库获取Coding缺陷列表"""
@@ -101,6 +102,11 @@ async def get_coding_bugs(
             default_workspace = await workspace_service.get_default_workspace(db, current_user)
             workspace_id = default_workspace.id
 
+        # 解析标签参数
+        label_list = None
+        if labels:
+            label_list = [label.strip() for label in labels.split(',') if label.strip()]
+
         # 从本地数据库获取分页数据
         result = await coding_bug_service.get_bugs_paginated(
             db=db,
@@ -109,7 +115,8 @@ async def get_coding_bugs(
             page_size=page_size,
             keyword=keyword,
             priority=priority,
-            status_name=status_name
+            status_name=status_name,
+            labels=label_list
         )
 
         return success_response(data=result)
@@ -185,34 +192,49 @@ async def link_bug_to_module(
             default_workspace = await workspace_service.get_default_workspace(db, current_user)
             workspace_id = default_workspace.id
 
-        # 检查缺陷是否存在
-        bug = await coding_bug_service.get_bug_detail(
-            db=db,
-            coding_bug_id=coding_bug_id,
-            workspace_id=workspace_id
+        # 根据coding_bug_id查找数据库中的缺陷记录
+        from backend.app.models.coding_bug import CodingBug
+        bug_query = select(CodingBug).where(
+            and_(
+                CodingBug.coding_bug_id == coding_bug_id,
+                CodingBug.workspace_id == workspace_id
+            )
         )
+        bug_result = await db.execute(bug_query)
+        bug = bug_result.scalar_one_or_none()
 
         if not bug:
             return error_response(message="缺陷不存在")
 
-        # 检查是否已经关联过
+        # 检查是否已经关联到相同模块
         from backend.app.models.coding_bug import CodingBugModuleLink
-        existing_link = await db.execute(
+        existing_same_module_link = await db.execute(
             select(CodingBugModuleLink).where(
                 and_(
-                    CodingBugModuleLink.coding_bug_id == coding_bug_id,
+                    CodingBugModuleLink.coding_bug_id == bug.id,  # 使用数据库主键
                     CodingBugModuleLink.module_id == module_id
                 )
             )
         )
-        existing_link = existing_link.scalar_one_or_none()
+        existing_same_module_link = existing_same_module_link.scalar_one_or_none()
 
-        if existing_link:
+        if existing_same_module_link:
             return error_response(message="该缺陷已关联到此模块")
 
-        # 创建关联
+        # 删除该缺陷的所有其他关联（确保一对一关系）
+        existing_links = await db.execute(
+            select(CodingBugModuleLink).where(
+                CodingBugModuleLink.coding_bug_id == bug.id
+            )
+        )
+        existing_links = existing_links.scalars().all()
+
+        for existing_link in existing_links:
+            await db.delete(existing_link)
+
+        # 创建新的关联（使用数据库主键）
         new_link = CodingBugModuleLink(
-            coding_bug_id=coding_bug_id,
+            coding_bug_id=bug.id,  # 使用数据库主键
             module_id=module_id,
             manifestation_description=manifestation_description,
             created_by=current_user.id
@@ -247,11 +269,30 @@ async def unlink_coding_bug_from_module(
         if not coding_bug_id or not module_id:
             return error_response(message="缺少必要参数")
 
-        # 查找并删除关联记录
-        from backend.app.models.coding_bug import CodingBugModuleLink
+        # 获取用户工作区
+        workspace_id = current_user.default_workspace_id
+        if not workspace_id:
+            default_workspace = await workspace_service.get_default_workspace(db, current_user)
+            workspace_id = default_workspace.id
+
+        # 根据coding_bug_id查找数据库中的缺陷记录
+        from backend.app.models.coding_bug import CodingBug, CodingBugModuleLink
+        bug_query = select(CodingBug).where(
+            and_(
+                CodingBug.coding_bug_id == coding_bug_id,
+                CodingBug.workspace_id == workspace_id
+            )
+        )
+        bug_result = await db.execute(bug_query)
+        bug = bug_result.scalar_one_or_none()
+
+        if not bug:
+            return error_response(message="缺陷不存在")
+
+        # 查找并删除关联记录（使用数据库主键）
         link_query = select(CodingBugModuleLink).where(
             and_(
-                CodingBugModuleLink.coding_bug_id == coding_bug_id,
+                CodingBugModuleLink.coding_bug_id == bug.id,  # 使用数据库主键
                 CodingBugModuleLink.module_id == module_id
             )
         )
@@ -572,6 +613,29 @@ async def test_coding_config(
     except Exception as e:
         logger.error(f"测试Coding配置失败: {str(e)}")
         return error_response(message=f"连接测试失败: {str(e)}")
+
+
+@router.get("/available-labels", response_model=APIResponse[List[str]])
+async def get_available_labels(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    workspace_id: int = Query(..., description="工作区ID")
+):
+    """获取工作区中所有可用的标签"""
+    try:
+        # 权限检查
+        await check_permissions(db, current_user, ["workspace:resources:bugs"])
+
+        # 调用服务获取可用标签
+        labels = await coding_bug_service.get_available_labels(db=db, workspace_id=workspace_id)
+
+        return success_response(data=labels, message="获取可用标签成功")
+
+    except HTTPException as e:
+        return error_response(message=e.detail)
+    except Exception as e:
+        logger.error(f"获取可用标签失败: {str(e)}")
+        return error_response(message=f"获取标签失败: {str(e)}")
 
 
 @router.get("/module-health-analysis", response_model=APIResponse[Dict[str, Any]])

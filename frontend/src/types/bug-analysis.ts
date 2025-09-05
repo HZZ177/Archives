@@ -1,11 +1,45 @@
 // 缺陷分析相关的类型定义
 
+export interface BugCalculationDetail {
+  title: string;
+  priority: string;
+  status: string;
+  days_passed: number;
+  base_deduction: number;
+  decay_factor: number;
+  status_factor: number;
+  deduction: number;
+}
+
+export interface HealthScoreCalculation {
+  base_score: number;
+  total_deduction: number;
+  final_score: number;
+  details: BugCalculationDetail[];
+}
+
+export interface ChildNodeInfo {
+  name: string;
+  score: number;
+  bugCount: number;
+}
+
+export interface AggregationDetail {
+  childNodes: ChildNodeInfo[];
+  calculation: string;
+  result: number;
+  totalBugCount: number;
+}
+
 export interface ModuleTreeNode {
   id: number;
   name: string;
   isContentPage: boolean;
   healthScore: number;
   bugCount: number;
+  calculationDetails?: HealthScoreCalculation;
+  isAggregated?: boolean;
+  aggregationDetails?: AggregationDetail[];
   children?: ModuleTreeNode[];
 }
 
