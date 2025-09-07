@@ -3,10 +3,23 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class AgentPromptConfig(BaseModel):
+    """Agent提示词配置"""
+    role: Optional[str] = Field(None, description="Agent角色")
+    goal: Optional[str] = Field(None, description="Agent目标")
+    backstory: Optional[str] = Field(None, description="Agent背景故事")
+
+class TaskPromptConfig(BaseModel):
+    """Task提示词配置"""
+    description: Optional[str] = Field(None, description="任务描述")
+    expected_output: Optional[str] = Field(None, description="期望输出")
+
 class PromptTemplateBase(BaseModel):
     """提示词模板基础模式"""
     template_name: str = Field(..., description="模板名称")
-    template_content: str = Field(..., description="模板内容")
+    template_content: str = Field(..., description="模板内容（兼容旧版本）")
+    agent_config: Optional[AgentPromptConfig] = Field(None, description="Agent配置")
+    task_config: Optional[TaskPromptConfig] = Field(None, description="Task配置")
     is_active: bool = Field(True, description="是否激活")
     is_default: bool = Field(False, description="是否为默认模板")
 
@@ -51,10 +64,9 @@ class ReportData(BaseModel):
     """报告数据结构"""
     executive_summary: str = Field(..., description="执行摘要")
     key_metrics: Dict[str, Any] = Field(..., description="关键指标")
-    trend_analysis: Dict[str, Any] = Field(..., description="趋势分析")
+    trend_analysis: List[Dict[str, Any]] = Field(..., description="趋势分析")
     hotspot_analysis: List[Dict[str, Any]] = Field(..., description="热点分析")
     ai_insights: str = Field(..., description="AI洞察")
-    improvement_suggestions: List[str] = Field(..., description="改进建议")
     detailed_data: Dict[str, Any] = Field(..., description="详细数据")
     generation_metadata: Dict[str, Any] = Field(..., description="生成元数据")
 

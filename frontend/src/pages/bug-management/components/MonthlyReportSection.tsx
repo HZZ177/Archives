@@ -30,7 +30,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { useWorkspace } from '../../../contexts/WorkspaceContext';
 import { monthlyReportService, MonthlyReport, GenerationProgress as ProgressData } from '../../../services/monthlyReportService';
 import PromptEditor from './PromptEditor';
-import GenerationProgress from './GenerationProgress';
+import GenerationProgressInline from './GenerationProgressInline';
 import ReportViewer from './ReportViewer';
 
 const { Title, Text } = Typography;
@@ -43,12 +43,11 @@ const MonthlyReportSection: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [promptEditorVisible, setPromptEditorVisible] = useState(false);
-  const [progressVisible, setProgressVisible] = useState(false);
-  const [reportViewerVisible, setReportViewerVisible] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState<string>('');
   const [generationProgress, setGenerationProgress] = useState<ProgressData | undefined>();
   const [generationError, setGenerationError] = useState<string>('');
+  const [showReportContent, setShowReportContent] = useState(false); // 控制是否显示报告内容
 
   // 加载指定月份的报告
   const loadReport = async (year: number, month: number) => {
@@ -62,6 +61,10 @@ const MonthlyReportSection: React.FC = () => {
       if (response.success) {
         // response.data 可能为 null，这是正常情况
         setCurrentReport(response.data);
+        // 如果是已完成的报告，直接显示内容
+        if (response.data && response.data.status === 'completed') {
+          setShowReportContent(true);
+        }
       } else {
         setCurrentReport(null);
       }
@@ -98,11 +101,17 @@ const MonthlyReportSection: React.FC = () => {
     const year = selectedDate.year();
     const month = selectedDate.month() + 1;
 
-    // 如果已有报告，询问是否生成新的
+    // 如果已有正在生成的报告，提示用户
+    if (currentReport && currentReport.status === 'generating') {
+      message.warning('该月份报告正在生成中，请稍后再试');
+      return;
+    }
+
+    // 如果已有完成的报告，询问是否生成新的
     if (currentReport && currentReport.status === 'completed') {
       Modal.confirm({
         title: '生成新报告',
-        content: `${year}年${month}月已有报告，是否生成新的报告？`,
+        content: `${year}年${month}月已有报告，是否生成新的报告？新报告不会覆盖现有报告。`,
         okText: '生成新报告',
         cancelText: '取消',
         onOk: () => performGeneration()
@@ -126,7 +135,11 @@ const MonthlyReportSection: React.FC = () => {
 
         if (response.success && response.data) {
           message.success('报告生成已启动');
-          setProgressVisible(true);
+          // 设置当前报告为生成中状态，这样主区域会显示进度
+          setCurrentReport({
+            ...response.data,
+            status: 'generating'
+          });
 
           // 开始轮询进度
           monthlyReportService.pollGenerationProgress(
@@ -135,9 +148,12 @@ const MonthlyReportSection: React.FC = () => {
               setGenerationProgress(progress);
             },
             (report) => {
+              // 生成完成，但不自动切换到报告展示
               setGenerationProgress(undefined);
-              setCurrentReport(report);
-              setProgressVisible(false);
+              setCurrentReport({
+                ...report,
+                status: 'completed_waiting' // 自定义状态：完成但等待用户查看
+              });
               setGenerating(false);
               message.success('报告生成完成');
               loadReportHistory();
@@ -145,6 +161,18 @@ const MonthlyReportSection: React.FC = () => {
             (error) => {
               setGenerationError(error);
               setGenerating(false);
+              // 不要清空进度，保持最后的进度状态用于显示失败位置
+              // setGenerationProgress(undefined);
+
+              // 更新报告状态为失败
+              if (currentReport) {
+                setCurrentReport({
+                  ...currentReport,
+                  status: 'failed',
+                  error_message: error
+                });
+              }
+              message.error(`报告生成失败: ${error}`);
             }
           );
         } else {
@@ -158,19 +186,28 @@ const MonthlyReportSection: React.FC = () => {
     }
   };
 
-  // 重试生成
-  const handleRetryGeneration = () => {
-    setGenerationError('');
-    setProgressVisible(false);
-    handleGenerateReport();
+
+
+  // 查看当前报告内容
+  const handleViewCurrentReport = () => {
+    if (currentReport && currentReport.report_data) {
+      setShowReportContent(true);
+      // 将状态改为正常的completed
+      setCurrentReport({
+        ...currentReport,
+        status: 'completed'
+      });
+    }
   };
 
-  // 查看报告
-  const handleViewReport = (report?: MonthlyReport) => {
-    const targetReport = report || currentReport;
-    if (targetReport && targetReport.report_data) {
-      setCurrentReport(targetReport);
-      setReportViewerVisible(true);
+  // 查看报告（用于历史报告列表）
+  const handleViewReport = (report: MonthlyReport) => {
+    if (report && report.report_data) {
+      // 切换到对应的月份并设置为当前报告
+      setSelectedDate(dayjs().year(report.year).month(report.month - 1));
+      setCurrentReport(report);
+      setShowReportContent(true); // 直接显示报告内容
+      setHistoryVisible(false);
     } else {
       message.warning('报告数据不完整');
     }
@@ -231,12 +268,45 @@ const MonthlyReportSection: React.FC = () => {
   useEffect(() => {
     const year = selectedDate.year();
     const month = selectedDate.month() + 1;
+    setShowReportContent(false); // 重置显示状态
     loadReport(year, month);
   }, [selectedDate, currentWorkspace]);
+
+  // 加载默认智能体配置
+  const loadDefaultPrompt = async () => {
+    if (!currentWorkspace) return;
+
+    try {
+      // 获取工作区默认模板
+      const defaultTemplateResponse = await monthlyReportService.getWorkspaceDefaultTemplate(currentWorkspace.id);
+
+      if (defaultTemplateResponse.success && defaultTemplateResponse.data) {
+        // 获取模板列表
+        const templatesResponse = await monthlyReportService.getPromptTemplates(currentWorkspace.id);
+
+        if (templatesResponse.success && templatesResponse.data) {
+          const defaultTemplate = templatesResponse.data.find(t => t.id === defaultTemplateResponse.data);
+          if (defaultTemplate && defaultTemplate.template_content) {
+            setCurrentPrompt(defaultTemplate.template_content);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('加载默认智能体配置失败:', error);
+    }
+  };
+
+  // 监听历史报告弹窗状态，打开时刷新数据
+  useEffect(() => {
+    if (historyVisible) {
+      loadReportHistory();
+    }
+  }, [historyVisible, currentWorkspace]);
 
   // 初始加载
   useEffect(() => {
     loadReportHistory();
+    loadDefaultPrompt();
   }, [currentWorkspace]);
 
   if (!currentWorkspace) {
@@ -260,15 +330,6 @@ const MonthlyReportSection: React.FC = () => {
           </Col>
           <Col>
             <Space>
-              <Tooltip title="编辑提示词">
-                <Button
-                  icon={<EditOutlined />}
-                  onClick={() => setPromptEditorVisible(true)}
-                >
-                  编辑提示词
-                </Button>
-              </Tooltip>
-              
               <DatePicker
                 picker="month"
                 value={selectedDate}
@@ -277,7 +338,22 @@ const MonthlyReportSection: React.FC = () => {
                 placeholder="选择月份"
                 allowClear={false}
               />
-              
+
+              <Tooltip title="配置智能体">
+                <Button
+                  icon={<EditOutlined />}
+                  onClick={() => {
+                    setPromptEditorVisible(true);
+                    // 如果当前没有配置，尝试加载默认配置
+                    if (!currentPrompt) {
+                      loadDefaultPrompt();
+                    }
+                  }}
+                >
+                  配置智能体
+                </Button>
+              </Tooltip>
+
               <Button
                 type="primary"
                 icon={<RobotOutlined />}
@@ -285,26 +361,16 @@ const MonthlyReportSection: React.FC = () => {
                 onClick={() => handleGenerateReport()}
                 disabled={loading}
               >
-                生成报告
+                生成新报告
               </Button>
 
-              {currentReport && (
-                <>
-                  <Button
-                    icon={<ReloadOutlined />}
-                    onClick={() => handleGenerateReport()}
-                    loading={generating}
-                  >
-                    生成新报告
-                  </Button>
-                  
-                  <Button
-                    icon={<DownloadOutlined />}
-                    onClick={handleExportReport}
-                  >
-                    导出
-                  </Button>
-                </>
+              {currentReport && currentReport.status === 'completed' && (
+                <Button
+                  icon={<DownloadOutlined />}
+                  onClick={handleExportReport}
+                >
+                  导出
+                </Button>
               )}
               
               <Button
@@ -321,51 +387,40 @@ const MonthlyReportSection: React.FC = () => {
       {/* 报告内容区域 */}
       <Spin spinning={loading}>
         {currentReport ? (
-          <Card>
-            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-              <Space direction="vertical" size="large">
-                <div>
-                  <CalendarOutlined style={{ fontSize: '48px', color: '#52c41a', marginBottom: '16px' }} />
-                  <Title level={2}>
-                    {currentReport.year}年{currentReport.month}月分析报告
-                  </Title>
-                  {getStatusTag(currentReport.status)}
-                </div>
+          <>
+            {/* 报告内容展示 */}
+            {currentReport.status === 'completed' && currentReport.report_data && showReportContent && (
+              <ReportViewer
+                reportData={currentReport.report_data}
+                year={currentReport.year}
+                month={currentReport.month}
+              />
+            )}
 
-                {currentReport.status === 'completed' && currentReport.report_data && (
-                  <div>
-                    <Text type="secondary" style={{ display: 'block', marginBottom: '16px' }}>
-                      报告生成时间: {currentReport.report_data.generation_metadata.generated_at ?
-                        new Date(currentReport.report_data.generation_metadata.generated_at).toLocaleString() : ''}
-                    </Text>
-                    <Button
-                      type="primary"
-                      size="large"
-                      icon={<EyeOutlined />}
-                      onClick={() => handleViewReport()}
-                    >
-                      查看完整报告
-                    </Button>
-                  </div>
-                )}
+            {/* 生成中状态 - 显示进度时间线 */}
+            {(currentReport.status === 'generating' || currentReport.status === 'completed_waiting') && (
+              <GenerationProgressInline
+                year={currentReport.year}
+                month={currentReport.month}
+                progress={generationProgress}
+                error={generationError}
+                isCompleted={currentReport.status === 'completed_waiting'}
+                onViewReport={handleViewCurrentReport}
+              />
+            )}
 
-                {currentReport.status === 'failed' && (
-                  <div>
-                    <Text type="danger" style={{ display: 'block', marginBottom: '16px' }}>
-                      生成失败: {currentReport.error_message}
-                    </Text>
-                    <Button
-                      type="primary"
-                      icon={<ReloadOutlined />}
-                      onClick={() => handleGenerateReport()}
-                    >
-                      生成新报告
-                    </Button>
-                  </div>
-                )}
-              </Space>
-            </div>
-          </Card>
+            {/* 生成失败状态 - 也显示进度时间线，但标记为失败 */}
+            {currentReport.status === 'failed' && (
+              <GenerationProgressInline
+                year={currentReport.year}
+                month={currentReport.month}
+                progress={generationProgress}
+                error={currentReport.error_message || generationError || '生成失败'}
+                isCompleted={false}
+                onViewReport={undefined}
+              />
+            )}
+          </>
         ) : (
           <Card>
             <Empty
@@ -377,21 +432,11 @@ const MonthlyReportSection: React.FC = () => {
                   </Text>
                   <br />
                   <Text type="secondary">
-                    点击"生成报告"开始AI智能分析
+                    点击"生成新报告"开始AI智能分析
                   </Text>
                 </div>
               }
-            >
-              <Button
-                type="primary"
-                size="large"
-                icon={<RobotOutlined />}
-                onClick={() => handleGenerateReport()}
-                loading={generating}
-              >
-                生成AI分析报告
-              </Button>
-            </Empty>
+            />
           </Card>
         )}
       </Spin>
@@ -405,35 +450,9 @@ const MonthlyReportSection: React.FC = () => {
         currentTemplate={currentPrompt}
       />
 
-      {/* 生成进度弹窗 */}
-      <GenerationProgress
-        visible={progressVisible}
-        onCancel={() => {
-          setProgressVisible(false);
-          setGenerating(false);
-        }}
-        progress={generationProgress}
-        error={generationError}
-        onRetry={handleRetryGeneration}
-      />
 
-      {/* 报告查看器 */}
-      {currentReport && currentReport.report_data && (
-        <Modal
-          title={`${currentReport.year}年${currentReport.month}月分析报告`}
-          open={reportViewerVisible}
-          onCancel={() => setReportViewerVisible(false)}
-          width="90%"
-          style={{ top: 20 }}
-          footer={null}
-        >
-          <ReportViewer
-            reportData={currentReport.report_data}
-            year={currentReport.year}
-            month={currentReport.month}
-          />
-        </Modal>
-      )}
+
+
 
       {/* 历史报告弹窗 */}
       <Modal
@@ -452,10 +471,7 @@ const MonthlyReportSection: React.FC = () => {
                   key="view"
                   type="text"
                   icon={<EyeOutlined />}
-                  onClick={() => {
-                    setHistoryVisible(false);
-                    handleViewReport(report);
-                  }}
+                  onClick={() => handleViewReport(report)}
                   disabled={report.status !== 'completed'}
                 >
                   查看

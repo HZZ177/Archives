@@ -198,8 +198,6 @@ class AIModelService:
                 model_name=config.model_name,
                 base_url=config.base_url,
                 api_key=config.api_key,
-                max_tokens=config.max_tokens,
-                temperature=config.temperature,
                 start_time=start_time
             )
             
@@ -231,8 +229,6 @@ class AIModelService:
                 model_name=config_data.get('model_name'),
                 base_url=config_data.get('base_url'),
                 api_key=config_data.get('api_key'),
-                max_tokens=config_data.get('max_tokens', 4000),
-                temperature=config_data.get('temperature', 0.7),
                 start_time=start_time
             )
 
@@ -295,8 +291,6 @@ class AIModelService:
         model_name: str,
         base_url: str,
         api_key: str,
-        max_tokens: int = 4000,
-        temperature: float = 0.7,
         start_time: float = None
     ) -> ConnectionTestResult:
         """测试模型连接的内部实现"""
@@ -309,6 +303,8 @@ class AIModelService:
             # 构建完整的模型名称
             model_full_name = f"{model_provider}/{model_name}"
             logger.info(f"测试模型连接: {model_full_name}")
+
+
 
             # 创建LLM实例
             llm = LLM(
@@ -331,7 +327,6 @@ class AIModelService:
                 model_info={
                     "provider": model_provider,
                     "model": model_name,
-                    "max_tokens": max_tokens,
                     "response_preview": response[:100] if response else "无响应内容"
                 }
             )

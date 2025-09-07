@@ -12,6 +12,7 @@ from backend.app.services.ai_agent_factory import AIAgentFactory
 from backend.app.services.ai_task_factory import AITaskFactory
 from backend.app.services.coding_bug_service import CodingBugService
 from backend.app.schemas.ai_agents import DefectAnalysisRequest, DefectAnalysisResult
+from backend.app.schemas.monthly_report import AgentPromptConfig, TaskPromptConfig
 from backend.app.core.exceptions import AIServiceException, AgentExecutionException
 from backend.app.core.logger import logger
 
@@ -29,7 +30,9 @@ class AIAgentService:
         self,
         db: AsyncSession,
         request: DefectAnalysisRequest,
-        user_id: int
+        user_id: int,
+        agent_config: Optional[AgentPromptConfig] = None,
+        task_config: Optional[TaskPromptConfig] = None
     ) -> DefectAnalysisResult:
         """执行缺陷分析"""
         
@@ -54,26 +57,34 @@ class AIAgentService:
             # 3. 获取LLM实例
             logger.info("获取LLM实例")
             llm = await self.llm_pool.acquire_llm(db)
-            
-            # 4. 创建Agent和Task
-            logger.info("创建分析Agent和任务")
-            analysis_agent = self.agent_factory.create_defect_analysis_agent(llm)
-            analysis_task = self.task_factory.create_defect_analysis_task(analysis_agent, defect_data)
-            
-            # 5. 执行分析任务
-            logger.info("开始执行缺陷分析任务")
-            start_time = time.time()
-            
-            crew = Crew(
-                agents=[analysis_agent],
-                tasks=[analysis_task],
-                verbose=True
-            )
-            
-            analysis_result = crew.kickoff()
-            
-            duration_ms = int((time.time() - start_time) * 1000)
-            logger.info(f"缺陷分析任务完成，耗时: {duration_ms}ms")
+
+            try:
+                # 4. 创建Agent和Task
+                logger.info("创建分析Agent和任务")
+                analysis_agent = self.agent_factory.create_defect_analysis_agent(llm, agent_config)
+                analysis_task = self.task_factory.create_defect_analysis_task(analysis_agent, defect_data, task_config)
+
+                # 5. 执行分析任务
+                logger.info("开始执行缺陷分析任务")
+                start_time = time.time()
+
+                crew = Crew(
+                    agents=[analysis_agent],
+                    tasks=[analysis_task],
+                    verbose=True
+                )
+
+                # 使用asyncio在线程池中执行同步的crew.kickoff()
+                import asyncio
+                loop = asyncio.get_event_loop()
+                analysis_result = await loop.run_in_executor(None, crew.kickoff)
+
+                duration_ms = int((time.time() - start_time) * 1000)
+                logger.info(f"缺陷分析任务完成，耗时: {duration_ms}ms")
+
+            finally:
+                # 确保释放LLM实例
+                await self.llm_pool.release_llm(llm)
             
             # 6. 处理分析结果
             processed_result = await self._process_analysis_result(
@@ -87,7 +98,7 @@ class AIAgentService:
                 db=db,
                 execution_id=execution_record.id,
                 status="completed",
-                output_data=json.dumps(processed_result, ensure_ascii=False),
+                output_data=json.dumps(processed_result, ensure_ascii=False, default=str),
                 duration_ms=duration_ms
             )
             
@@ -122,7 +133,7 @@ class AIAgentService:
                 start_date=f"{request.year}-{request.month:02d}-01",
                 end_date=f"{request.year}-{request.month:02d}-31"
             )
-            
+
             # 获取趋势数据
             trend_data = await self.coding_bug_service.get_bug_trend_analysis(
                 db=db,
@@ -130,7 +141,7 @@ class AIAgentService:
                 start_date=f"{request.year}-{request.month:02d}-01",
                 end_date=f"{request.year}-{request.month:02d}-31"
             )
-            
+
             # 获取模块健康分析
             health_analysis = await self.coding_bug_service.get_module_health_analysis(
                 db=db,
@@ -138,7 +149,19 @@ class AIAgentService:
                 start_date=f"{request.year}-{request.month:02d}-01",
                 end_date=f"{request.year}-{request.month:02d}-31"
             )
-            
+
+            # 获取具体的缺陷详情数据
+            from backend.app.services.monthly_report_service import MonthlyReportService
+            monthly_service = MonthlyReportService()
+            bug_details = await monthly_service._fetch_bugs_data(
+                db=db,
+                workspace_id=request.workspace_id,
+                year=request.year,
+                month=request.month
+            )
+
+            logger.info(f"AI Agent获取到{len(bug_details)}条具体缺陷数据")
+
             return {
                 "year": request.year,
                 "month": request.month,
@@ -146,9 +169,10 @@ class AIAgentService:
                 "statistics": statistics,
                 "trend_data": trend_data,
                 "health_analysis": health_analysis,
+                "bug_details": bug_details,  # 添加具体缺陷数据
                 "analysis_date": datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"获取缺陷数据失败: {str(e)}")
             raise AIServiceException(f"获取缺陷数据失败: {str(e)}")
@@ -175,7 +199,7 @@ class AIAgentService:
                     "建立缺陷预防机制",
                     "优化问题跟踪流程"
                 ],
-                "generated_at": datetime.now()
+                "generated_at": datetime.now().isoformat()
             }
             
         except Exception as e:

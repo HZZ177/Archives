@@ -438,11 +438,9 @@ const AIModelManagePage: React.FC = () => {
                       <Tag style={{ margin: 0, borderRadius: '4px' }}>
                         {config.model_name}
                       </Tag>
-                      {config.base_url && (
-                        <Tag style={{ margin: 0, borderRadius: '4px' }}>
-                          {getApiShortName(config.base_url)}
-                        </Tag>
-                      )}
+                      <Tag style={{ margin: 0, borderRadius: '4px' }}>
+                        {getApiShortName(config.base_url)}
+                      </Tag>
                     </div>
                   </div>
 
@@ -530,13 +528,9 @@ const AIModelManagePage: React.FC = () => {
           <Form.Item
             name="model_provider"
             label="模型提供商"
-            rules={[{ required: true, message: '请选择模型提供商' }]}
+            rules={[{ required: true, message: '请输入模型提供商' }]}
           >
-            <Select placeholder="请选择模型提供商">
-              <Option value="openai">OpenAI</Option>
-              <Option value="anthropic">Anthropic</Option>
-              <Option value="openrouter">OpenRouter</Option>
-            </Select>
+            <Input placeholder="请输入模型提供商，如：openai、anthropic、openrouter等" />
           </Form.Item>
 
           <Form.Item
@@ -558,41 +552,12 @@ const AIModelManagePage: React.FC = () => {
           <Form.Item
             name="base_url"
             label="API基础URL"
+            rules={[{ required: true, message: '请输入API基础URL' }]}
           >
-            <Input placeholder="可选，留空使用默认URL" />
+            <Input placeholder="请输入完整的API基础URL，如：https://api.openai.com/v1" />
           </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="max_tokens"
-                label="最大Token数"
-                initialValue={4000}
-              >
-                <InputNumber
-                  min={1}
-                  max={32000}
-                  style={{ width: '100%' }}
-                  placeholder="最大Token数"
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="temperature"
-                label="温度参数"
-                initialValue={0.7}
-              >
-                <InputNumber
-                  min={0}
-                  max={2}
-                  step={0.1}
-                  style={{ width: '100%' }}
-                  placeholder="温度参数"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+
 
           <div style={{
             marginTop: '16px',
@@ -605,9 +570,8 @@ const AIModelManagePage: React.FC = () => {
               icon={testingId === -1 ? <Spin size="small" /> : <LinkOutlined />}
               onClick={async () => {
                 const values = form.getFieldsValue();
-                if (!values.model_provider || !values.model_name ||
-                    !values.api_key || !values.base_url) {
-                  message.error('请先填写模型信息和API密钥');
+                if (!values.model_provider || !values.model_name || !values.api_key) {
+                  message.error('请先填写模型提供商、模型名称和API密钥');
                   return;
                 }
 

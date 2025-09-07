@@ -38,6 +38,7 @@ class WorkspaceUpdate(BaseModel):
     icon: Optional[str] = None
     color: Optional[str] = None
     is_default: Optional[bool] = None
+    default_prompt_template_id: Optional[int] = None
 
 
 class WorkspaceInDB(WorkspaceBase):
@@ -46,6 +47,7 @@ class WorkspaceInDB(WorkspaceBase):
     created_by: int
     created_at: datetime
     updated_at: datetime
+    default_prompt_template_id: Optional[int] = None
 
     class Config:
         orm_mode = True

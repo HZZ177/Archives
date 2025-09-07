@@ -5,6 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.api.deps import get_current_active_user, get_db
 from backend.app.models.user import User
 from backend.app.services.monthly_report_service import MonthlyReportService
+
+# 创建全局服务实例
+monthly_report_service = MonthlyReportService()
 from backend.app.schemas.monthly_report import (
     MonthlyReportResponse, MonthlyReportCreate, MonthlyReportUpdate,
     PromptTemplateResponse, PromptTemplateCreate, PromptTemplateUpdate,
@@ -25,8 +28,7 @@ async def generate_monthly_report(
 ):
     """生成月度报告"""
     try:
-        service = MonthlyReportService()
-        report = await service.generate_report(db, request, current_user.id)
+        report = await monthly_report_service.generate_report(db, request, current_user.id)
         
         return APIResponse(
             success=True,
@@ -49,8 +51,7 @@ async def get_generation_progress(
 ):
     """获取报告生成进度"""
     try:
-        service = MonthlyReportService()
-        progress = await service.get_generation_progress(db, report_id)
+        progress = await monthly_report_service.get_generation_progress(db, report_id)
 
         if not progress:
             return APIResponse(
@@ -78,8 +79,7 @@ async def get_report_history(
 ):
     """获取报告历史"""
     try:
-        service = MonthlyReportService()
-        reports = await service.list_reports(db, workspace_id, limit)
+        reports = await monthly_report_service.list_reports(db, workspace_id, limit)
         
         return APIResponse(
             success=True,
@@ -99,8 +99,7 @@ async def get_monthly_report(
 ):
     """获取单个月度报告"""
     try:
-        service = MonthlyReportService()
-        report = await service.get_report(db, report_id)
+        report = await monthly_report_service.get_report(db, report_id)
 
         if not report:
             return APIResponse(
@@ -129,8 +128,7 @@ async def get_report_by_month(
 ):
     """根据年月获取报告"""
     try:
-        service = MonthlyReportService()
-        report = await service.get_report_by_month(db, workspace_id, year, month)
+        report = await monthly_report_service.get_report_by_month(db, workspace_id, year, month)
 
         if not report:
             return APIResponse(
@@ -158,8 +156,7 @@ async def update_monthly_report(
 ):
     """更新月度报告"""
     try:
-        service = MonthlyReportService()
-        report = await service.update_report(db, report_id, update_data)
+        report = await monthly_report_service.update_report(db, report_id, update_data)
         
         return APIResponse(
             success=True,
@@ -182,8 +179,7 @@ async def delete_monthly_report(
 ):
     """删除月度报告"""
     try:
-        service = MonthlyReportService()
-        success = await service.delete_report(db, report_id)
+        success = await monthly_report_service.delete_report(db, report_id)
         
         return APIResponse(
             success=True,
@@ -207,8 +203,7 @@ async def create_prompt_template(
 ):
     """创建提示词模板"""
     try:
-        service = MonthlyReportService()
-        template = await service.create_prompt_template(db, template_data, current_user.id)
+        template = await monthly_report_service.create_prompt_template(db, template_data, current_user.id)
         
         return APIResponse(
             success=True,
@@ -231,9 +226,8 @@ async def list_prompt_templates(
 ):
     """获取提示词模板列表"""
     try:
-        service = MonthlyReportService()
-        templates = await service.list_prompt_templates(db, workspace_id)
-        
+        templates = await monthly_report_service.list_prompt_templates(db, workspace_id)
+
         return APIResponse(
             success=True,
             message="获取提示词模板列表成功",
@@ -241,4 +235,68 @@ async def list_prompt_templates(
         )
     except Exception as e:
         logger.error(f"获取提示词模板列表异常: {str(e)}")
+        raise HTTPException(status_code=500, detail="内部服务器错误")
+
+
+@router.delete("/prompt-templates/{template_id}", response_model=APIResponse[bool])
+async def delete_prompt_template(
+    template_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """删除提示词模板"""
+    try:
+        success = await monthly_report_service.delete_prompt_template(db, template_id, current_user.id)
+
+        return APIResponse(
+            success=True,
+            message="删除提示词模板成功",
+            data=success
+        )
+    except AIServiceException as e:
+        logger.error(f"删除提示词模板失败: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"删除提示词模板异常: {str(e)}")
+        raise HTTPException(status_code=500, detail="内部服务器错误")
+
+
+@router.put("/workspace/{workspace_id}/default-template", response_model=APIResponse[bool])
+async def set_workspace_default_template(
+    workspace_id: int,
+    template_id: int = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """设置工作区默认智能体模板"""
+    try:
+        success = await monthly_report_service.set_workspace_default_template(db, workspace_id, template_id)
+
+        return APIResponse(
+            success=True,
+            message="设置默认智能体模板成功",
+            data=success
+        )
+    except Exception as e:
+        logger.error(f"设置默认智能体模板异常: {str(e)}")
+        raise HTTPException(status_code=500, detail="内部服务器错误")
+
+
+@router.get("/workspace/{workspace_id}/default-template", response_model=APIResponse[int])
+async def get_workspace_default_template(
+    workspace_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """获取工作区默认智能体模板ID"""
+    try:
+        template_id = await monthly_report_service.get_workspace_default_template(db, workspace_id)
+
+        return APIResponse(
+            success=True,
+            message="获取默认智能体模板成功",
+            data=template_id
+        )
+    except Exception as e:
+        logger.error(f"获取默认智能体模板异常: {str(e)}")
         raise HTTPException(status_code=500, detail="内部服务器错误")

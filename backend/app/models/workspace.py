@@ -27,6 +27,8 @@ class Workspace(Base):
     icon = Column(String(255), nullable=True, comment="工作区图标")
     color = Column(String(20), nullable=True, comment="工作区主题色 (如 #FFFFFF)")
     is_default = Column(Boolean, default=False, comment="是否为用户的默认工作区")
+    # 月度报告智能体配置
+    default_prompt_template_id = Column(Integer, ForeignKey("prompt_templates.id"), nullable=True, comment="默认智能体模板ID")
     created_by = Column(Integer, ForeignKey("users.id"), comment="创建者的用户ID")
     created_at = Column(DateTime, default=get_local_time, comment="创建时间")
     updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time, comment="最后更新时间")
@@ -43,3 +45,4 @@ class Workspace(Base):
     coding_bugs = relationship("CodingBug", back_populates="workspace", cascade="all, delete-orphan")
     coding_config = relationship("WorkspaceCodingConfig", back_populates="workspace", uselist=False, cascade="all, delete-orphan")
     monthly_reports = relationship("MonthlyReport", back_populates="workspace", cascade="all, delete-orphan")
+    default_prompt_template = relationship("PromptTemplate", foreign_keys=[default_prompt_template_id])

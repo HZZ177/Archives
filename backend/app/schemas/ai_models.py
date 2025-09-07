@@ -5,12 +5,10 @@ from datetime import datetime
 
 class AIModelConfigBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="配置名称")
-    model_provider: str = Field(..., pattern="^(openai|anthropic|openrouter)$", description="模型提供商")
+    model_provider: str = Field(..., min_length=1, max_length=100, description="模型提供商")
     model_name: str = Field(..., min_length=1, max_length=100, description="模型名称")
     api_key: str = Field(..., min_length=1, description="API密钥")
-    base_url: Optional[str] = Field(None, description="API基础URL")
-    max_tokens: int = Field(default=4000, ge=1, le=32000, description="最大token数")
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="温度参数")
+    base_url: str = Field(..., min_length=1, description="API基础URL")
     description: Optional[str] = Field(None, description="配置描述")
 
 
@@ -20,12 +18,10 @@ class AIModelConfigCreate(AIModelConfigBase):
 
 class AIModelConfigUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100, description="配置名称")
-    model_provider: Optional[str] = Field(None, pattern="^(openai|anthropic|openrouter)$", description="模型提供商")
+    model_provider: Optional[str] = Field(None, min_length=1, max_length=100, description="模型提供商")
     model_name: Optional[str] = Field(None, min_length=1, max_length=100, description="模型名称")
     api_key: Optional[str] = Field(None, min_length=1, description="API密钥")
-    base_url: Optional[str] = Field(None, description="API基础URL")
-    max_tokens: Optional[int] = Field(None, ge=1, le=32000, description="最大token数")
-    temperature: Optional[float] = Field(None, ge=0.0, le=2.0, description="温度参数")
+    base_url: Optional[str] = Field(None, min_length=1, description="API基础URL")
     description: Optional[str] = Field(None, description="配置描述")
     is_enabled: Optional[bool] = Field(None, description="是否启用")
 

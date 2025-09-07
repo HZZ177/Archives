@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Foreign
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from backend.app.db.base import Base
+from backend.app.db.utils import get_local_time
 
 
 class MonthlyReport(Base):
@@ -24,8 +25,8 @@ class MonthlyReport(Base):
     
     # 元数据
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(DateTime, default=get_local_time)
+    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
     
     # 关系
     workspace = relationship("Workspace", back_populates="monthly_reports")
@@ -39,15 +40,15 @@ class PromptTemplate(Base):
     id = Column(Integer, primary_key=True, index=True)
     workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=False, index=True)
     template_name = Column(String(100), nullable=False)
-    template_content = Column(Text, nullable=False)
+    template_content = Column(Text, nullable=False)  # 兼容旧版本或存储JSON格式
     is_active = Column(Boolean, default=True, nullable=False)
     is_default = Column(Boolean, default=False, nullable=False)
     
     # 元数据
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(DateTime, default=get_local_time)
+    updated_at = Column(DateTime, default=get_local_time, onupdate=get_local_time)
     
     # 关系
-    workspace = relationship("Workspace")
+    workspace = relationship("Workspace", foreign_keys=[workspace_id])
     creator = relationship("User")

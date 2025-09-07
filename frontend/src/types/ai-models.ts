@@ -1,12 +1,10 @@
 export interface AIModelConfig {
   id: number;
   name: string;
-  model_provider: 'openai' | 'anthropic' | 'openrouter';
+  model_provider: string;
   model_name: string;
   api_key: string;
-  base_url?: string;
-  max_tokens: number;
-  temperature: number;
+  base_url: string;
   is_active: boolean;
   is_enabled: boolean;
   description?: string;
@@ -20,9 +18,7 @@ export interface AIModelConfigFormData {
   model_provider: string;
   model_name: string;
   api_key: string;
-  base_url?: string;
-  max_tokens: number;
-  temperature: number;
+  base_url: string;
   description?: string;
   is_enabled?: boolean;
 }

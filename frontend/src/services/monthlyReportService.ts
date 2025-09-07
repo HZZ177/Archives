@@ -19,21 +19,17 @@ export interface ReportData {
     resolution_rate: number;
     critical_bugs: number;
     critical_rate: number;
-    avg_processing_time: string;
   };
-  trend_analysis: {
-    priority_distribution: Record<string, number>;
-    status_distribution: Record<string, number>;
-    daily_trend: Record<string, number>;
-    creation_trend: Record<string, number>;
-  };
+  trend_analysis: Array<{
+    date: string;
+    [priority: string]: string | number;
+  }>;
   hotspot_analysis: Array<{
     module: string;
     count: number;
     percentage: number;
   }>;
   ai_insights: string;
-  improvement_suggestions: string[];
   detailed_data: {
     raw_bugs: any[];
     analysis_summary: any;
@@ -61,11 +57,24 @@ export interface MonthlyReport {
   updated_at?: string;
 }
 
+export interface AgentPromptConfig {
+  role: string;
+  goal: string;
+  backstory: string;
+}
+
+export interface TaskPromptConfig {
+  description: string;
+  expected_output: string;
+}
+
 export interface PromptTemplate {
   id: number;
   workspace_id: number;
   template_name: string;
-  template_content: string;
+  template_content: string; // 兼容旧版本或存储JSON格式
+  agent_config?: AgentPromptConfig;
+  task_config?: TaskPromptConfig;
   is_active: boolean;
   is_default: boolean;
   created_by: number;
@@ -145,22 +154,93 @@ class MonthlyReportService {
     return response.data;
   }
 
-  // 轮询生成进度
+  // 删除提示词模板
+  async deletePromptTemplate(templateId: number): Promise<APIResponse<boolean>> {
+    const response = await request.delete(`/monthly-reports/prompt-templates/${templateId}`);
+    return response.data;
+  }
+
+  // 设置工作区默认智能体模板
+  async setWorkspaceDefaultTemplate(workspaceId: number, templateId?: number): Promise<APIResponse<boolean>> {
+    const params = templateId ? { template_id: templateId } : {};
+    const response = await request.put(`/monthly-reports/workspace/${workspaceId}/default-template`, null, { params });
+    return response.data;
+  }
+
+  // 获取工作区默认智能体模板ID
+  async getWorkspaceDefaultTemplate(workspaceId: number): Promise<APIResponse<number | null>> {
+    const response = await request.get(`/monthly-reports/workspace/${workspaceId}/default-template`);
+    return response.data;
+  }
+
+  // 轮询生成进度（带渐进式步骤显示）
   async pollGenerationProgress(
-    reportId: number, 
+    reportId: number,
     onProgress: (progress: GenerationProgress) => void,
     onComplete: (report: MonthlyReport) => void,
     onError: (error: string) => void,
-    interval: number = 2000
+    interval: number = 1500
   ): Promise<void> {
+    let lastDisplayedStep = 0;
+    let stepDisplayTimer: NodeJS.Timeout | null = null;
+
+    // 渐进式显示步骤
+    const showStepsGradually = (targetStep: number, progress: GenerationProgress) => {
+      if (stepDisplayTimer) {
+        clearTimeout(stepDisplayTimer);
+      }
+
+      const showNextStep = () => {
+        if (lastDisplayedStep < targetStep) {
+          lastDisplayedStep++;
+
+          // 创建渐进式进度对象
+          const gradualProgress: GenerationProgress = {
+            ...progress,
+            current_step: lastDisplayedStep,
+            progress_percentage: (lastDisplayedStep / progress.total_steps) * 100
+          };
+
+          onProgress(gradualProgress);
+
+          // 如果还没到目标步骤，继续显示下一步
+          if (lastDisplayedStep < targetStep) {
+            stepDisplayTimer = setTimeout(showNextStep, 800); // 每0.8秒显示下一步
+          }
+        }
+      };
+
+      showNextStep();
+    };
+
     const poll = async () => {
       try {
         const progressResponse = await this.getGenerationProgress(reportId);
         if (progressResponse.success && progressResponse.data) {
-          onProgress(progressResponse.data);
-          
+          const progress = progressResponse.data;
+
+          // 检查是否是失败状态
+          if (progress.step_name === '失败' || progress.current_step === 0) {
+            // 清理定时器
+            if (stepDisplayTimer) {
+              clearTimeout(stepDisplayTimer);
+            }
+            // 调用错误回调并停止轮询
+            onError(progress.step_description || '生成失败');
+            return;
+          }
+
+          // 如果后端步骤跳跃了，使用渐进式显示
+          if (progress.current_step > lastDisplayedStep + 1) {
+            showStepsGradually(progress.current_step, progress);
+          } else {
+            // 正常显示当前步骤
+            lastDisplayedStep = progress.current_step;
+            onProgress(progress);
+          }
+
           // 如果进度达到100%，获取最终报告
-          if (progressResponse.data.progress_percentage >= 100) {
+          if (progress.progress_percentage >= 100 && progress.current_step >= progress.total_steps) {
             const reportResponse = await this.getReport(reportId);
             if (reportResponse.success && reportResponse.data) {
               if (reportResponse.data.status === 'completed') {
@@ -172,7 +252,7 @@ class MonthlyReportService {
               }
             }
           }
-          
+
           // 继续轮询
           setTimeout(poll, interval);
         } else {

@@ -93,34 +93,19 @@ class LLMPoolService:
     def _create_llm_instance(self, config):
         """创建LLM实例"""
         try:
-            # 根据提供商创建不同的LLM实例
-            if config.model_provider == "openai":
-                return LLM(
-                    model=f"openai/{config.model_name}",
-                    api_key=config.api_key,
-                    base_url=config.base_url or "https://api.openai.com/v1",
-                    temperature=float(config.temperature),
-                    max_tokens=config.max_tokens
-                )
-            elif config.model_provider == "anthropic":
-                return LLM(
-                    model=f"anthropic/{config.model_name}",
-                    api_key=config.api_key,
-                    base_url=config.base_url or "https://api.anthropic.com",
-                    temperature=float(config.temperature),
-                    max_tokens=config.max_tokens
-                )
-            elif config.model_provider == "openrouter":
-                return LLM(
-                    model=config.model_name,
-                    api_key=config.api_key,
-                    base_url=config.base_url or "https://openrouter.ai/api/v1",
-                    temperature=float(config.temperature),
-                    max_tokens=config.max_tokens
-                )
-            else:
-                raise ValueError(f"不支持的模型提供商: {config.model_provider}")
-                
+            # 统一使用 provider/model_name 格式
+            model_full_name = f"{config.model_provider}/{config.model_name}"
+
+            base_url = config.base_url
+
+            logger.info(f"创建LLM实例: {model_full_name}, base_url: {base_url}")
+
+            return LLM(
+                model=model_full_name,
+                api_key=config.api_key,
+                base_url=base_url
+            )
+
         except Exception as e:
             logger.error(f"创建LLM实例失败: {str(e)}")
             raise LLMConnectionException(f"创建LLM实例失败: {str(e)}")
