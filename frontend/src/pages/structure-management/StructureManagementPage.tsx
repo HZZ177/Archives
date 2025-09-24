@@ -124,7 +124,7 @@ const StructureManagementPage: React.FC = React.memo(() => {
             <span className="page-subtitle">管理文档结构和内容</span>
           </div>
         }
-        bordered={false}
+        variant="borderless"
         className="structure-management-card"
       >
         <Row gutter={16} className="structure-management-row">

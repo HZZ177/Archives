@@ -40,15 +40,22 @@ const { Option } = Select;
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
+// 支持的提供商配置
+const PROVIDER_OPTIONS = [
+  { value: 'openai', label: 'OpenAI', color: '#74aa9c' },
+  { value: 'anthropic', label: 'Anthropic', color: '#d32f2f' },
+  { value: 'google', label: 'Google', color: '#4285f4' },
+  { value: 'metallama', label: 'Meta Llama', color: '#1877f2' },
+  { value: 'openrouter', label: 'OpenRouter', color: '#1976d2' },
+  { value: 'azureopenai', label: 'Azure OpenAI', color: '#0078d4' }
+];
+
 // 获取提供商对应的颜色
 const getProviderColor = (provider: string): string => {
-  const colors: {[key: string]: string} = {
-    'openai': '#74aa9c',      // OpenAI绿色
-    'anthropic': '#d32f2f',   // Anthropic红色
-    'openrouter': '#1976d2',  // OpenRouter蓝色
-    'default': '#757575'      // 默认灰色
-  };
-  return colors[provider.toLowerCase()] || colors.default;
+  const providerOption = PROVIDER_OPTIONS.find(option =>
+    option.value.toLowerCase() === provider.toLowerCase()
+  );
+  return providerOption?.color || '#757575'; // 默认灰色
 };
 
 // 获取API地址的简短显示名称
@@ -216,15 +223,11 @@ const AIModelManagePage: React.FC = () => {
 
   // 处理模型选择变化
   const handleModelChange = async (value: number | null | undefined) => {
-    console.log('🔍 handleModelChange called with value:', value, typeof value);
-
     if (value === null || value === undefined) {
       // 清除选择
-      console.log('🔍 调用清除活跃配置');
       await handleClearActive();
     } else {
       // 激活选择的配置
-      console.log('🔍 调用激活配置:', value);
       await handleActivate(value);
     }
   };
@@ -232,9 +235,7 @@ const AIModelManagePage: React.FC = () => {
   // 清除活跃配置
   const handleClearActive = async () => {
     try {
-      console.log('🔍 开始清除活跃配置...');
       const response = await aiModelService.clearActiveConfig();
-      console.log('🔍 清除活跃配置响应:', response);
       if (response.success) {
         message.success('已清除当前使用的模型，连接池已清空');
         setActiveConfigId(null);
@@ -242,8 +243,7 @@ const AIModelManagePage: React.FC = () => {
         loadPoolStatus();
       }
     } catch (error: any) {
-      console.error('🔍 清除活跃配置失败:', error);
-      console.error('🔍 错误详情:', error.response);
+      console.error('清除活跃配置失败:', error);
       const errorMessage = error.response?.data?.detail || '清除活跃配置失败';
       message.error(errorMessage);
     }
@@ -400,7 +400,7 @@ const AIModelManagePage: React.FC = () => {
                   cursor: 'pointer'
                 }}
                 hoverable
-                bodyStyle={{ padding: '16px' }}
+                styles={{ body: { padding: '16px' } }}
               >
                 <div style={{
                   display: 'flex',
@@ -528,9 +528,15 @@ const AIModelManagePage: React.FC = () => {
           <Form.Item
             name="model_provider"
             label="模型提供商"
-            rules={[{ required: true, message: '请输入模型提供商' }]}
+            rules={[{ required: true, message: '请选择模型提供商' }]}
           >
-            <Input placeholder="请输入模型提供商，如：openai、anthropic、openrouter等" />
+            <Select placeholder="请选择模型提供商">
+              {PROVIDER_OPTIONS.map(provider => (
+                <Option key={provider.value} value={provider.value}>
+                  {provider.label}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
 
           <Form.Item

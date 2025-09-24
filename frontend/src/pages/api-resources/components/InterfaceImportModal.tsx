@@ -43,7 +43,7 @@ interface ImportResultItem {
 }
 
 interface InterfaceImportModalProps {
-  visible: boolean;
+  open: boolean;
   onCancel: () => void;
   workspaceId?: number;
   onSuccess: () => void;
@@ -53,9 +53,9 @@ interface InterfaceImportModalProps {
  * 接口导入Modal组件
  */
 const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
-  visible, 
-  onCancel, 
-  workspaceId, 
+  open,
+  onCancel,
+  workspaceId,
   onSuccess
 }) => {
   const [fileList, setFileList] = useState<RcFile[]>([]);
@@ -609,7 +609,9 @@ const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
     if (parsing) {
       return (
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Spin tip="正在解析文件..." />
+          <Spin tip="正在解析文件...">
+            <div style={{ minHeight: '100px' }} />
+          </Spin>
         </div>
       );
     }
@@ -641,7 +643,7 @@ const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
           </Space>
         </div>
       }
-      open={visible}
+      open={open}
       onCancel={handleClose}
       footer={null}
       width={800}

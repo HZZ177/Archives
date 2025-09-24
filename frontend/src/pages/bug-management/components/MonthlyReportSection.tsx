@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   Button,
@@ -48,6 +48,7 @@ const MonthlyReportSection: React.FC = () => {
   const [generationProgress, setGenerationProgress] = useState<ProgressData | undefined>();
   const [generationError, setGenerationError] = useState<string>('');
   const [showReportContent, setShowReportContent] = useState(false); // 控制是否显示报告内容
+  const cancelPollingRef = useRef<(() => void) | null>(null); // 使用ref存储轮询取消函数
 
   // 加载指定月份的报告
   const loadReport = async (year: number, month: number) => {
@@ -61,9 +62,15 @@ const MonthlyReportSection: React.FC = () => {
       if (response.success) {
         // response.data 可能为 null，这是正常情况
         setCurrentReport(response.data);
+
         // 如果是已完成的报告，直接显示内容
         if (response.data && response.data.status === 'completed') {
           setShowReportContent(true);
+        }
+
+        // 如果报告正在生成中，需要恢复进度状态并重新启动轮询
+        if (response.data && response.data.status === 'generating') {
+          await restoreGenerationProgress(response.data.id);
         }
       } else {
         setCurrentReport(null);
@@ -74,6 +81,58 @@ const MonthlyReportSection: React.FC = () => {
       setCurrentReport(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 恢复生成进度状态
+  const restoreGenerationProgress = async (reportId: number) => {
+    try {
+      // 获取当前进度
+      const progressResponse = await monthlyReportService.getGenerationProgress(reportId);
+      if (progressResponse.success && progressResponse.data) {
+        setGenerationProgress(progressResponse.data);
+        setGenerating(true);
+
+        // 重新启动轮询，传入当前进度作为初始步骤
+        const cancelFn = await monthlyReportService.pollGenerationProgress(
+          reportId,
+          (progress) => {
+            setGenerationProgress(progress);
+          },
+          (report) => {
+            // 生成完成
+            setGenerationProgress(undefined);
+            setCurrentReport({
+              ...report,
+              status: 'completed_waiting'
+            });
+            setGenerating(false);
+            cancelPollingRef.current = null;
+            message.success('报告生成完成');
+            loadReportHistory();
+          },
+          (error) => {
+            setGenerationError(error);
+            setGenerating(false);
+            cancelPollingRef.current = null;
+
+            // 更新报告状态为失败
+            if (currentReport) {
+              setCurrentReport({
+                ...currentReport,
+                status: 'failed',
+                error_message: error
+              });
+            }
+            message.error(`报告生成失败: ${error}`);
+          },
+          1500, // interval
+          progressResponse.data.current_step // 传入当前步骤作为初始步骤
+        );
+        cancelPollingRef.current = cancelFn;
+      }
+    } catch (error) {
+      console.error('恢复生成进度失败:', error);
     }
   };
 
@@ -142,7 +201,7 @@ const MonthlyReportSection: React.FC = () => {
           });
 
           // 开始轮询进度
-          monthlyReportService.pollGenerationProgress(
+          const cancelFn = await monthlyReportService.pollGenerationProgress(
             response.data.id,
             (progress) => {
               setGenerationProgress(progress);
@@ -155,12 +214,14 @@ const MonthlyReportSection: React.FC = () => {
                 status: 'completed_waiting' // 自定义状态：完成但等待用户查看
               });
               setGenerating(false);
+              cancelPollingRef.current = null;
               message.success('报告生成完成');
               loadReportHistory();
             },
             (error) => {
               setGenerationError(error);
               setGenerating(false);
+              cancelPollingRef.current = null;
               // 不要清空进度，保持最后的进度状态用于显示失败位置
               // setGenerationProgress(undefined);
 
@@ -175,6 +236,7 @@ const MonthlyReportSection: React.FC = () => {
               message.error(`报告生成失败: ${error}`);
             }
           );
+          cancelPollingRef.current = cancelFn;
         } else {
           message.error('启动报告生成失败');
           setGenerating(false);
@@ -268,9 +330,30 @@ const MonthlyReportSection: React.FC = () => {
   useEffect(() => {
     const year = selectedDate.year();
     const month = selectedDate.month() + 1;
-    setShowReportContent(false); // 重置显示状态
+
+    // 取消之前的轮询
+    if (cancelPollingRef.current) {
+      cancelPollingRef.current();
+      cancelPollingRef.current = null;
+    }
+
+    // 重置所有相关状态
+    setShowReportContent(false);
+    setGenerationProgress(undefined);
+    setGenerationError('');
+    setGenerating(false);
+
     loadReport(year, month);
-  }, [selectedDate, currentWorkspace]);
+  }, [selectedDate, currentWorkspace]); // 移除cancelPolling依赖，避免无限循环
+
+  // 组件卸载时清理轮询
+  useEffect(() => {
+    return () => {
+      if (cancelPollingRef.current) {
+        cancelPollingRef.current();
+      }
+    };
+  }, []); // 只在组件挂载时设置清理函数
 
   // 加载默认智能体配置
   const loadDefaultPrompt = async () => {
@@ -443,7 +526,7 @@ const MonthlyReportSection: React.FC = () => {
 
       {/* 提示词编辑器 */}
       <PromptEditor
-        visible={promptEditorVisible}
+        open={promptEditorVisible}
         onClose={() => setPromptEditorVisible(false)}
         workspaceId={currentWorkspace.id}
         onTemplateSelect={setCurrentPrompt}
@@ -461,6 +544,14 @@ const MonthlyReportSection: React.FC = () => {
         onCancel={() => setHistoryVisible(false)}
         width={800}
         footer={null}
+        style={{ maxHeight: '90vh' }}
+        styles={{
+          body: {
+            maxHeight: '70vh',
+            overflowY: 'auto',
+            padding: '16px'
+          }
+        }}
       >
         <List
           dataSource={reportHistory}

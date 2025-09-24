@@ -654,15 +654,17 @@ const MainLayout: React.FC = () => {
   if (initializing) {
     return (
       <Layout style={{ minHeight: '100vh' }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: '100vh', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
           width: '100%',
           background: colorBgContainer
         }}>
-          <Spin tip="正在加载工作区..." size="large" />
+          <Spin tip="正在加载工作区..." size="large">
+            <div style={{ minHeight: '100px', minWidth: '100px' }} />
+          </Spin>
         </div>
       </Layout>
     );

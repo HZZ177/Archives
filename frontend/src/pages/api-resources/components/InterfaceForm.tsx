@@ -19,7 +19,6 @@ import { createInterface, updateInterface, getInterfaceDetail } from '../../../s
 
 const { TextArea } = Input;
 const { Option } = Select;
-const { TabPane } = Tabs;
 
 interface InterfaceFormProps {
   workspaceId?: number;
@@ -340,7 +339,9 @@ const InterfaceForm: React.FC<InterfaceFormProps> = ({
   if (initialValues?.id && detailLoading) {
     return (
       <div style={{ textAlign: 'center', padding: '30px 0' }}>
-        <Spin tip="加载接口详情..." />
+        <Spin tip="加载接口详情...">
+          <div style={{ minHeight: '100px' }} />
+        </Spin>
       </div>
     );
   }
@@ -357,59 +358,71 @@ const InterfaceForm: React.FC<InterfaceFormProps> = ({
         content_type: initialValues?.content_type || 'application/json',
       }}
     >
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <TabPane tab="基本信息" key="basic">
-          <Form.Item
-            name="path"
-            label="接口路径"
-            rules={[{ required: true, message: '请输入接口路径' }]}
-          >
-            <Input placeholder="/api/example" />
-          </Form.Item>
-          
-          <Form.Item
-            name="method"
-            label="HTTP方法"
-            rules={[{ required: true, message: '请选择HTTP方法' }]}
-          >
-            <Select placeholder="选择HTTP方法">
-              {HTTP_METHODS.map(method => (
-                <Option key={method} value={method}>
-                  {method}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-          
-          <Form.Item
-            name="content_type"
-            label="内容类型"
-          >
-            <Select placeholder="选择内容类型">
-              {CONTENT_TYPES.map(type => (
-                <Option key={type} value={type}>
-                  {type}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-          
-          <Form.Item
-            name="description"
-            label="接口描述"
-          >
-            <TextArea rows={4} placeholder="接口描述（可选）" />
-          </Form.Item>
-        </TabPane>
-        
-        <TabPane tab="请求参数" key="request_params">
-          {renderRequestParamsFields()}
-        </TabPane>
-        
-        <TabPane tab="响应参数" key="response_params">
-          {renderResponseParamsFields()}
-        </TabPane>
-      </Tabs>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'basic',
+            label: '基本信息',
+            children: (
+              <>
+                <Form.Item
+                  name="path"
+                  label="接口路径"
+                  rules={[{ required: true, message: '请输入接口路径' }]}
+                >
+                  <Input placeholder="/api/example" />
+                </Form.Item>
+
+                <Form.Item
+                  name="method"
+                  label="HTTP方法"
+                  rules={[{ required: true, message: '请选择HTTP方法' }]}
+                >
+                  <Select placeholder="选择HTTP方法">
+                    {HTTP_METHODS.map(method => (
+                      <Option key={method} value={method}>
+                        {method}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                <Form.Item
+                  name="content_type"
+                  label="内容类型"
+                >
+                  <Select placeholder="选择内容类型">
+                    {CONTENT_TYPES.map(type => (
+                      <Option key={type} value={type}>
+                        {type}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                <Form.Item
+                  name="description"
+                  label="接口描述"
+                >
+                  <TextArea rows={4} placeholder="接口描述（可选）" />
+                </Form.Item>
+              </>
+            )
+          },
+          {
+            key: 'request_params',
+            label: '请求参数',
+            children: renderRequestParamsFields()
+          },
+          {
+            key: 'response_params',
+            label: '响应参数',
+            children: renderResponseParamsFields()
+          }
+        ]}
+      />
       
       <div style={{ marginTop: 24, textAlign: 'right' }}>
         <Space>

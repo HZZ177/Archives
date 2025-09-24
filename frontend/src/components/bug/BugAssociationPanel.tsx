@@ -437,10 +437,12 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
         footer={null}
         width={1100}
         style={{ maxHeight: '80vh' }}
-        bodyStyle={{
-          maxHeight: '70vh',
-          overflowY: 'auto',
-          padding: '24px'
+        styles={{
+          body: {
+            maxHeight: '70vh',
+            overflowY: 'auto',
+            padding: '24px'
+          }
         }}
       >
         <div style={{ marginBottom: 16 }}>
@@ -568,7 +570,7 @@ const BugAssociationPanel: React.FC<BugAssociationPanelProps> = ({
 
       {/* 缺陷详情弹窗 */}
       <BugDetailModal
-        visible={detailModalVisible}
+        open={detailModalVisible}
         bug={detailBug}
         onClose={() => {
           setDetailModalVisible(false);

@@ -288,9 +288,9 @@ const UserWorkspacePermissions: React.FC<UserWorkspacePermissionsProps> = ({ use
 
   return (
     <Spin spinning={loading}>
-      <Card 
-        title="工作区权限" 
-        bordered={false}
+      <Card
+        title="工作区权限"
+        variant="borderless"
         extra={
           <Button 
             type="primary" 

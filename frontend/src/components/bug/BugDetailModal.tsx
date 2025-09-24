@@ -4,7 +4,7 @@ import request from '../../utils/request';
 import { unwrapResponse } from '../../utils/request';
 
 interface BugDetailModalProps {
-  visible: boolean;
+  open: boolean;
   bug: any | null;
   onClose: () => void;
 }
@@ -39,7 +39,7 @@ const getStatusColor = (status: string) => {
 };
 
 const BugDetailModal: React.FC<BugDetailModalProps> = ({
-  visible,
+  open,
   bug,
   onClose
 }) => {
@@ -62,10 +62,10 @@ const BugDetailModal: React.FC<BugDetailModalProps> = ({
   };
   // 当bug变化时，获取详情
   useEffect(() => {
-    if (visible && bug && bug.coding_bug_id) {
+    if (open && bug && bug.coding_bug_id) {
       fetchBugDetail(bug.coding_bug_id);
     }
-  }, [visible, bug]);
+  }, [open, bug]);
 
   // 关闭时清理状态
   const handleClose = () => {
@@ -78,7 +78,7 @@ const BugDetailModal: React.FC<BugDetailModalProps> = ({
   return (
     <Modal
       title="缺陷详情"
-      open={visible}
+      open={open}
       onCancel={handleClose}
       footer={[
         <Button key="close" onClick={handleClose}>
@@ -87,13 +87,15 @@ const BugDetailModal: React.FC<BugDetailModalProps> = ({
       ]}
       width={1200}
       style={{ maxHeight: '80vh' }}
-      bodyStyle={{
-        maxHeight: '70vh',
-        overflowY: 'auto',
-        padding: '24px'
+      styles={{
+        body: {
+          maxHeight: '70vh',
+          overflowY: 'auto',
+          padding: '24px'
+        }
       }}
     >
-      <Spin spinning={loading} tip="加载中...">
+      <Spin spinning={loading} tip="加载中..." style={{ minHeight: '200px' }}>
         {currentBug && (
           <div>
             <Descriptions

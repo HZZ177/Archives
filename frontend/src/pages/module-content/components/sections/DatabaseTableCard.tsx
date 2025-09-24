@@ -81,7 +81,7 @@ const DatabaseTableCard: React.FC<DatabaseTableCardProps> = ({
         <Space>
           <span style={{ fontWeight: record.is_primary_key ? 500 : 400 }}>{text}</span>
           {record.is_primary_key && (
-            <Tooltip title="主键" color="white" overlayInnerStyle={{ color: 'black' }}>
+            <Tooltip title="主键" color="white" styles={{ body: { color: 'black' } }}>
               <KeyOutlined style={{ color: '#faad14' }} />
             </Tooltip>
           )}
@@ -119,7 +119,7 @@ const DatabaseTableCard: React.FC<DatabaseTableCardProps> = ({
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
-      render: (text: string) => <Tooltip title={text} color="white" overlayInnerStyle={{ color: 'black' }}><Text type="secondary">{text || '-'}</Text></Tooltip>,
+      render: (text: string) => <Tooltip title={text} color="white" styles={{ body: { color: 'black' } }}><Text type="secondary">{text || '-'}</Text></Tooltip>,
     },
   ];
 
@@ -147,7 +147,7 @@ const DatabaseTableCard: React.FC<DatabaseTableCardProps> = ({
             {isEditMode && (
                 <div className="db-table-card-icon-buttons">
                 {onEdit && (
-                    <Tooltip title="编辑" color="white" overlayInnerStyle={{ color: 'black' }}>
+                    <Tooltip title="编辑" color="white" styles={{ body: { color: 'black' } }}>
                     <Button
                         type="text"
                         size="small"
@@ -158,7 +158,7 @@ const DatabaseTableCard: React.FC<DatabaseTableCardProps> = ({
                     </Tooltip>
                 )}
                 {onDelete && (
-                    <Tooltip title="删除" color="white" overlayInnerStyle={{ color: 'black' }}>
+                    <Tooltip title="删除" color="white" styles={{ body: { color: 'black' } }}>
                     <Button
                         type="text"
                         size="small"
@@ -198,7 +198,7 @@ const DatabaseTableCard: React.FC<DatabaseTableCardProps> = ({
     <Card
       className={`db-table-card ${!isCollapsed ? 'expanded' : 'collapsed'}`}
       hoverable={false}
-      bodyStyle={{ padding: '0' }}
+      styles={{ body: { padding: '0' } }}
     >
       {renderCardContent()}
     </Card>

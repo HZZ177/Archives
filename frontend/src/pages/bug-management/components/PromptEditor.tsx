@@ -29,7 +29,7 @@ const { Option } = Select;
 const { Title, Text } = Typography;
 
 interface PromptEditorProps {
-  visible: boolean;
+  open: boolean;
   onClose: () => void;
   workspaceId: number;
   onTemplateSelect: (template: string) => void;
@@ -37,7 +37,7 @@ interface PromptEditorProps {
 }
 
 const PromptEditor: React.FC<PromptEditorProps> = ({
-  visible,
+  open,
   onClose,
   workspaceId,
   onTemplateSelect,
@@ -366,10 +366,10 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
   };
 
   useEffect(() => {
-    if (visible) {
+    if (open) {
       loadTemplates();
     }
-  }, [visible, workspaceId]);
+  }, [open, workspaceId]);
 
   // 获取当前显示的配置 - 使用 useMemo 确保响应状态变化
   const currentDisplayConfig = useMemo(() => {
@@ -410,7 +410,7 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
           <span>智能体管理</span>
         </Space>
       }
-      open={visible}
+      open={open}
       onCancel={onClose}
       width={1200}
       style={{ maxHeight: '90vh' }}

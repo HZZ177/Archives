@@ -172,9 +172,6 @@ const WorkspaceInterfacesPage: React.FC = () => {
     if (!currentWorkspace) return;
     
     try {
-      console.log('提交的表单数据:', values);
-      console.log('请求示例:', values.requestExample);
-      console.log('响应示例:', values.responseExample);
       
       // 检查是否存在相同路径和方法的接口
       const isEdit = !!currentInterface;
@@ -249,7 +246,11 @@ const WorkspaceInterfacesPage: React.FC = () => {
   // 渲染接口列表
   const renderInterfaceList = () => {
     if (loading) {
-      return <Spin tip="加载中..." />;
+      return (
+        <Spin tip="加载中...">
+          <div style={{ minHeight: '100px' }} />
+        </Spin>
+      );
     }
 
     if (interfaces.length === 0) {
@@ -412,7 +413,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
         destroyOnClose
       >
         <ApiInterfaceForm
-          visible={formVisible}
+          open={formVisible}
           initialValues={getFormInitialValues()}
           onOk={handleFormSubmit}
           onCancel={() => setFormVisible(false)}
@@ -422,7 +423,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
       
       {/* 添加导入接口Modal */}
       <InterfaceImportModal
-        visible={importModalVisible}
+        open={importModalVisible}
         onCancel={() => setImportModalVisible(false)}
         workspaceId={currentWorkspace?.id}
         onSuccess={() => {
@@ -432,7 +433,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
       
       {/* 添加批量编辑Modal */}
       <InterfaceBatchEditModal
-        visible={batchEditModalVisible}
+        open={batchEditModalVisible}
         onCancel={() => setBatchEditModalVisible(false)}
         workspaceId={currentWorkspace?.id}
         onSuccess={() => {

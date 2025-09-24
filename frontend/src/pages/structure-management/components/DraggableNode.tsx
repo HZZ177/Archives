@@ -1,14 +1,17 @@
 import React, { memo } from 'react';
 import { Button, Tooltip } from 'antd';
-import { 
-  PlusOutlined, 
-  DeleteOutlined, 
-  FileTextOutlined, 
-  FolderOpenOutlined, 
-  DownOutlined, 
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  FileTextOutlined,
+  FolderOpenOutlined,
+  DownOutlined,
   DragOutlined,
 } from '@ant-design/icons';
-import { Draggable } from 'react-beautiful-dnd';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { ModuleStructureNode } from '../../../types/modules';
 
 interface DraggableNodeProps {
@@ -73,31 +76,39 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
 }) => {
   // 计算当前缩进信息
   const currentIndentInfo = [...indentInfo, index === indentInfo.length - 1];
-  
+
+  // 使用 @dnd-kit 的 useSortable hook
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: node.id.toString() });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    maxWidth: '100%',
+    boxSizing: 'border-box' as const,
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <Draggable
-      draggableId={node.id.toString()}
-      index={index}
-    >
-      {(provided, snapshot) => (
-        <div
-          className={`tree-node-wrapper ${isSelected ? ' ant-tree-node-selected' : ''} ${snapshot.isDragging ? ' dragging' : ''} ${snapshot.isDragging && !isValidDrop ? ' invalid-drop' : ''} ${snapshot.isDragging && isValidDrop ? ' valid-drop' : ''} ${isExpanded ? 'expanded' : ''}`}
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          style={{
-            ...provided.draggableProps.style,
-            maxWidth: '100%',
-            boxSizing: 'border-box',
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-          }}
-          onClick={() => onSelect(node)}
-          onMouseEnter={e => e.currentTarget.classList.add('ant-tree-treenode-hover')}
-          onMouseLeave={e => e.currentTarget.classList.remove('ant-tree-treenode-hover')}
-          data-node-id={node.id}
-          data-level={level}
-          data-is-leaf={!node.children || node.children.length === 0 ? 'true' : 'false'}
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`tree-node-wrapper ${isSelected ? ' ant-tree-node-selected' : ''} ${isDragging ? ' dragging' : ''} ${isDragging && !isValidDrop ? ' invalid-drop' : ''} ${isDragging && isValidDrop ? ' valid-drop' : ''} ${isExpanded ? 'expanded' : ''}`}
+      onClick={() => onSelect(node)}
+      onMouseEnter={e => e.currentTarget.classList.add('ant-tree-treenode-hover')}
+      onMouseLeave={e => e.currentTarget.classList.remove('ant-tree-treenode-hover')}
+      data-node-id={node.id}
+      data-level={level}
+      data-is-leaf={!node.children || node.children.length === 0 ? 'true' : 'false'}
           data-is-content-page={node.is_content_page ? 'true' : 'false'}
         >
           {/* 左侧：缩进线、图标、名称 */}
@@ -137,7 +148,7 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
           </div>
           {/* 右侧：操作按钮区 */}
           <div className={`node-actions${node.is_content_page ? ' content-node-actions' : ''}`} style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'static', right: 'unset', top: 'unset', transform: 'none' }} onClick={e => e.stopPropagation()}>
-            <Tooltip title={node.is_content_page ? "内容页面不可添加子节点" : "添加子模块"} placement="top" color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+            <Tooltip title={node.is_content_page ? "内容页面不可添加子节点" : "添加子模块"} placement="top" color="#fff" styles={{ body: { color: 'rgba(0, 0, 0, 0.85)' } }}>
               <Button 
                 type="text" 
                 size="small" 
@@ -152,17 +163,15 @@ const DraggableNode: React.FC<DraggableNodeProps> = ({
                 }} 
               />
             </Tooltip>
-            <Tooltip title="删除" placement="top" color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+            <Tooltip title="删除" placement="top" color="#fff" styles={{ body: { color: 'rgba(0, 0, 0, 0.85)' } }}>
               <Button type="text" size="small" icon={<DeleteOutlined />} className="node-action-btn" danger
                 onClick={e => { e.stopPropagation(); onDelete(node); }} />
             </Tooltip>
-            <div {...provided.dragHandleProps} className="drag-handle">
+            <div {...attributes} {...listeners} className="drag-handle">
               <DragOutlined />
             </div>
           </div>
         </div>
-      )}
-    </Draggable>
   );
 };
 

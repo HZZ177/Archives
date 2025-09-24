@@ -37,7 +37,6 @@ class CodingConfigService:
                 workspace_id=config_data.workspace_id,
                 api_token=config_data.api_token,
                 project_name=config_data.project_name,
-                api_base_url=config_data.api_base_url,
                 is_enabled=config_data.is_enabled,
                 sync_conditions=config_data.sync_conditions,
                 selected_iteration=config_data.selected_iteration,

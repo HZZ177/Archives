@@ -6,7 +6,7 @@ import {
   Space,
   Input,
   Select,
-
+  DatePicker,
   message,
   Tag,
   Tabs,
@@ -38,6 +38,7 @@ import { usePermission } from '../../contexts/PermissionContext';
 import { unwrapResponse } from '../../utils/request';
 import request from '../../utils/request';
 import { ROUTES } from '../../config/constants';
+import dayjs from 'dayjs';
 import CodingConfigModal from '../../components/coding/CodingConfigModal';
 import BugAnalysisPage from './components/BugAnalysisPage';
 import MonthlyReportSection from './components/MonthlyReportSection';
@@ -92,6 +93,7 @@ const BugManagementPage: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [labelsFilter, setLabelsFilter] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState<[string, string] | null>(null);
   const [activeTab, setActiveTab] = useState('list');
   const [analysisRefreshKey, setAnalysisRefreshKey] = useState(0);
 
@@ -102,6 +104,7 @@ const BugManagementPage: React.FC = () => {
   // 配置相关状态
   const [configModalVisible, setConfigModalVisible] = useState(false);
   const [codingConfig, setCodingConfig] = useState<any>(null);
+  const [configLoading, setConfigLoading] = useState(true); // 添加配置加载状态
 
   // 详情相关状态
   const [detailModalVisible, setDetailModalVisible] = useState(false);
@@ -137,7 +140,6 @@ const BugManagementPage: React.FC = () => {
         const tree = unwrapResponse(response.data) as any;
         // 处理响应数据格式，确保是数组
         const treeData = Array.isArray(tree) ? tree : (tree.items || []);
-        console.log('获取到的组织树数据:', treeData); // 调试日志
         setOrganizationTree(treeData);
       } else {
         message.error('获取组织树失败');
@@ -252,6 +254,8 @@ const BugManagementPage: React.FC = () => {
       console.error('获取Coding配置失败:', error);
       // 配置获取失败时，设置为null
       setCodingConfig(null);
+    } finally {
+      setConfigLoading(false); // 无论成功还是失败，都设置加载完成
     }
   };
 
@@ -356,20 +360,15 @@ const BugManagementPage: React.FC = () => {
         keyword: searchKeyword || undefined,
         priority: priorityFilter === 'ALL' ? undefined : priorityFilter,
         status_name: statusFilter === 'ALL' ? undefined : statusFilter,
-        labels: labelsFilter.length > 0 ? labelsFilter.join(',') : undefined
+        labels: labelsFilter.length > 0 ? labelsFilter.join(',') : undefined,
+        start_date: dateRange?.[0] || undefined,
+        end_date: dateRange?.[1] || undefined
       };
 
       const response = await request.get('/coding-bugs/', { params });
 
       if (response.data.success) {
         const data = unwrapResponse(response.data) as any;
-        console.log('分页数据调试:', {
-          page: currentPage,
-          pageSize: pageSize,
-          itemsCount: data.items?.length || 0,
-          total: data.total,
-          dataKeys: Object.keys(data || {})
-        });
         setBugList(data.items || []);
         setTotal(data.total || 0);
       } else {
@@ -419,6 +418,7 @@ const BugManagementPage: React.FC = () => {
   // 初始化
   useEffect(() => {
     if (currentWorkspace?.id) {
+      setConfigLoading(true); // 重置配置加载状态
       fetchCodingConfig();
       fetchBugList();
       fetchAvailableLabels();
@@ -431,7 +431,7 @@ const BugManagementPage: React.FC = () => {
       setCurrentPage(1); // 重置到第一页
       fetchBugList();
     }
-  }, [searchKeyword, priorityFilter, statusFilter, labelsFilter]);
+  }, [searchKeyword, priorityFilter, statusFilter, labelsFilter, dateRange]);
 
   // 处理Tab切换
   const handleTabChange = (key: string) => {
@@ -559,7 +559,7 @@ const BugManagementPage: React.FC = () => {
             <BugOutlined /> 缺陷管理
           </Title>
 
-          {!codingConfig && (
+          {!configLoading && !codingConfig && (
             <Alert
               message="Coding API 未配置"
               description="配置Coding API Token和项目名称后，可以从Coding平台同步缺陷数据。您也可以手动管理缺陷。"
@@ -577,108 +577,149 @@ const BugManagementPage: React.FC = () => {
           )}
         </div>
 
-        <Tabs activeKey={activeTab} onChange={handleTabChange}>
-          <Tabs.TabPane tab="缺陷列表" key="list">
-            <div style={{ marginBottom: 16 }}>
-              <Row gutter={16}>
-                <Col span={5}>
-                  <Input
-                    placeholder="搜索标题或描述"
-                    prefix={<SearchOutlined />}
-                    value={searchKeyword}
-                    onChange={(e) => setSearchKeyword(e.target.value)}
-                    allowClear
-                  />
-                </Col>
-                <Col span={3}>
-                  <Select
-                    placeholder="优先级"
-                    value={priorityFilter === 'ALL' ? undefined : priorityFilter}
-                    onChange={(value) => setPriorityFilter(value || 'ALL')}
-                    allowClear
-                    style={{ width: '100%' }}
-                  >
-                    <Option value="紧急">紧急</Option>
-                    <Option value="高">高</Option>
-                    <Option value="中">中</Option>
-                    <Option value="低">低</Option>
-                    <Option value="未指定">未指定</Option>
-                  </Select>
-                </Col>
-                <Col span={3}>
-                  <Select
-                    placeholder="状态"
-                    value={statusFilter === 'ALL' ? undefined : statusFilter}
-                    onChange={(value) => setStatusFilter(value || 'ALL')}
-                    allowClear
-                    style={{ width: '100%' }}
-                  >
-                    <Option value="新">新</Option>
-                    <Option value="待处理">待处理</Option>
-                    <Option value="处理中">处理中</Option>
-                    <Option value="已解决">已解决</Option>
-                    <Option value="已关闭">已关闭</Option>
-                  </Select>
-                </Col>
-                <Col span={4}>
-                  <Select
-                    mode="multiple"
-                    placeholder="标签"
-                    value={labelsFilter}
-                    onChange={setLabelsFilter}
-                    allowClear
-                    style={{ width: '100%' }}
-                    loading={labelsLoading}
-                    showSearch
-                    filterOption={(input, option) =>
-                      (option?.label as string)?.toLowerCase().includes(input.toLowerCase()) ||
-                      (option?.value as string)?.toLowerCase().includes(input.toLowerCase())
-                    }
-                    maxTagCount="responsive"
-                  >
-                    {availableLabels.map(label => (
-                      <Option key={label} value={label}>
-                        {label}
-                      </Option>
-                    ))}
-                  </Select>
-                </Col>
-                <Col span={9} style={{ textAlign: 'right' }}>
-                  <Space>
-                    <Button
-                      onClick={fetchBugList}
-                      loading={loading}
-                    >
-                      查询
-                    </Button>
-                    {canSync && (
-                      <Button
-                        type="primary"
-                        loading={syncing}
-                        onClick={handleSyncFromCoding}
-                        disabled={!codingConfig}
-                        title={!codingConfig ? "请先配置Coding API" : ""}
+        <Tabs
+          activeKey={activeTab}
+          onChange={handleTabChange}
+          items={[
+            {
+              key: 'list',
+              label: '缺陷列表',
+              children: (
+                <>
+                  <div style={{ marginBottom: 16 }}>
+                  <Row gutter={16}>
+                    {/* 左侧筛选区域 */}
+                    <Col span={14}>
+                      {/* 第一行：搜索框 + 创建时间筛选 */}
+                      <Row gutter={[8, 8]} style={{ marginBottom: 8 }}>
+                        <Col span={12}>
+                          <Input
+                            placeholder="搜索标题或描述"
+                            prefix={<SearchOutlined />}
+                            value={searchKeyword}
+                            onChange={(e) => setSearchKeyword(e.target.value)}
+                            allowClear
+                          />
+                        </Col>
+                        <Col span={12}>
+                          <DatePicker.RangePicker
+                            placeholder={['开始日期', '结束日期']}
+                            value={dateRange ? [dayjs(dateRange[0]), dayjs(dateRange[1])] : null}
+                            onChange={(_, dateStrings) => {
+                              setDateRange(dateStrings[0] && dateStrings[1] ? [dateStrings[0], dateStrings[1]] : null);
+                            }}
+                        style={{ width: '100%' }}
+                        allowClear
+                      />
+                    </Col>
+                  </Row>
+                  {/* 第二行：优先级 + 状态 + 标签筛选 */}
+                  <Row gutter={[8, 8]}>
+                    <Col span={8}>
+                      <Select
+                        placeholder="优先级"
+                        value={priorityFilter === 'ALL' ? undefined : priorityFilter}
+                        onChange={(value) => setPriorityFilter(value || 'ALL')}
+                        allowClear
+                        style={{ width: '100%' }}
                       >
-                        从Coding同步
+                        <Option value="紧急">紧急</Option>
+                        <Option value="高">高</Option>
+                        <Option value="中">中</Option>
+                        <Option value="低">低</Option>
+                        <Option value="未指定">未指定</Option>
+                      </Select>
+                    </Col>
+                    <Col span={8}>
+                      <Select
+                        placeholder="状态"
+                        value={statusFilter === 'ALL' ? undefined : statusFilter}
+                        onChange={(value) => setStatusFilter(value || 'ALL')}
+                        allowClear
+                        style={{ width: '100%' }}
+                      >
+                        <Option value="新">新</Option>
+                        <Option value="待处理">待处理</Option>
+                        <Option value="处理中">处理中</Option>
+                        <Option value="已解决">已解决</Option>
+                        <Option value="已关闭">已关闭</Option>
+                      </Select>
+                    </Col>
+                    <Col span={8}>
+                      <Select
+                        mode="multiple"
+                        placeholder="标签"
+                        value={labelsFilter}
+                        onChange={setLabelsFilter}
+                        allowClear
+                        style={{ width: '100%' }}
+                        loading={labelsLoading}
+                        showSearch
+                        filterOption={(input, option) =>
+                          (option?.label as string)?.toLowerCase().includes(input.toLowerCase()) ||
+                          (option?.value as string)?.toLowerCase().includes(input.toLowerCase())
+                        }
+                        maxTagCount="responsive"
+                      >
+                        {availableLabels.map(label => (
+                          <Option key={label} value={label}>
+                            {label}
+                          </Option>
+                        ))}
+                      </Select>
+                    </Col>
+                  </Row>
+                </Col>
+
+                {/* 右侧操作区域 */}
+                <Col span={10}>
+                  {/* 第一行：查询 + 批量删除 */}
+                  <Row gutter={[8, 8]} style={{ marginBottom: 8 }} justify="end">
+                    <Col>
+                      <Button
+                        onClick={fetchBugList}
+                        loading={loading}
+                      >
+                        查询
                       </Button>
+                    </Col>
+                    <Col>
+                      <Button
+                        danger
+                        icon={<DeleteOutlined />}
+                        loading={deleteLoading}
+                        disabled={selectedRowKeys.length === 0}
+                        onClick={handleBatchDelete}
+                      >
+                        批量删除 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
+                      </Button>
+                    </Col>
+                  </Row>
+                  {/* 第二行：从Coding同步 + 同步配置 */}
+                  <Row gutter={[8, 8]} justify="end">
+                    {canSync && (
+                      <Col>
+                        <Button
+                          type="primary"
+                          loading={syncing}
+                          onClick={handleSyncFromCoding}
+                          disabled={!codingConfig}
+                          title={!codingConfig ? "请先配置Coding API" : ""}
+                        >
+                          从Coding同步
+                        </Button>
+                      </Col>
                     )}
                     {canConfig && (
-                      <Button
-                        onClick={() => setConfigModalVisible(true)}
-                      >
-                        Coding同步配置
-                      </Button>
+                      <Col>
+                        <Button
+                          onClick={() => setConfigModalVisible(true)}
+                        >
+                          Coding同步配置
+                        </Button>
+                      </Col>
                     )}
-                    <Button
-                      danger
-                      icon={<DeleteOutlined />}
-                      loading={deleteLoading}
-                      disabled={selectedRowKeys.length === 0}
-                      onClick={handleBatchDelete}
-                    >
-                      批量删除 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
-                    </Button>
-                  </Space>
+                  </Row>
                 </Col>
               </Row>
             </div>
@@ -719,21 +760,26 @@ const BugManagementPage: React.FC = () => {
                 emptyText: '暂无缺陷数据'
               }}
             />
-          </Tabs.TabPane>
-
-          <Tabs.TabPane tab="数据分析" key="analysis">
-            <BugAnalysisPage key={analysisRefreshKey} />
-          </Tabs.TabPane>
-
-          <Tabs.TabPane tab="AI月度报告" key="monthly-report">
-            <MonthlyReportSection />
-          </Tabs.TabPane>
-        </Tabs>
+                </>
+              )
+            },
+            {
+              key: 'analysis',
+              label: '数据分析',
+              children: <BugAnalysisPage key={analysisRefreshKey} />
+            },
+            {
+              key: 'monthly-report',
+              label: 'AI月度报告',
+              children: <MonthlyReportSection />
+            }
+          ]}
+        />
       </Card>
 
       {/* 使用统一的配置组件 */}
       <CodingConfigModal
-        visible={configModalVisible}
+        open={configModalVisible}
         onClose={() => setConfigModalVisible(false)}
         onSuccess={() => {
           setConfigModalVisible(false);
@@ -915,14 +961,11 @@ const BugManagementPage: React.FC = () => {
           <Tree
             treeData={organizationTree}
             onSelect={(selectedKeys, info) => {
-              console.log('选中的节点:', info.node); // 调试日志
-              console.log('selectedKeys:', selectedKeys); // 调试选中的keys
               if (selectedKeys.length > 0) {
                 // 检查节点类型，只允许选择内容模块
                 if (info.node.is_content_page === true) {
                   const moduleId = Number(selectedKeys[0]);
                   setSelectedModuleId(moduleId);
-                  console.log('选中内容模块ID:', moduleId);
                 } else {
                   setSelectedModuleId(null);
                   message.warning('只能选择内容模块，节点模块不可选择');

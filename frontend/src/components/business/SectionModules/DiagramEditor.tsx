@@ -806,11 +806,11 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
       
       {/* 大画布预览弹窗 */}
       <Modal
-        visible={previewVisible}
+        open={previewVisible}
         footer={null}
         onCancel={handlePreviewClose}
         width="90%"
-        bodyStyle={{ padding: 0 }}
+        styles={{ body: { padding: 0 } }}
         style={{ top: 20 }}
         title={`${!isEditable ? "[阅读模式]" : "[编辑模式]"} 图表预览`}
       >
@@ -908,7 +908,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
       {/* 数据库表详情弹窗 */}
       <Modal
         title={`表详情: ${selectedTable?.name || ''}`}
-        visible={detailModalVisible}
+        open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
         footer={null}
         width={700}
@@ -920,7 +920,7 @@ const DiagramEditor = forwardRef<DiagramEditorHandle, DiagramEditorProps>(({
       {/* 接口资源详情弹窗 */}
       <Modal
         title={`接口详情: ${selectedInterface?.path || ''}`}
-        visible={interfaceDetailModalVisible}
+        open={interfaceDetailModalVisible}
         onCancel={() => setInterfaceDetailModalVisible(false)}
         footer={null}
         width={700}

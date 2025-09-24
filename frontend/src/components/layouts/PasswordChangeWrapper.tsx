@@ -69,7 +69,7 @@ const PasswordChangeWrapper: React.FC<PasswordChangeWrapperProps> = ({ children 
       
       {userState.isLoggedIn && userState.currentUser && (
         <ChangePasswordModal
-          visible={showPasswordModal}
+          open={showPasswordModal}
           onClose={isFirstLogin ? handlePasswordChanged : handleCloseModal}
           userMobile={userState.currentUser.mobile}
           isFirstLogin={isFirstLogin}

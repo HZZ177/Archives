@@ -672,7 +672,7 @@ const UserList: React.FC = () => {
     <div>
       {/* 添加内联样式 */}
       <style>{centerHeaderStyle}</style>
-      <Card bordered={false}>
+      <Card variant="borderless">
         <div style={{ marginBottom: 16 }}>
           <Space>
             <Search

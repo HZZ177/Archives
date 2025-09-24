@@ -42,7 +42,9 @@ const PrivateRoute: React.FC<PrivateRouteProps> = React.memo(({ children }) => {
   if (permissionLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin tip="验证权限中..." />
+        <Spin tip="验证权限中..." size="large">
+          <div style={{ minHeight: '100px', minWidth: '100px' }} />
+        </Spin>
       </div>
     );
   }

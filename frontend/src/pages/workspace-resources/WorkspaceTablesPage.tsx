@@ -545,7 +545,11 @@ const WorkspaceTablesPage: React.FC = () => {
   // 渲染页面内容
   const renderContent = () => {
     if (loading) {
-      return <Spin tip="加载中..." />;
+      return (
+        <Spin tip="加载中...">
+          <div style={{ minHeight: '100px' }} />
+        </Spin>
+      );
     }
 
     if (!currentWorkspace) {
@@ -741,7 +745,7 @@ const WorkspaceTablesPage: React.FC = () => {
       
       {/* 批量编辑弹窗 */}
       <TableBatchEditModal
-        visible={batchEditModalVisible}
+        open={batchEditModalVisible}
         onCancel={() => setBatchEditModalVisible(false)}
         workspaceId={currentWorkspace?.id}
         onSuccess={() => {

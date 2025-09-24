@@ -99,7 +99,7 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
                   onClick={(e) => toggleParamExpand(paramId, e)}
                 />
               )}
-              <Tooltip title={param.name} align={{ offset: [0, 0] }} arrow={{ pointAtCenter: true }} color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+              <Tooltip title={param.name} align={{ offset: [0, 0] }} arrow={{ pointAtCenter: true }} color="#fff" styles={{ body: { color: 'rgba(0, 0, 0, 0.85)' } }}>
                 <span className={hasChildren ? 'has-children' : ''}>{param.name}</span>
               </Tooltip>
             </div>
@@ -113,7 +113,7 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
             </div>
           )}
           <div className="api-param-desc">
-            <Tooltip title={param.description} color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+            <Tooltip title={param.description} color="#fff" styles={{ body: { color: 'rgba(0, 0, 0, 0.85)' } }}>
               <Text ellipsis>{param.description || '-'}</Text>
             </Tooltip>
           </div>
@@ -195,8 +195,10 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
                   } 
                   placement="top" 
                   color="#fff"
-                  overlayStyle={{ maxWidth: '500px' }}
-                  overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)', fontSize: '14px', padding: '8px 12px' }}
+                  styles={{
+                    root: { maxWidth: '500px' },
+                    body: { color: 'rgba(0, 0, 0, 0.85)', fontSize: '14px', padding: '8px 12px' }
+                  }}
                   arrow={{ pointAtCenter: true }}
                   trigger="click"
                 >
@@ -210,7 +212,7 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
           <div className="api-card-desc">
             <div>
               {data.description ? (
-                <Tooltip title={data.description} color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+                <Tooltip title={data.description} color="#fff" styles={{ body: { color: 'rgba(0, 0, 0, 0.85)' } }}>
                   <Text type="secondary" ellipsis>
                     {data.description}
                   </Text>
@@ -234,7 +236,7 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
           {isEditable && (
             <div className="api-card-icon-buttons">
               {showEditButton && (
-                <Tooltip title="编辑" color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+                <Tooltip title="编辑" color="#fff" styles={{ body: { color: 'rgba(0, 0, 0, 0.85)' } }}>
                   <Button
                     type="text"
                     size="small"
@@ -247,7 +249,7 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
                   />
                 </Tooltip>
               )}
-              <Tooltip title="删除" color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+              <Tooltip title="删除" color="#fff" styles={{ body: { color: 'rgba(0, 0, 0, 0.85)' } }}>
                 <Button
                   type="text"
                   size="small"
@@ -325,10 +327,10 @@ const ApiInterfaceCard: React.FC<ApiInterfaceCardProps> = ({
 
   return (
     <>
-      <Card 
+      <Card
         className={`api-interface-card ${expanded ? 'expanded' : 'collapsed'}`}
         hoverable={false}
-        bodyStyle={{ padding: expanded ? '16px' : '12px 16px' }}
+        styles={{ body: { padding: expanded ? '16px' : '12px 16px' } }}
       >
         {renderCardContent()}
       </Card>

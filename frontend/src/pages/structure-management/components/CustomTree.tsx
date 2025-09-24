@@ -1,18 +1,36 @@
 import React, { useState, useCallback, useRef, useLayoutEffect, useEffect, useMemo } from 'react';
 import { Button, Tooltip, message, Input } from 'antd';
-import { 
-  PlusOutlined, 
-  DeleteOutlined, 
-  FileTextOutlined, 
-  FolderOpenOutlined, 
-  DownOutlined, 
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  FileTextOutlined,
+  FolderOpenOutlined,
+  DownOutlined,
   DragOutlined,
   FileOutlined,
   FolderOutlined,
   SearchOutlined,
   UpOutlined
 } from '@ant-design/icons';
-import { DragDropContext, Droppable, Draggable, DropResult, DragUpdate } from 'react-beautiful-dnd';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+  DragStartEvent,
+  DragEndEvent,
+  DragOverEvent,
+  UniqueIdentifier,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { ModuleStructureNode } from '../../../types/modules';
 import { batchUpdateNodeOrder } from '../../../apis/moduleService';
 import { throttle } from '../../../utils/throttle';
@@ -52,10 +70,24 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
   const [showDragTip, setShowDragTip] = useState(false);
   const [dragTipPos, setDragTipPos] = useState({ x: 0, y: 0 });
   const [hasMoved, setHasMoved] = useState(false);
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const [draggedNode, setDraggedNode] = useState<ModuleStructureNode | null>(null);
   // 搜索相关状态
   const [searchValue, setSearchValue] = useState<string>('');
   const [matchedNodeIds, setMatchedNodeIds] = useState<number[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState<number>(0);
+
+  // @dnd-kit 传感器配置
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px 移动距离后才开始拖拽
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // 优化树渲染性能：使用useLayoutEffect，减少React渲染次数
   useLayoutEffect(() => {
@@ -294,62 +326,80 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
     });
   };
 
-  const handleDragEnd = async (result: DropResult) => {
-    if (!result.destination) return;
-    
-    const { source, destination } = result;
-    const sourceId = source.droppableId;
-    const destId = destination.droppableId;
-    const dragIndex = source.index;
-    const dropIndex = destination.index;
-    
-    if (sourceId === destId && dragIndex === dropIndex) return;
+  // @dnd-kit 拖拽开始处理
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveId(active.id);
+    setIsDragging(true);
+    setIsValidDrop(true);
+    setShowDragTip(true);
+    setHasMoved(false);
+
+    // 找到被拖动的节点
+    const draggedNodeId = parseInt(active.id.toString());
+    const node = findNodeById(localTreeData, draggedNodeId);
+    setDraggedNode(node);
+
+    // 自动收起同层级所有节点（包括被拖动节点本身）
+    const { siblings } = findNodeAndParent(localTreeData, draggedNodeId);
+    if (siblings && siblings.length > 0) {
+      setExpandedKeys(prev => prev.filter(key => !siblings.some(sib => sib.id === key)));
+    }
+  };
+
+  // @dnd-kit 拖拽结束处理
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    setActiveId(null);
+    setDraggedNode(null);
+    setIsDragging(false);
+    setShowDragTip(false);
+    setHasMoved(false);
+
+    if (!over || active.id === over.id) {
+      return;
+    }
 
     try {
-      // 开发环境下的调试代码已移除
-      
+      const draggedNodeId = parseInt(active.id.toString());
+      const targetNodeId = parseInt(over.id.toString());
+
       // 找到被拖动的节点及其父节点
-      const { node: draggedNode, parent: sourceParent, siblings: sourceSiblings } = findNodeAndParent(localTreeData, parseInt(result.draggableId));
+      const { node: draggedNode, parent: sourceParent, siblings: sourceSiblings } = findNodeAndParent(localTreeData, draggedNodeId);
+      const { parent: targetParent } = findNodeAndParent(localTreeData, targetNodeId);
+
       if (!draggedNode) {
         throw new Error('找不到被拖动的节点');
       }
 
-      // 解析droppableId，提取父节点ID
-      // 格式：parentId_level_X 或 root
-      const getParentIdFromDroppableId = (droppableId: string): number | null => {
-        if (droppableId === 'root') return null;
-        const parts = droppableId.split('_level_');
-        return parts.length > 0 ? parseInt(parts[0]) : null;
-      };
-      
-      // 提取源和目标的父节点ID
-      const sourceParentId = getParentIdFromDroppableId(sourceId);
-      const destParentId = getParentIdFromDroppableId(destId);
+      // 检查是否在同一层级（同一父节点）
+      const sourceParentId = sourceParent?.id || null;
+      const targetParentId = targetParent?.id || null;
 
-      // 检查是否在同一层级
-      if (sourceParentId !== destParentId) {
+      if (sourceParentId !== targetParentId) {
         message.error('只能在同级节点之间进行排序');
         return;
       }
 
-      // 从源位置移除节点
-      const newSourceSiblings = Array.from(sourceSiblings);
-      const [removed] = newSourceSiblings.splice(dragIndex, 1);
-      
-      // 插入到目标位置
-      const newDestSiblings = newSourceSiblings;
-      newDestSiblings.splice(dropIndex, 0, removed);
+      // 获取当前排序
+      const oldIndex = sourceSiblings.findIndex(node => node.id === draggedNodeId);
+      const newIndex = sourceSiblings.findIndex(node => node.id === targetNodeId);
+
+      if (oldIndex === newIndex) return;
+
+      // 使用 arrayMove 重新排序
+      const newSiblings = arrayMove(sourceSiblings, oldIndex, newIndex);
 
       // 乐观更新：立即更新本地状态
-      const updatedNodes = newDestSiblings.map((node, idx) => ({
+      const updatedNodes = newSiblings.map((node, idx) => ({
         ...node,
         order_index: (idx + 1) * 10
       }));
 
       // 更新本地树数据
       let newTreeData = [...localTreeData];
-      const parentNode = sourceParent || { id: null };
-      if (parentNode.id === null) {
+      if (sourceParentId === null) {
         newTreeData = updatedNodes;
       } else {
         // 对于非根节点，更新父节点的子节点列表
@@ -367,8 +417,8 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
             return node;
           });
         };
-        
-        newTreeData = updateChildrenInTree(newTreeData, parentNode.id, updatedNodes);
+
+        newTreeData = updateChildrenInTree(newTreeData, sourceParentId, updatedNodes);
       }
 
       // 立即更新本地状态
@@ -388,101 +438,93 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
       message.error('更新排序失败');
       // 恢复原始状态
       setLocalTreeData(treeData);
-    } finally {
-      setIsDragging(false);
     }
   };
 
-  // 使用useMemo创建节流版本的更新函数，避免每次渲染重新创建
-  const throttledDragUpdate = useMemo(
-    () => 
-      throttle((update: DragUpdate) => {
-        if (!update.destination) {
-          setIsValidDrop(false);
-          return;
+  // @dnd-kit 拖拽悬停处理
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+
+    if (!over) {
+      setIsValidDrop(false);
+      return;
+    }
+
+    const draggedNodeId = parseInt(active.id.toString());
+    const targetNodeId = parseInt(over.id.toString());
+
+    // 找到被拖动的节点和目标节点的父节点
+    const { parent: sourceParent } = findNodeAndParent(localTreeData, draggedNodeId);
+    const { parent: targetParent } = findNodeAndParent(localTreeData, targetNodeId);
+
+    // 检查是否在同一层级
+    const sourceParentId = sourceParent?.id || null;
+    const targetParentId = targetParent?.id || null;
+
+    const isValidDrop = sourceParentId === targetParentId;
+    setIsValidDrop(isValidDrop);
+  };
+
+  // 获取所有节点的ID列表（用于SortableContext）
+  const getAllNodeIds = useCallback((nodes: ModuleStructureNode[]): string[] => {
+    const ids: string[] = [];
+    const traverse = (nodeList: ModuleStructureNode[]) => {
+      nodeList.forEach(node => {
+        ids.push(node.id.toString());
+        if (node.children && node.children.length > 0) {
+          traverse(node.children);
         }
+      });
+    };
+    traverse(nodes);
+    return ids;
+  }, []);
 
-        const sourceId = update.source.droppableId;
-        const destId = update.destination.droppableId;
-        
-        // 提取拖拽节点ID
-        const draggedNodeId = parseInt(update.draggableId);
-        
-        // 寻找被拖拽节点及其父节点，确定节点层级
-        const { parent: sourceParent } = findNodeAndParent(localTreeData, draggedNodeId);
-        
-        // 进行更精确的判断，确保同级拖拽有效
-        // 1. 同一父节点下的拖拽总是有效的（同级排序）
-        const isValidDrop = sourceId === destId;
-        
-        // 开发环境下的调试代码已移除
-        
-        setIsValidDrop(isValidDrop);
-      }, 100), // 100ms的节流，避免过于频繁的状态更新
-    [localTreeData, findNodeAndParent]
-  );
-  
-  // 使用节流版本替换原始的handleDragUpdate函数
-  const handleDragUpdate = useCallback((update: DragUpdate) => {
-    throttledDragUpdate(update);
-  }, [throttledDragUpdate]);
-
-  // 递归渲染节点，缩进用tree-indent占位div
+  // 递归渲染节点，使用 @dnd-kit
   const renderNodes = useCallback((nodes: ModuleStructureNode[], parentId: number | null = null, level: number = 0, indentInfo: boolean[] = []) => {
     return (
-      <Droppable 
-        droppableId={parentId === null ? 'root' : `${parentId.toString()}_level_${level}`}
-        type={`NODE_LEVEL_${level}`}
+      <div
+        className={`droppable-area${isDragging && !isValidDrop ? ' invalid-drop' : ''}${isDragging && isValidDrop ? ' valid-drop' : ''}`}
+        style={{
+          width: '100%',
+          overflow: 'visible',
+          position: 'relative',
+          minHeight: 0,
+          padding: 0,
+          margin: 0
+        }}
+        data-level={level}
       >
-        {(provided, snapshot) => (
-          <div 
-            ref={provided.innerRef} 
-            {...provided.droppableProps} 
-            className={`droppable-area${snapshot.isDraggingOver ? ' drag-over' : ''}${snapshot.isDraggingOver && !isValidDrop ? ' invalid-drop' : ''}${snapshot.isDraggingOver && isValidDrop ? ' valid-drop' : ''}`}
-            style={{ 
-              width: '100%',
-              overflow: 'visible',
-              position: 'relative',
-              minHeight: 0,
-              padding: 0,
-              margin: 0
-            }}
-            data-level={level}
-          >
-            {nodes.map((node, index) => {
-              const currentIndentInfo = [...indentInfo, index === nodes.length - 1];
-              return (
-              <React.Fragment key={`${node.id}-${searchValue ? 'search' : 'normal'}-${matchedNodeIds.includes(node.id) ? 'match' : 'nomatch'}`}>
-                  {/* 使用优化后的DraggableNode组件 */}
-                  <DraggableNode
-                    node={node}
-                    index={index}
-                    level={level}
-                    indentInfo={indentInfo}
-                    isSelected={selectedKey === node.id}
-                    isExpanded={expandedKeys.includes(node.id)}
-                    isValidDrop={isValidDrop}
-                    isHighlighted={searchValue.trim() !== '' && matchedNodeIds.includes(node.id)}
-                    searchValue={searchValue}
-                    onSelect={handleSelect}
-                    onExpand={handleExpand}
-                    onAddChild={onAddChild}
-                    onDelete={onDelete}
-                  />
-                  {/* 只在本节点下方递归渲染children */}
-                  {node.children && node.children.length > 0 && (
-                    <div className={`node-children-wrapper ${expandedKeys.includes(node.id) ? 'expanded' : ''}`}>
-                        {renderNodes(node.children, node.id, level + 1, currentIndentInfo)}
-                    </div>
-                  )}
-              </React.Fragment>
-              );
-            })}
-            {/* 只在拖拽时渲染provided.placeholder，避免撑高区域 */}
-            {isDragging && provided.placeholder}
-          </div>
-        )}
-      </Droppable>
+        {nodes.map((node, index) => {
+          const currentIndentInfo = [...indentInfo, index === nodes.length - 1];
+          return (
+          <React.Fragment key={`${node.id}-${searchValue ? 'search' : 'normal'}-${matchedNodeIds.includes(node.id) ? 'match' : 'nomatch'}`}>
+              {/* 使用优化后的DraggableNode组件 */}
+              <DraggableNode
+                node={node}
+                index={index}
+                level={level}
+                indentInfo={indentInfo}
+                isSelected={selectedKey === node.id}
+                isExpanded={expandedKeys.includes(node.id)}
+                isValidDrop={isValidDrop}
+                isHighlighted={searchValue.trim() !== '' && matchedNodeIds.includes(node.id)}
+                searchValue={searchValue}
+                onSelect={handleSelect}
+                onExpand={handleExpand}
+                onAddChild={onAddChild}
+                onDelete={onDelete}
+              />
+              {/* 只在本节点下方递归渲染children */}
+              {node.children && node.children.length > 0 && (
+                <div className={`node-children-wrapper ${expandedKeys.includes(node.id) ? 'expanded' : ''}`}>
+                    {renderNodes(node.children, node.id, level + 1, currentIndentInfo)}
+                </div>
+              )}
+          </React.Fragment>
+          );
+        })}
+      </div>
     );
   }, [expandedKeys, selectedKey, isValidDrop, isDragging, handleSelect, handleExpand, onAddChild, onDelete, searchValue, matchedNodeIds, localTreeData]);
 
@@ -563,35 +605,29 @@ export const CustomTree: React.FC<CustomTreeProps> = ({
           <p>暂无模块数据</p>
         </div>
       ) : (
-        <DragDropContext 
-          onDragStart={initial => {
-            setIsDragging(true);
-            setIsValidDrop(true);
-            setShowDragTip(true);
-            setHasMoved(false);
-            // 自动收起同层级所有节点（包括被拖动节点本身）
-            const draggedId = parseInt(initial.draggableId);
-            const { siblings } = findNodeAndParent(localTreeData, draggedId);
-            if (siblings && siblings.length > 0) {
-              setExpandedKeys(prev => prev.filter(key => !siblings.some(sib => sib.id === key)));
-            }
-          }}
-          onDragUpdate={handleDragUpdate}
-          onDragEnd={result => {
-            // 合并状态更新，减少重新渲染次数
-            const updatedState = {
-              isDragging: false,
-              showDragTip: false,
-              hasMoved: false
-            };
-            setIsDragging(updatedState.isDragging);
-            setShowDragTip(updatedState.showDragTip);
-            setHasMoved(updatedState.hasMoved);
-            handleDragEnd(result);
-          }}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
         >
-          {renderNodes(localTreeData)}
-        </DragDropContext>
+          <SortableContext
+            items={getAllNodeIds(localTreeData)}
+            strategy={verticalListSortingStrategy}
+          >
+            {renderNodes(localTreeData)}
+          </SortableContext>
+          <DragOverlay>
+            {activeId && draggedNode ? (
+              <div className="tree-node-wrapper dragging">
+                <div className="node-content">
+                  {draggedNode.name}
+                </div>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
       {/* 全局拖拽提示浮层 */}
       {showDragTip && hasMoved && (

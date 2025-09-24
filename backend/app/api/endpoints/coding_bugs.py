@@ -88,6 +88,8 @@ async def get_coding_bugs(
     priority: Optional[str] = Query(None, description="严重程度筛选"),
     status_name: Optional[str] = Query(None, description="状态筛选"),
     labels: Optional[str] = Query(None, description="标签筛选，多个用逗号分隔"),
+    start_date: Optional[str] = Query(None, description="开始日期 YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="结束日期 YYYY-MM-DD"),
     workspace_id: Optional[int] = Query(None, description="工作区ID，不指定则使用用户默认工作区")
 ):
     """从本地数据库获取Coding缺陷列表"""
@@ -116,7 +118,9 @@ async def get_coding_bugs(
             keyword=keyword,
             priority=priority,
             status_name=status_name,
-            labels=label_list
+            labels=label_list,
+            start_date=start_date,
+            end_date=end_date
         )
 
         return success_response(data=result)
@@ -132,7 +136,8 @@ async def get_coding_bugs(
 async def get_coding_bug_detail(
     request_data: dict,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    workspace_id: Optional[int] = Query(None, description="工作区ID，如果不提供则使用用户默认工作区")
 ):
     """从本地数据库获取Coding缺陷详情"""
     try:
@@ -143,11 +148,22 @@ async def get_coding_bug_detail(
         if not coding_bug_id:
             return error_response(message="缺少coding_bug_id参数")
 
-        # 获取用户工作区
-        workspace_id = current_user.default_workspace_id
+        # 获取工作区ID - 优先使用查询参数中的workspace_id
         if not workspace_id:
-            default_workspace = await workspace_service.get_default_workspace(db, current_user)
-            workspace_id = default_workspace.id
+            # 如果查询参数中没有workspace_id，则使用用户默认工作区
+            workspace_id = current_user.default_workspace_id
+            if not workspace_id:
+                default_workspace = await workspace_service.get_default_workspace(db, current_user)
+                workspace_id = default_workspace.id
+
+        # 验证用户对指定工作区的访问权限
+        try:
+            access_level = await workspace_service.get_user_workspace_access(db, current_user.id, workspace_id)
+            if not access_level:
+                return error_response(message="您没有访问该工作区的权限")
+        except Exception as e:
+            logger.error(f"验证工作区访问权限失败: {str(e)}")
+            return error_response(message="验证工作区权限失败")
 
         # 从本地数据库获取详情
         detail = await coding_bug_service.get_bug_detail(
@@ -172,7 +188,8 @@ async def get_coding_bug_detail(
 async def link_bug_to_module(
     request_data: dict,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    workspace_id: Optional[int] = Query(None, description="工作区ID，如果不提供则使用用户默认工作区")
 ):
     """关联缺陷到模块"""
     try:
@@ -186,11 +203,23 @@ async def link_bug_to_module(
         if not coding_bug_id or not module_id:
             return error_response(message="缺少必要参数")
 
-        # 获取用户工作区
-        workspace_id = current_user.default_workspace_id
+        # 获取工作区ID - 优先使用查询参数中的workspace_id
         if not workspace_id:
-            default_workspace = await workspace_service.get_default_workspace(db, current_user)
-            workspace_id = default_workspace.id
+            # 如果查询参数中没有workspace_id，则使用用户默认工作区
+            workspace_id = current_user.default_workspace_id
+            if not workspace_id:
+                default_workspace = await workspace_service.get_default_workspace(db, current_user)
+                workspace_id = default_workspace.id
+
+        # 验证用户对指定工作区的访问权限
+        from backend.app.services.workspace_service import workspace_service
+        try:
+            access_level = await workspace_service.get_user_workspace_access(db, current_user.id, workspace_id)
+            if not access_level:
+                return error_response(message="您没有访问该工作区的权限")
+        except Exception as e:
+            logger.error(f"验证工作区访问权限失败: {str(e)}")
+            return error_response(message="验证工作区权限失败")
 
         # 根据coding_bug_id查找数据库中的缺陷记录
         from backend.app.models.coding_bug import CodingBug
@@ -256,7 +285,8 @@ async def link_bug_to_module(
 async def unlink_coding_bug_from_module(
     request_data: dict,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    workspace_id: Optional[int] = Query(None, description="工作区ID，如果不提供则使用用户默认工作区")
 ):
     """取消Coding缺陷与模块关联"""
     try:
@@ -269,11 +299,22 @@ async def unlink_coding_bug_from_module(
         if not coding_bug_id or not module_id:
             return error_response(message="缺少必要参数")
 
-        # 获取用户工作区
-        workspace_id = current_user.default_workspace_id
+        # 获取工作区ID - 优先使用查询参数中的workspace_id
         if not workspace_id:
-            default_workspace = await workspace_service.get_default_workspace(db, current_user)
-            workspace_id = default_workspace.id
+            # 如果查询参数中没有workspace_id，则使用用户默认工作区
+            workspace_id = current_user.default_workspace_id
+            if not workspace_id:
+                default_workspace = await workspace_service.get_default_workspace(db, current_user)
+                workspace_id = default_workspace.id
+
+        # 验证用户对指定工作区的访问权限
+        try:
+            access_level = await workspace_service.get_user_workspace_access(db, current_user.id, workspace_id)
+            if not access_level:
+                return error_response(message="您没有访问该工作区的权限")
+        except Exception as e:
+            logger.error(f"验证工作区访问权限失败: {str(e)}")
+            return error_response(message="验证工作区权限失败")
 
         # 根据coding_bug_id查找数据库中的缺陷记录
         from backend.app.models.coding_bug import CodingBug, CodingBugModuleLink
@@ -319,7 +360,8 @@ async def unlink_coding_bug_from_module(
 async def get_module_coding_bugs(
     request_data: dict,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    workspace_id: Optional[int] = Query(None, description="工作区ID，如果不提供则使用用户默认工作区")
 ):
     """获取模块关联的Coding缺陷"""
     try:
@@ -333,11 +375,22 @@ async def get_module_coding_bugs(
         if not module_id:
             return error_response(message="缺少module_id参数")
 
-        # 获取用户工作区
-        workspace_id = current_user.default_workspace_id
+        # 获取工作区ID - 优先使用查询参数中的workspace_id
         if not workspace_id:
-            default_workspace = await workspace_service.get_default_workspace(db, current_user)
-            workspace_id = default_workspace.id
+            # 如果查询参数中没有workspace_id，则使用用户默认工作区
+            workspace_id = current_user.default_workspace_id
+            if not workspace_id:
+                default_workspace = await workspace_service.get_default_workspace(db, current_user)
+                workspace_id = default_workspace.id
+
+        # 验证用户对指定工作区的访问权限
+        try:
+            access_level = await workspace_service.get_user_workspace_access(db, current_user.id, workspace_id)
+            if not access_level:
+                return error_response(message="您没有访问该工作区的权限")
+        except Exception as e:
+            logger.error(f"验证工作区访问权限失败: {str(e)}")
+            return error_response(message="验证工作区权限失败")
 
         # 获取模块关联的缺陷
         result = await coding_bug_service.get_module_bugs_paginated(
@@ -356,40 +409,29 @@ async def get_module_coding_bugs(
         logger.error(f"获取模块关联Coding缺陷失败: {str(e)}")
         return error_response(message=f"获取模块缺陷失败: {str(e)}")
 
-
-@router.post("/get-iterations", response_model=APIResponse[List[Dict[str, Any]]])
-async def get_coding_iterations(
-    request_data: dict,
+@router.get("/iterations/{workspace_id}", response_model=APIResponse[List[Dict[str, Any]]])
+async def get_workspace_iterations(
+    workspace_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
-    """获取Coding项目的迭代列表"""
+    """基于工作区已保存的配置获取Coding项目的迭代列表"""
     try:
         # 权限检查
         await check_permissions(db, current_user, ["workspace:resources:bugs"])
 
-        # 获取用户工作区
-        workspace_id = current_user.default_workspace_id
-        if not workspace_id:
-            default_workspace = await workspace_service.get_default_workspace(db, current_user)
-            workspace_id = default_workspace.id
-
         # 获取Coding配置
         config = await coding_config_service.get_config_by_workspace(db, workspace_id)
         if not config:
-            return error_response(message="请先配置Coding API")
-
-        project_name = request_data.get("project_name")
-        if not project_name:
-            return error_response(message="项目名称不能为空")
+            return error_response(message="请先保存基础配置（API Token和项目名称）")
 
         # 调用Coding API获取迭代列表
         iterations = await coding_service.fetch_iterations_from_coding(
             api_token=config.api_token,
-            project_name=project_name
+            project_name=config.project_name
         )
 
-        return success_response(data=iterations)
+        return success_response(data=iterations, message=f"获取到 {len(iterations)} 个迭代")
 
     except HTTPException as e:
         return error_response(message=e.detail)
@@ -402,18 +444,30 @@ async def get_coding_iterations(
 async def delete_coding_bug(
     coding_bug_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    workspace_id: Optional[int] = Query(None, description="工作区ID，如果不提供则使用用户默认工作区")
 ):
     """删除单个Coding缺陷"""
     try:
         # 权限检查
         await check_permissions(db, current_user, ["workspace:resources:bugs"])
 
-        # 获取用户工作区
-        workspace_id = current_user.default_workspace_id
+        # 获取工作区ID - 优先使用查询参数中的workspace_id
         if not workspace_id:
-            default_workspace = await workspace_service.get_default_workspace(db, current_user)
-            workspace_id = default_workspace.id
+            # 如果查询参数中没有workspace_id，则使用用户默认工作区
+            workspace_id = current_user.default_workspace_id
+            if not workspace_id:
+                default_workspace = await workspace_service.get_default_workspace(db, current_user)
+                workspace_id = default_workspace.id
+
+        # 验证用户对指定工作区的访问权限
+        try:
+            access_level = await workspace_service.get_user_workspace_access(db, current_user.id, workspace_id)
+            if not access_level:
+                return error_response(message="您没有访问该工作区的权限")
+        except Exception as e:
+            logger.error(f"验证工作区访问权限失败: {str(e)}")
+            return error_response(message="验证工作区权限失败")
 
         # 删除缺陷
         result = await coding_bug_service.delete_bug(db, coding_bug_id, workspace_id)
@@ -431,7 +485,8 @@ async def delete_coding_bug(
 async def batch_delete_coding_bugs(
     request_data: dict,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    workspace_id: Optional[int] = Query(None, description="工作区ID，如果不提供则使用用户默认工作区")
 ):
     """批量删除Coding缺陷"""
     try:
@@ -442,11 +497,22 @@ async def batch_delete_coding_bugs(
         if not coding_bug_ids:
             return error_response(message="请选择要删除的缺陷")
 
-        # 获取用户工作区
-        workspace_id = current_user.default_workspace_id
+        # 获取工作区ID - 优先使用查询参数中的workspace_id
         if not workspace_id:
-            default_workspace = await workspace_service.get_default_workspace(db, current_user)
-            workspace_id = default_workspace.id
+            # 如果查询参数中没有workspace_id，则使用用户默认工作区
+            workspace_id = current_user.default_workspace_id
+            if not workspace_id:
+                default_workspace = await workspace_service.get_default_workspace(db, current_user)
+                workspace_id = default_workspace.id
+
+        # 验证用户对指定工作区的访问权限
+        try:
+            access_level = await workspace_service.get_user_workspace_access(db, current_user.id, workspace_id)
+            if not access_level:
+                return error_response(message="您没有访问该工作区的权限")
+        except Exception as e:
+            logger.error(f"验证工作区访问权限失败: {str(e)}")
+            return error_response(message="验证工作区权限失败")
 
         # 批量删除缺陷
         result = await coding_bug_service.batch_delete_bugs(db, coding_bug_ids, workspace_id)
@@ -462,24 +528,48 @@ async def batch_delete_coding_bugs(
 
 # Coding配置管理相关接口
 @router.post("/config", response_model=APIResponse[WorkspaceCodingConfigResponse])
-async def create_coding_config(
+async def create_or_update_basic_config(
     config_data: WorkspaceCodingConfigCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
-    """创建工作区Coding配置"""
+    """创建或更新工作区Coding基础配置（第一步：基础配置）"""
     try:
         # 权限检查
         await check_permissions(db, current_user, ["workspace:resources:bugs"])
 
-        config = await coding_config_service.create_config(db, config_data, current_user)
+        # 验证API连接
+        try:
+            await coding_service.fetch_iterations_from_coding(
+                api_token=config_data.api_token,
+                project_name=config_data.project_name
+            )
+        except Exception as e:
+            logger.error(f"验证Coding API连接失败: {str(e)}")
+            return error_response(message=f"API连接验证失败，请检查Token和项目名称: {str(e)}")
+
+        # 检查是否已存在配置
+        existing_config = await coding_config_service.get_config_by_workspace(db, config_data.workspace_id)
+
+        if existing_config:
+            # 更新已存在的基础配置，保留同步条件
+            update_data = WorkspaceCodingConfigUpdate(
+                api_token=config_data.api_token,
+                project_name=config_data.project_name,
+                is_enabled=config_data.is_enabled
+            )
+            config = await coding_config_service.update_config(db, config_data.workspace_id, update_data, current_user)
+            message_text = "基础配置更新成功，API连接验证通过"
+        else:
+            # 创建新配置
+            config = await coding_config_service.create_config(db, config_data, current_user)
+            message_text = "基础配置保存成功，API连接验证通过"
 
         response_data = WorkspaceCodingConfigResponse(
             id=config.id,
             workspace_id=config.workspace_id,
             api_token=config.api_token,
             project_name=config.project_name,
-            api_base_url=config.api_base_url,
             is_enabled=config.is_enabled,
             sync_conditions=config.sync_conditions,
             last_sync_at=config.last_sync_at,
@@ -488,13 +578,13 @@ async def create_coding_config(
             created_by=config.created_by
         )
 
-        return success_response(data=response_data, message="Coding配置创建成功")
+        return success_response(data=response_data, message=message_text)
 
     except HTTPException as e:
         return error_response(message=e.detail)
     except Exception as e:
-        logger.error(f"创建Coding配置失败: {str(e)}")
-        return error_response(message=f"创建配置失败: {str(e)}")
+        logger.error(f"保存Coding配置失败: {str(e)}")
+        return error_response(message=f"保存配置失败: {str(e)}")
 
 
 @router.get("/config/{workspace_id}", response_model=APIResponse[WorkspaceCodingConfigResponse])
@@ -518,7 +608,6 @@ async def get_coding_config(
             workspace_id=config.workspace_id,
             api_token=config.api_token,
             project_name=config.project_name,
-            api_base_url=config.api_base_url,
             is_enabled=config.is_enabled,
             sync_conditions=config.sync_conditions,
             last_sync_at=config.last_sync_at,
@@ -543,10 +632,15 @@ async def update_coding_config(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_active_user)]
 ):
-    """更新工作区Coding配置"""
+    """更新工作区Coding配置（第二步：同步条件配置）"""
     try:
         # 权限检查
         await check_permissions(db, current_user, ["workspace:resources:bugs"])
+
+        # 检查基础配置是否存在
+        existing_config = await coding_config_service.get_config_by_workspace(db, workspace_id)
+        if not existing_config:
+            return error_response(message="请先完成基础配置（API Token和项目名称）")
 
         config = await coding_config_service.update_config(db, workspace_id, config_data, current_user)
 
@@ -555,7 +649,6 @@ async def update_coding_config(
             workspace_id=config.workspace_id,
             api_token=config.api_token,
             project_name=config.project_name,
-            api_base_url=config.api_base_url,
             is_enabled=config.is_enabled,
             sync_conditions=config.sync_conditions,
             last_sync_at=config.last_sync_at,
@@ -564,7 +657,7 @@ async def update_coding_config(
             created_by=config.created_by
         )
 
-        return success_response(data=response_data, message="Coding配置更新成功")
+        return success_response(data=response_data, message="同步条件配置保存成功")
 
     except HTTPException as e:
         return error_response(message=e.detail)
@@ -593,26 +686,6 @@ async def delete_coding_config(
         logger.error(f"删除Coding配置失败: {str(e)}")
         return error_response(message=f"删除配置失败: {str(e)}")
 
-
-@router.post("/config/{workspace_id}/test", response_model=APIResponse[Dict[str, Any]])
-async def test_coding_config(
-    workspace_id: int,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_active_user)]
-):
-    """测试工作区Coding配置连接"""
-    try:
-        # 权限检查
-        await check_permissions(db, current_user, ["workspace:resources:bugs"])
-
-        result = await coding_config_service.test_config(db, workspace_id)
-        return success_response(data=result, message="连接测试成功")
-
-    except HTTPException as e:
-        return error_response(message=e.detail)
-    except Exception as e:
-        logger.error(f"测试Coding配置失败: {str(e)}")
-        return error_response(message=f"连接测试失败: {str(e)}")
 
 
 @router.get("/available-labels", response_model=APIResponse[List[str]])

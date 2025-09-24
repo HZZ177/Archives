@@ -229,7 +229,7 @@ const ModuleContentPage: React.FC = () => {
       
       {/* Bug详情弹窗 */}
       <BugDetailModal
-        visible={bugDetailVisible}
+        open={bugDetailVisible}
         bug={selectedBug}
         onClose={handleCloseBugDetail}
       />

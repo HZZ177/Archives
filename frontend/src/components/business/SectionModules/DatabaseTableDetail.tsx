@@ -35,12 +35,12 @@ const DatabaseTableDetail: React.FC<DatabaseTableDetailProps> = ({ table, simple
         <span>
           {text}
           {record.is_primary_key && (
-            <Tooltip title="主键" color="white" overlayInnerStyle={{ color: 'black' }}>
+            <Tooltip title="主键" color="white" styles={{ body: { color: 'black' } }}>
               <KeyOutlined style={{ marginLeft: 4, color: '#1890ff' }} />
             </Tooltip>
           )}
           {record.foreign_key && (
-            <Tooltip title={`外键: ${record.foreign_key.reference_table}.${record.foreign_key.reference_column}`} color="white" overlayInnerStyle={{ color: 'black' }}>
+            <Tooltip title={`外键: ${record.foreign_key.reference_table}.${record.foreign_key.reference_column}`} color="white" styles={{ body: { color: 'black' } }}>
               <LinkOutlined style={{ marginLeft: 4, color: '#722ed1' }} />
             </Tooltip>
           )}

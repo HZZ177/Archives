@@ -6,14 +6,14 @@ import request from '../../utils/request';
 import { APIResponse } from '../../types/api';
 
 interface ChangePasswordModalProps {
-  visible: boolean;
+  open: boolean;
   onClose: () => void;
   userMobile?: string;
   isFirstLogin?: boolean;
 }
 
-const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ 
-  visible, 
+const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
+  open,
   onClose,
   userMobile,
   isFirstLogin = false
@@ -88,7 +88,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   return (
     <Modal
       title={isFirstLogin ? "首次登录修改密码" : "修改密码"}
-      open={visible}
+      open={open}
       onCancel={handleCancel}
       maskClosable={!isFirstLogin} // 首次登录时禁止点击蒙层关闭
       closable={!isFirstLogin} // 首次登录时禁用右上角关闭按钮

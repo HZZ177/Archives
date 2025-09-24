@@ -6,7 +6,7 @@ import { WorkspaceUserParams, BatchAddUsersToWorkspaceRequest } from '../../../t
 import { roleOptions, roleToAccessLevel } from '../../../utils/roleMapping';
 
 interface AddUserToWorkspaceModalProps {
-  visible: boolean;
+  open: boolean;
   workspaceId: number;
   workspaceName: string;
   existingUserIds: number[]; // 已在工作区中的用户ID列表
@@ -15,7 +15,7 @@ interface AddUserToWorkspaceModalProps {
 }
 
 const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
-  visible,
+  open,
   workspaceId,
   workspaceName,
   existingUserIds,
@@ -95,7 +95,7 @@ const AddUserToWorkspaceModal: React.FC<AddUserToWorkspaceModalProps> = ({
   return (
     <Modal
       title={`添加用户到 ${workspaceName}`}
-      open={visible}
+      open={open}
       onCancel={handleCancel}
       width={600}
       footer={[

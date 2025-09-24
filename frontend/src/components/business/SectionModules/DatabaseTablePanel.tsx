@@ -121,13 +121,13 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
             className={`${styles.tableCard} ${!isEditable ? styles.readOnly : ''}`}
             draggable={isEditable}
             onDragStart={(e) => onDragStart(table, e)}
-            bodyStyle={{ padding: '12px' }}
-            bordered={false}
+            styles={{ body: { padding: '12px' } }}
+            variant="borderless"
           >
             <Title level={5} className={styles.tableName}>
               {table.name}
               <div style={{ display: 'flex', marginLeft: 'auto' }}>
-                <Tooltip title="查看表详情" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
+                <Tooltip title="查看表详情" placement="top" color="white" styles={{ body: { color: 'black' } }}>
                   <Button
                     type="text"
                     size="small"
@@ -149,7 +149,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
                   />
                 </Tooltip>
                 {isEditable && (
-                  <Tooltip title="可拖拽到画布" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
+                  <Tooltip title="可拖拽到画布" placement="top" color="white" styles={{ body: { color: 'black' } }}>
                     <DragOutlined style={{ fontSize: '14px', color: '#8e7cc3' }} />
                   </Tooltip>
                 )}
@@ -216,7 +216,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
         {!collapsed && (
           <>
             {isEditable && onRefresh && (
-              <Tooltip title="刷新数据库表" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
+              <Tooltip title="刷新数据库表" placement="top" color="white" styles={{ body: { color: 'black' } }}>
                 <Button
                   type="text"
                   icon={<ReloadOutlined />}
@@ -225,7 +225,7 @@ const DatabaseTablePanel: React.FC<DatabaseTablePanelProps> = ({
                 />
               </Tooltip>
             )}
-            <Tooltip title="收起面板" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
+            <Tooltip title="收起面板" placement="top" color="white" styles={{ body: { color: 'black' } }}>
               <Button
                 type="text"
                 icon={<MenuFoldOutlined />}

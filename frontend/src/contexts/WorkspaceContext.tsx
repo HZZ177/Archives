@@ -33,33 +33,8 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 
 // 上下文提供者组件
 export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // 尝试从localStorage或sessionStorage恢复当前工作区
-  const getSavedWorkspace = (): Workspace | null => {
-    try {
-      // 优先从sessionStorage读取（会话级存储）
-        const sessionWorkspace = sessionStorage.getItem('currentWorkspace');
-        if (sessionWorkspace) {
-        const parsed = JSON.parse(sessionWorkspace);
-        return parsed;
-      }
-
-      // 如果sessionStorage中没有，则从localStorage读取（持久存储）
-      const localWorkspace = localStorage.getItem('currentWorkspace');
-      if (localWorkspace) {
-        const parsed = JSON.parse(localWorkspace);
-        return parsed;
-      }
-      
-      return null;
-      } catch (error) {
-      console.error('WorkspaceContext: 恢复保存的工作区失败:', error);
-      return null;
-    }
-  };
-
-  const savedWorkspace = getSavedWorkspace();
-  
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(savedWorkspace);
+  // 登录后始终使用默认工作区，不再恢复之前选择的工作区
+  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [defaultWorkspace, setDefaultWorkspaceState] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -91,8 +66,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
       // 清空当前工作区的表数据缓存
       setWorkspaceTables([]);
     
-    // 将当前工作区同时存储到localStorage和sessionStorage中
-      localStorage.setItem('currentWorkspace', JSON.stringify(workspace));
+    // 将当前工作区存储到sessionStorage中（仅会话级别，不持久化）
       sessionStorage.setItem('currentWorkspace', JSON.stringify(workspace));
       
       // 触发模块树刷新事件，使ModuleContext更新数据
@@ -120,13 +94,13 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, [currentWorkspace?.id, isChangingWorkspace]);
 
   // 加载工作区列表和默认工作区
-  const loadWorkspaces = useCallback(async () => {
+  const loadWorkspaces = useCallback(async (forceSetDefault = false) => {
     // 如果用户未登录，不执行请求
     if (!userState.isLoggedIn || !userState.token) {
       setInitializing(false); // 确保初始化完成
       return;
     }
-    
+
     setLoading(true);
     setError(null);
     try {
@@ -135,27 +109,12 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
         fetchWorkspaces(),
         fetchDefaultWorkspace()
       ]);
-      
+
       setWorkspaces(workspacesData);
       setDefaultWorkspaceState(defaultWorkspaceData);
-      
-      // 如果已经从localStorage恢复了工作区，则验证它是否在可用工作区列表中
-      if (currentWorkspace) {
-        const workspaceExists = workspacesData.some(w => w.id === currentWorkspace.id);
-        if (!workspaceExists) {
-          if (defaultWorkspaceData) {
-            await handleSetCurrentWorkspace(defaultWorkspaceData);
-          }
-        } else {
-          // 确保从存储中恢复的工作区信息是最新的
-          const freshWorkspace = workspacesData.find(w => w.id === currentWorkspace.id);
-          if (freshWorkspace && (freshWorkspace.name !== currentWorkspace.name || freshWorkspace.color !== currentWorkspace.color)) {
-            await handleSetCurrentWorkspace(freshWorkspace);
-          }
-        }
-      } 
-      // 如果当前没有选择工作区，则设置默认工作区为当前工作区
-      else if (defaultWorkspaceData) {
+
+      // 只有在强制设置默认工作区或当前没有工作区时才设置为默认工作区
+      if (defaultWorkspaceData && (forceSetDefault || !currentWorkspace)) {
         await handleSetCurrentWorkspace(defaultWorkspaceData);
       }
     } catch (err) {
@@ -171,15 +130,15 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
   // 初始加载默认工作区
   useEffect(() => {
     if (userState.isLoggedIn && userState.currentUser) {
-      loadWorkspaces();
+      loadWorkspaces(true); // 初始加载时强制设置为默认工作区
     } else {
       setInitializing(false); // 如果用户未登录，也标记初始化完成
     }
-  }, [userState.isLoggedIn, userState.currentUser, loadWorkspaces]);
+  }, [userState.isLoggedIn, userState.currentUser]); // 移除loadWorkspaces依赖，避免循环触发
 
   // 刷新工作区列表
   const refreshWorkspaces = useCallback(async () => {
-    await loadWorkspaces();
+    await loadWorkspaces(false); // 刷新时不强制设置默认工作区
   }, [loadWorkspaces]);
 
   // 加载工作区表数据
@@ -193,7 +152,7 @@ export const WorkspaceProvider: React.FC<{ children: ReactNode }> = ({ children 
     
     setLoadingTables(true);
     try {
-      const tables = await getWorkspaceTables(workspaceId);
+      const tables = await getWorkspaceTables(workspaceId, 1, 10, '', true);
       setWorkspaceTables(tables);
     } catch (error) {
       console.error(`加载工作区(ID:${workspaceId})表数据失败:`, error);

@@ -10,7 +10,10 @@ import {
   Select,
   Row,
   Col,
-  Divider
+  Divider,
+  Steps,
+  Spin,
+  Typography
 } from 'antd';
 import {
   ApiOutlined,
@@ -25,41 +28,74 @@ import request from '../../utils/request';
 
 
 interface CodingConfigModalProps {
-  visible: boolean;
+  open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }
 
 const CodingConfigModal: React.FC<CodingConfigModalProps> = ({
-  visible,
+  open,
   onClose,
   onSuccess
 }) => {
   const { currentWorkspace } = useWorkspace();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [testLoading, setTestLoading] = useState(false);
   const [config, setConfig] = useState<any>(null);
   const [conditions, setConditions] = useState<Array<{key: string; value: string}>>([]);
+
+  // 步骤相关状态
+  const [currentStep, setCurrentStep] = useState(0);
+  const [step1Loading, setStep1Loading] = useState(false);
 
   // 迭代选择相关状态
   const [iterations, setIterations] = useState<Array<{id: string; name: string}>>([]);
   const [selectedIteration, setSelectedIteration] = useState<string | undefined>(undefined);
   const [iterationLoading, setIterationLoading] = useState(false);
 
-  // 获取迭代列表
-  const fetchIterations = async () => {
-    const projectName = form.getFieldValue('project_name');
-    if (!projectName) {
-      message.warning('请先填写项目名称');
-      return;
+  // 第一步：保存基础配置
+  const handleStep1Next = async () => {
+    try {
+      const values = await form.validateFields(['api_token', 'project_name']);
+      setStep1Loading(true);
+
+      const configData = {
+        workspace_id: currentWorkspace!.id,
+        api_token: values.api_token,
+        project_name: values.project_name,
+        is_enabled: true
+      };
+
+      const response = await request.post('/coding-bugs/config', configData);
+      if (response.data.success) {
+        message.success('基础配置保存成功');
+        setCurrentStep(1);
+        // 进入第二步后自动获取迭代数据
+        await fetchIterations();
+      } else {
+        message.error(response.data.message || '保存配置失败');
+      }
+    } catch (error: any) {
+      if (error.errorFields) {
+        message.error('请填写完整的配置信息');
+      } else {
+        console.error('保存配置失败:', error);
+        // 显示详细的错误信息
+        const errorMessage = error.response?.data?.message || error.message || '保存配置失败';
+        message.error(errorMessage);
+      }
+    } finally {
+      setStep1Loading(false);
     }
+  };
+
+  // 获取迭代列表（基于已保存的配置）
+  const fetchIterations = async () => {
+    if (!currentWorkspace?.id) return;
 
     setIterationLoading(true);
     try {
-      const response = await request.post('/coding-bugs/get-iterations', {
-        project_name: projectName
-      });
+      const response = await request.get(`/coding-bugs/iterations/${currentWorkspace.id}`);
 
       if (response.data.success) {
         const iterationList = unwrapResponse(response.data) as any[];
@@ -67,7 +103,7 @@ const CodingConfigModal: React.FC<CodingConfigModalProps> = ({
           id: item.id,
           name: item.name
         })));
-        message.success(`获取到 ${iterationList.length} 个迭代`);
+        // 后端已经返回成功消息，这里不再重复显示
       } else {
         message.error(response.data.message || '获取迭代列表失败');
       }
@@ -88,14 +124,14 @@ const CodingConfigModal: React.FC<CodingConfigModalProps> = ({
       if (response.data.success) {
         const configData = unwrapResponse(response.data) as any;
         setConfig(configData);
+
+        // 始终从第一步开始，但填充已有的配置数据
         form.setFieldsValue({
           api_token: configData.api_token,
-          project_name: configData.project_name,
-          api_base_url: configData.api_base_url || 'https://e.coding.net/open-api'
+          project_name: configData.project_name
         });
         // 设置conditions
         const syncConditions = configData.sync_conditions || [];
-        console.log('加载的同步条件:', syncConditions);
 
         // 过滤掉ITERATION条件，因为它由迭代选择器管理
         const filteredConditions = syncConditions.filter((c: any) => c.key !== 'ITERATION');
@@ -117,10 +153,10 @@ const CodingConfigModal: React.FC<CodingConfigModalProps> = ({
     }
   };
 
-  // 保存配置
-  const handleSave = async (values: any) => {
+  // 第二步：保存同步条件配置
+  const handleStep2Save = async () => {
     if (!currentWorkspace?.id) return;
-    
+
     setLoading(true);
     try {
       // 构建同步条件，包含迭代选择
@@ -137,85 +173,36 @@ const CodingConfigModal: React.FC<CodingConfigModalProps> = ({
         allConditions.splice(0, allConditions.length, ...filteredConditions);
       }
 
-      const configData = {
-        workspace_id: currentWorkspace.id,
-        api_token: values.api_token,
-        project_name: values.project_name,
-        api_base_url: values.api_base_url || 'https://e.coding.net/open-api',
-        is_enabled: true, // 固定为启用
+      // 更新配置（只更新同步条件部分）
+      const updateData = {
         sync_conditions: allConditions,
-        selected_iteration: selectedIteration // 保存选中的迭代用于下次加载
+        selected_iteration: selectedIteration
       };
-      
-      let response;
-      if (config) {
-        // 更新配置
-        response = await request.put(`/coding-bugs/config/${currentWorkspace.id}`, configData);
-      } else {
-        // 创建配置
-        response = await request.post('/coding-bugs/config', configData);
-      }
-      
+
+      const response = await request.put(`/coding-bugs/config/${currentWorkspace.id}`, updateData);
       if (response.data.success) {
-        message.success('配置保存成功');
+        message.success('同步条件配置保存成功');
         onSuccess?.();
         onClose();
       } else {
-        message.error(response.data.message || '配置保存失败');
+        message.error(response.data.message || '保存配置失败');
       }
-    } catch (error) {
-      message.error('配置保存失败');
+    } catch (error: any) {
+      console.error('保存配置失败:', error);
+      // 显示详细的错误信息
+      const errorMessage = error.response?.data?.message || error.message || '保存配置失败';
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // 测试连接
-  const handleTest = async () => {
-    if (!currentWorkspace?.id) return;
-    
-    setTestLoading(true);
-    try {
-      const response = await request.post(`/coding-bugs/config/${currentWorkspace.id}/test`);
-      if (response.data.success) {
-        message.success('连接测试成功');
-      } else {
-        message.error(response.data.message || '连接测试失败');
-      }
-    } catch (error) {
-      message.error('连接测试失败');
-    } finally {
-      setTestLoading(false);
-    }
+  // 返回上一步
+  const handlePrevStep = () => {
+    setCurrentStep(0);
   };
 
-  // 删除配置
-  const handleDelete = async () => {
-    if (!currentWorkspace?.id || !config) return;
-    
-    Modal.confirm({
-      title: '确认删除',
-      content: '确定要删除Coding配置吗？删除后将无法同步缺陷数据。',
-      okText: '确定',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          const response = await request.delete(`/coding-bugs/config/${currentWorkspace.id}`);
-          if (response.data.success) {
-            message.success('配置删除成功');
-            setConfig(null);
-            form.resetFields();
-            onSuccess?.();
-            onClose();
-          } else {
-            message.error(response.data.message || '配置删除失败');
-          }
-        } catch (error) {
-          message.error('配置删除失败');
-        }
-      }
-    });
-  };
+
 
   // 添加条件
   const addCondition = () => {
@@ -236,7 +223,7 @@ const CodingConfigModal: React.FC<CodingConfigModalProps> = ({
   };
 
   useEffect(() => {
-    if (visible) {
+    if (open) {
       fetchConfig();
     } else {
       // 关闭时重置状态
@@ -244,29 +231,32 @@ const CodingConfigModal: React.FC<CodingConfigModalProps> = ({
       setIterations([]);
       setSelectedIteration(undefined);
     }
-  }, [visible, currentWorkspace?.id]);
+  }, [open, currentWorkspace?.id]);
 
   // 当配置加载完成且有API Token和项目名称时，自动获取迭代列表
   useEffect(() => {
-    if (visible && config && config.api_token && config.project_name) {
+    if (open && config && config.api_token && config.project_name) {
       // 延迟一下确保表单已经设置好值
       setTimeout(() => {
         fetchIterations();
       }, 100);
     }
-  }, [visible, config]);
+  }, [open, config]);
 
   // 当Modal打开且没有conditions时，添加一个空条件
   useEffect(() => {
-    if (visible && conditions.length === 0) {
+    if (open && conditions.length === 0) {
       setConditions([{ key: '', value: '' }]);
     }
-  }, [visible, conditions.length]);
+  }, [open, conditions.length]);
 
   const handleClose = () => {
-    form.resetFields();
+    setCurrentStep(0);
     setConfig(null);
     setConditions([]);
+    setSelectedIteration(undefined);
+    setIterations([]);
+    form.resetFields();
     onClose();
   };
 
@@ -278,50 +268,88 @@ const CodingConfigModal: React.FC<CodingConfigModalProps> = ({
           <span>Coding同步配置</span>
         </Space>
       }
-      open={visible}
+      open={open}
       onCancel={handleClose}
       footer={null}
-      width={700}
+      width={800}
       destroyOnClose
     >
+      {/* 步骤指示器 */}
+      <div style={{ maxWidth: 600, margin: '0 auto', marginBottom: 24 }}>
+        <style>
+          {`
+            .custom-steps .ant-steps-item-description {
+              max-width: 180px !important;
+              white-space: nowrap !important;
+              overflow: hidden !important;
+              text-overflow: ellipsis !important;
+            }
+          `}
+        </style>
+        <Steps
+          current={currentStep}
+          className="custom-steps"
+          items={[
+            {
+              title: '基础配置',
+              description: '配置API Token和项目名称'
+            },
+            {
+              title: '同步条件',
+              description: '配置迭代选择和同步规则'
+            }
+          ]}
+        />
+      </div>
 
+      {/* 第一步：基础配置 */}
+      {currentStep === 0 && (
+        <div>
+          <Typography.Title level={5} style={{ marginBottom: 16 }}>
+            配置Coding API连接信息
+          </Typography.Title>
+          <Form
+            form={form}
+            layout="vertical"
+          >
+            <Form.Item
+              label="API Token"
+              name="api_token"
+              rules={[{ required: true, message: '请输入Coding API Token' }]}
+              extra="在Coding平台的个人设置 > 访问令牌中生成"
+            >
+              <Input.Password placeholder="请输入Coding API Token" />
+            </Form.Item>
 
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSave}
-        initialValues={{
-          api_base_url: 'https://e.coding.net/open-api'
-        }}
-      >
-        <Form.Item
-          label="API Token"
-          name="api_token"
-          rules={[{ required: true, message: '请输入Coding API Token' }]}
-          extra="在Coding平台的个人设置 > 访问令牌中生成"
-        >
-          <Input.Password placeholder="请输入Coding API Token" />
-        </Form.Item>
+            <Form.Item
+              label="项目名称"
+              name="project_name"
+              rules={[{ required: true, message: '请输入Coding项目名称' }]}
+              extra="Coding平台中的项目名称，用于获取该项目的缺陷数据"
+            >
+              <Input placeholder="请输入Coding项目名称" />
+            </Form.Item>
 
-        <Form.Item
-          label="项目名称"
-          name="project_name"
-          rules={[{ required: true, message: '请输入Coding项目名称' }]}
-          extra="Coding平台中的项目名称，用于获取该项目的缺陷数据"
-        >
-          <Input placeholder="请输入Coding项目名称" />
-        </Form.Item>
+            <div style={{ textAlign: 'right', marginTop: 24 }}>
+              <Space>
+                <Button onClick={handleClose}>
+                  取消
+                </Button>
+                <Button type="primary" loading={step1Loading} onClick={handleStep1Next}>
+                  下一步
+                </Button>
+              </Space>
+            </div>
+          </Form>
+        </div>
+      )}
 
-        <Form.Item
-          label="API地址"
-          name="api_base_url"
-          extra="通常使用默认地址即可"
-        >
-          <Input placeholder="API基础地址" />
-        </Form.Item>
-
-        <Divider orientation="left">同步条件配置</Divider>
-        <div style={{ marginBottom: 16 }}>
+      {/* 第二步：同步条件配置 */}
+      {currentStep === 1 && (
+        <div>
+          <Typography.Title level={5} style={{ marginBottom: 16 }}>
+            配置同步条件和规则
+          </Typography.Title>
           <Alert
             description={
               <span>
@@ -376,7 +404,7 @@ const CodingConfigModal: React.FC<CodingConfigModalProps> = ({
             </Row>
           </div>
 
-          {/* 自定义筛选条件分割提示 */}
+          {/* 自定义筛选条件 */}
           <div style={{ marginBottom: 16, marginTop: 8 }}>
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
               自定义筛选条件：
@@ -414,33 +442,26 @@ const CodingConfigModal: React.FC<CodingConfigModalProps> = ({
             type="dashed"
             icon={<PlusOutlined />}
             onClick={addCondition}
-            style={{ width: '100%' }}
+            style={{ width: '100%', marginBottom: 24 }}
           >
             添加同步条件
           </Button>
-        </div>
 
-        <Form.Item>
-          <Space>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              保存配置
-            </Button>
-            {config && (
-              <Button onClick={handleTest} loading={testLoading}>
-                测试连接
+          <div style={{ textAlign: 'right' }}>
+            <Space>
+              <Button onClick={handlePrevStep}>
+                上一步
               </Button>
-            )}
-            {config && (
-              <Button danger onClick={handleDelete}>
-                删除配置
+              <Button onClick={handleClose}>
+                取消
               </Button>
-            )}
-            <Button onClick={handleClose}>
-              取消
-            </Button>
-          </Space>
-        </Form.Item>
-      </Form>
+              <Button type="primary" loading={loading} onClick={handleStep2Save}>
+                完成配置
+              </Button>
+            </Space>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 };

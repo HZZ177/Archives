@@ -35,7 +35,6 @@ import InterfaceImportModal from './components/InterfaceImportModal';
 import { debounce } from '../../utils/throttle';
 
 const { Title, Text } = Typography;
-const { TabPane } = Tabs;
 
 const WorkspaceInterfacesPage: React.FC = () => {
   const { currentWorkspace } = useWorkspace();
@@ -68,27 +67,18 @@ const WorkspaceInterfacesPage: React.FC = () => {
     
     try {
       setLoading(true);
-      console.log(`加载接口数据: 页码=${page}, 每页条数=${pageSize}, 搜索=${search}`);
-      
+
       const paginatedData = await getWorkspaceInterfaces(
-        currentWorkspace.id, 
-        page as number, 
+        currentWorkspace.id,
+        page as number,
         pageSize as number,
         search
       );
-      
-      console.log('接口数据返回:', paginatedData);
       
       // 直接使用后端返回的数据，不再进行本地过滤
       setInterfaces(paginatedData.items);
       setPagination({
         ...pagination,
-        current: paginatedData.page,
-        pageSize: paginatedData.page_size,
-        total: paginatedData.total
-      });
-      
-      console.log('更新后的分页状态:', {
         current: paginatedData.page,
         pageSize: paginatedData.page_size,
         total: paginatedData.total
@@ -369,7 +359,7 @@ const WorkspaceInterfacesPage: React.FC = () => {
 
       {/* 导入接口Modal */}
       <InterfaceImportModal
-        visible={importModalVisible}
+        open={importModalVisible}
         onCancel={() => setImportModalVisible(false)}
         workspaceId={currentWorkspace?.id}
         onSuccess={() => {

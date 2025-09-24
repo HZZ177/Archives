@@ -55,7 +55,6 @@ export interface CodingBugModuleLinkResponse extends CodingBugModuleLinkBase {
 export interface WorkspaceCodingConfigBase {
   api_token: string;
   project_name: string;
-  api_base_url?: string;
   is_enabled?: boolean;
   sync_conditions?: Array<{key: string; value: string}>;
   selected_iteration?: string;
@@ -70,7 +69,6 @@ export interface WorkspaceCodingConfigCreate extends WorkspaceCodingConfigBase {
 export interface WorkspaceCodingConfigUpdate {
   api_token?: string;
   project_name?: string;
-  api_base_url?: string;
   is_enabled?: boolean;
   sync_conditions?: Array<{key: string; value: string}>;
   selected_iteration?: string;
@@ -93,6 +91,9 @@ export interface CodingBugListParams {
   keyword?: string;
   priority?: string;
   status_name?: string;
+  labels?: string;
+  start_date?: string;
+  end_date?: string;
   workspace_id?: number;
 }
 

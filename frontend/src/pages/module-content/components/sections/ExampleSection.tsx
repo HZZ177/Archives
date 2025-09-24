@@ -59,9 +59,9 @@ const ExampleSection: React.FC<ExampleSectionProps> = ({ examples, onChange }) =
     <div className="section-content">
       <Space direction="vertical" style={{ width: '100%' }}>
         {examples.map((example) => (
-          <Card 
+          <Card
             key={example.id}
-            bordered={true}
+            variant="outlined"
             style={{ marginBottom: 16 }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>

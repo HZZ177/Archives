@@ -25,7 +25,12 @@ const App: React.FC = () => {
           <ModuleProvider>
             <PermissionProvider>
               <PasswordChangeWrapper>
-                <RouterProvider router={router} />
+                <RouterProvider
+                  router={router}
+                  future={{
+                    v7_startTransition: true,
+                  }}
+                />
               </PasswordChangeWrapper>
             </PermissionProvider>
           </ModuleProvider>

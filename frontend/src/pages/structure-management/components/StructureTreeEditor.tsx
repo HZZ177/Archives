@@ -116,7 +116,7 @@ const StructureTreeEditor: React.FC<StructureTreeEditorProps> = ({
         />
       </Spin>
       <StructureNodeModal
-        visible={modalVisible}
+        open={modalVisible}
         type={modalType}
         node={currentNode}
         parentNode={parentNode}

@@ -34,7 +34,7 @@ import { refreshModuleTreeEvent } from '../../../layouts/MainLayout';
 import { Link } from 'react-router-dom';
 import { fetchUserById } from '../../../apis/userService';
 
-const { TabPane } = Tabs;
+
 
 interface NodeDetailPanelProps {
   node: ModuleStructureNode | null;
@@ -181,13 +181,9 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
     loadModuleConfig();
   }, []);
 
-  // 当节点变化时，重置表单和编辑状态
+  // 当节点变化时，重置编辑状态
   useEffect(() => {
     if (node) {
-      form.setFieldsValue({
-        name: node.name,
-        parent_id: node.parent_id || undefined
-      });
       setEditing(false);
       
       // 获取创建者信息
@@ -657,12 +653,6 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
 
   // 取消编辑
   const handleCancel = () => {
-    if (node) {
-      form.setFieldsValue({
-        name: node.name,
-        parent_id: node.parent_id || undefined // 确保parent_id存在
-      });
-    }
     setEditing(false);
   };
 
@@ -675,10 +665,10 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             <Row gutter={[16, 16]}>
               {/* 合并的信息卡片 */}
               <Col span={24}>
-                <Card 
-                  bordered={false}
+                <Card
+                  variant="borderless"
                   className="info-card combined-card"
-                  bodyStyle={{ padding: '16px 24px' }}
+                  styles={{ body: { padding: '16px 24px' } }}
                 >
                   {/* 原第一个卡片的内容 */}
                   <div className="node-header" style={{ marginBottom: '20px', borderBottom: '1px solid #f0f0f0', paddingBottom: '16px' }}>
@@ -696,7 +686,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
                       
                     <Space>
                       {node.is_content_page && (
-                        <Tooltip title="查看内容页面" color="#fff" overlayInnerStyle={{ color: 'rgba(0, 0, 0, 0.85)' }}>
+                        <Tooltip title="查看内容页面" color="#fff" styles={{ body: { color: 'rgba(0, 0, 0, 0.85)' } }}>
                           <Link to={`/module-content/${node.id}`}>
                             <Button 
                               type="default" 
@@ -709,10 +699,17 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
                         </Tooltip>
                       )}
                   
-                      <Button 
-                        type="primary" 
-                        icon={<EditOutlined />} 
-                        onClick={() => setEditing(true)}
+                      <Button
+                        type="primary"
+                        icon={<EditOutlined />}
+                        onClick={() => {
+                          // 在开始编辑时设置表单值
+                          form.setFieldsValue({
+                            name: node.name,
+                            parent_id: node.parent_id || undefined
+                          });
+                          setEditing(true);
+                        }}
                       >
                         编辑
                       </Button>
@@ -783,7 +780,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             
             {/* 内容页面专用卡片 - 显示模块内容状态 */}
             {node.is_content_page && (
-              <Card 
+              <Card
                 title={
                   <div className="card-title-with-icon">
                     <FileOutlined />
@@ -791,7 +788,7 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
                   </div>
                 }
                 className="content-page-card"
-                bordered={false}
+                variant="borderless"
                 style={{ marginTop: 10 }}
               >
                 {renderModuleStatusCards()}
@@ -799,9 +796,9 @@ const NodeDetailPanel: React.FC<NodeDetailPanelProps> = ({
             )}
           </div>
         ) : (
-          <Card 
-            title="编辑节点信息" 
-            bordered={false}
+          <Card
+            title="编辑节点信息"
+            variant="borderless"
             className="edit-form-card"
             style={{ marginTop: 0 }}
           >

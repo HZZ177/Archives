@@ -2,7 +2,13 @@ from crewai import Agent, Task
 from typing import Dict, Any, Optional
 from backend.app.core.logger import logger
 from backend.app.schemas.monthly_report import TaskPromptConfig
+from pydantic import BaseModel
 
+
+class AnalysisResponse(BaseModel):
+    """缺陷分析响应结构"""
+    thought: str
+    report: str
 
 class AITaskFactory:
     """AI任务工厂类"""
@@ -42,7 +48,7 @@ class AITaskFactory:
         - 保持客观专业的分析态度
         - 全程使用中文撰写
 
-        ## 缺陷数据
+        ## 缺陷数据(包含缺陷详情，可能有些详情只有字段标题没有内容，自己注意分析)
         {formatted_data}
 
         ## 参考示例风格
@@ -59,8 +65,15 @@ class AITaskFactory:
         二、问题分析（根因归类、共性特征）
         三、整改建议（测试、开发、运维等角度的具体措施）
 
-        报告应该用自然的业务语言描述，包含具体的数字统计和百分比分析，
-        问题描述简洁明了，建议具体可执行。
+        报告应该用自然的业务语言描述，包含具体的数字统计和百分比分析，问题描述简洁明了，建议具体可执行。
+        
+        重要！！！你的返回格式必须严格遵循以下格式
+        返回内容只有一个单一字典，不能用任何json格式包裹，只是单纯的字典字符串，字段如下：
+        {
+        "thought": "你的思考过程，所有的思考只能放在这个字段"
+        "report": "你的最终报告，不能有任何和报告正文无关的内容"
+        }
+        除了字典对象本身，不能输出任何其他内容！
         """
 
         # 使用自定义配置或默认配置（支持部分配置）
@@ -80,51 +93,8 @@ class AITaskFactory:
         return Task(
             description=description,
             agent=agent,
-            expected_output=expected_output
-        )
-    
-    @staticmethod
-    def create_monthly_report_task(agent: Agent, analysis_result: str) -> Task:
-        """创建月度报告生成任务"""
-        return Task(
-            description=f"""
-            # 月度缺陷分析报告生成任务
-            
-            ## 任务目标
-            基于缺陷分析结果，生成专业的月度缺陷分析报告。
-            
-            ## 报告结构要求
-            请按照以下结构生成报告：
-            
-            ### 一、现状分布概览
-            1. 时间维度分布（按月统计，突出重点月份）
-            2. 业务域维度分布（按模块/功能分类）
-            3. 缺陷类型分布（按优先级、状态等分类）
-            
-            ### 二、问题分析
-            1. 根因归类（按问题类型分类分析）
-            2. 共性特征识别
-            3. 重复问题分析
-            
-            ### 三、整改建议
-            1. 测试改进建议
-            2. 开发流程改进建议
-            3. 工具和方法改进建议
-            
-            ## 格式要求
-            - 使用清晰的标题层次结构
-            - 重要数据用数字和百分比表示
-            - 关键发现用要点形式突出
-            - 建议要具体可执行
-            
-            ## 分析结果
-            {analysis_result}
-            
-            ## 输出要求
-            生成完整的markdown格式报告，内容专业、数据准确、建议实用。
-            """,
-            agent=agent,
-            expected_output="完整的markdown格式月度缺陷分析报告"
+            expected_output=expected_output,
+            output_pydantic=AnalysisResponse,   # 该功能可能依赖大模型转换，llm优先级：agent.function_calling_llm > llm > 环境变量 > 默认值(gpt-4o-mini)
         )
     
     @staticmethod

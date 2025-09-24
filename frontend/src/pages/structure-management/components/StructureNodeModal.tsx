@@ -4,7 +4,7 @@ import { ModuleStructureNode, ModuleStructureNodeRequest } from '../../../types/
 import { createModuleNode, updateModuleNode } from '../../../apis/moduleService';
 
 interface StructureNodeModalProps {
-  visible: boolean;
+  open: boolean;
   type: 'add' | 'edit';
   node: ModuleStructureNode | null;
   parentNode: ModuleStructureNode | null;
@@ -14,7 +14,7 @@ interface StructureNodeModalProps {
 }
 
 export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
-  visible,
+  open,
   type,
   node,
   parentNode,
@@ -94,7 +94,7 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
 
   // 当模态框打开时，初始化表单
   useEffect(() => {
-    if (visible) {
+    if (open) {
       if (type === 'edit' && node) {
         // 在编辑模式下，设置表单值
         form.setFieldsValue({
@@ -111,23 +111,23 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
         });
       }
     }
-  }, [visible, type, node, form, parentNode]);
+  }, [open, type, node, form, parentNode]);
 
   // 用于在模态框打开后聚焦到输入框
   useEffect(() => {
-    if (visible) {
+    if (open) {
       // 使用setTimeout确保在Modal完全显示后再聚焦
       const focusTimer = setTimeout(() => {
         if (inputRef.current && inputRef.current.focus) {
           inputRef.current.focus();
         }
       }, 100); // 延迟100ms，确保模态框已完全显示
-      
+
       return () => {
         clearTimeout(focusTimer);
       };
     }
-  }, [visible]);
+  }, [open]);
 
   // 处理表单提交
   const handleSubmit = async () => {
@@ -210,7 +210,7 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
           ? `添加"${parentNode.name}"的子模块` 
           : '添加顶级模块' 
         : `编辑模块"${node?.name}"`}
-      open={visible}
+      open={open}
       onOk={handleSubmit}
       onCancel={handleCancel}
       confirmLoading={loading}
@@ -262,7 +262,7 @@ export const StructureNodeModal: React.FC<StructureNodeModalProps> = ({
           label="模块类型"
           rules={[{ required: true, message: '请选择模块类型' }]}
         >
-          <Radio.Group defaultValue="structure_node">
+          <Radio.Group>
             <Radio value="structure_node">节点 (可添加子模块)</Radio>
             <Radio value="content_page">内容页面 (根据配置模板渲染模块内容)</Radio>
           </Radio.Group>

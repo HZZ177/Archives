@@ -198,9 +198,15 @@ const BugTrendChart: React.FC<BugTrendChartProps> = ({
           color: '#666',
           fontSize: 12,
           formatter: (value: string) => {
+            // 处理 YYYY-MM 格式的月份数据
+            if (value.match(/^\d{4}-\d{2}$/)) {
+              const [year, month] = value.split('-');
+              return `${year}-${month}`;
+            }
+            // 兼容原有的日期格式
             const date = new Date(value);
             if (!isNaN(date.getTime())) {
-              return `${date.getMonth() + 1}/${date.getDate()}`;
+              return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             }
             return value;
           }

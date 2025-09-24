@@ -180,7 +180,7 @@ const ProfilePage: React.FC = () => {
       </Col>
       <Modal
         title="修改密码"
-        visible={isPasswordModalVisible}
+        open={isPasswordModalVisible}
         onCancel={handlePasswordModalCancel}
         footer={null}
         destroyOnClose

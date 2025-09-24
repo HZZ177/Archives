@@ -84,7 +84,6 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
     
     try {
       setInterfacesLoading(true);
-      console.log('获取工作区接口列表，参数:', { page, pageSize, search });
       
       // 使用分页参数和搜索关键词调用API
       const result = await getWorkspaceInterfaces(
@@ -93,8 +92,6 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
         pageSize, 
         search
       );
-      
-      console.log('获取到的工作区接口列表:', result);
       
       // 更新接口数据和分页信息
       setWorkspaceInterfaces(result.items || []);
@@ -276,15 +273,12 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
     const selectedInterfaces = workspaceInterfaces.filter(iface => 
       selectedWorkspaceInterfaceIds.includes(iface.id)
     );
-    console.log('选中的工作区接口:', selectedInterfaces);
-    
     // 检查哪些接口已经被导入（通过workspace_interface_id判断）
     const existingWorkspaceInterfaceIds = new Set(
       interfaces
         .filter(item => item.workspace_interface_id !== undefined)
         .map(item => item.workspace_interface_id)
     );
-    console.log('已存在的工作区接口ID:', [...existingWorkspaceInterfaceIds]);
     
     // 过滤出未导入的接口
     const newSelectedInterfaces = selectedInterfaces.filter(
@@ -441,7 +435,9 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
         
         {interfacesLoading ? (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <Spin tip="加载中..." />
+            <Spin tip="加载中...">
+              <div style={{ minHeight: '100px' }} />
+            </Spin>
           </div>
         ) : safeWorkspaceInterfaces.length === 0 ? (
           <Empty 
@@ -554,7 +550,7 @@ const InterfaceSection: React.FC<InterfaceSectionProps> = ({
       {/* 接口表单对话框 */}
       {!externalEditHandler && (
       <ApiInterfaceForm
-        visible={formVisible}
+        open={formVisible}
         title={formTitle}
         initialValues={currentInterface}
         onOk={handleFormSubmit}

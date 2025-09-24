@@ -24,7 +24,6 @@ import { createTable, updateTable, getTableDetail } from '../../../services/work
 
 const { TextArea } = Input;
 const { Option } = Select;
-const { TabPane } = Tabs;
 
 interface TableFormProps {
   workspaceId?: number;
@@ -365,15 +364,22 @@ const TableForm: React.FC<TableFormProps> = ({
         description: initialValues?.description || '',
       }}
     >
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <TabPane tab="基本信息" key="basic">
-          <Form.Item
-            name="table_name"
-            label="表名"
-            rules={[{ required: true, message: '请输入表名' }]}
-          >
-            <Input placeholder="表名" />
-          </Form.Item>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'basic',
+            label: '基本信息',
+            children: (
+              <>
+                <Form.Item
+                  name="table_name"
+                  label="表名"
+                  rules={[{ required: true, message: '请输入表名' }]}
+                >
+                  <Input placeholder="表名" />
+                </Form.Item>
           
           <Form.Item
             name="schema_name"
@@ -382,18 +388,22 @@ const TableForm: React.FC<TableFormProps> = ({
             <Input placeholder="模式名称（可选）" />
           </Form.Item>
           
-          <Form.Item
-            name="description"
-            label="表描述"
-          >
-            <TextArea rows={4} placeholder="表描述（可选）" />
-          </Form.Item>
-        </TabPane>
-        
-        <TabPane tab="字段定义" key="columns">
-          {renderColumnFields()}
-        </TabPane>
-      </Tabs>
+                <Form.Item
+                  name="description"
+                  label="表描述"
+                >
+                  <TextArea rows={4} placeholder="表描述（可选）" />
+                </Form.Item>
+              </>
+            )
+          },
+          {
+            key: 'columns',
+            label: '字段定义',
+            children: renderColumnFields()
+          }
+        ]}
+      />
       
       <div style={{ marginTop: 24, textAlign: 'right' }}>
         <Space>

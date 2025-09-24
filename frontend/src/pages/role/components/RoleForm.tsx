@@ -395,13 +395,13 @@ const RoleForm: React.FC<RoleFormProps> = ({
       <Row gutter={[16, 16]} style={{ maxHeight: '100%', overflow: 'auto' }}>
         {workspaceGroups.map((workspace) => (
           <Col xs={24} sm={24} md={12} xl={8} key={workspace.key}>
-            <Card 
-              title={workspace.title} 
-              bordered={true} 
+            <Card
+              title={workspace.title}
+              variant="outlined"
               className="workspace-card"
               size="small"
               headStyle={{ background: '#f5f5f5', padding: '8px 12px' }}
-              bodyStyle={{ padding: '12px', maxHeight: '220px', overflowY: 'auto' }}
+              styles={{ body: { padding: '12px', maxHeight: '220px', overflowY: 'auto' } }}
             >
               <WorkspaceTree
                 workspace={workspace}
@@ -504,13 +504,15 @@ const RoleForm: React.FC<RoleFormProps> = ({
           
           {/* 右侧权限分配 */}
           <Col span={18}>
-            <Card 
-              title="权限分配" 
+            <Card
+              title="权限分配"
               className="permissions-card"
-              bodyStyle={{ 
-                height: '560px', 
-                overflowY: 'auto', 
-                padding: '0',
+              styles={{
+                body: {
+                  height: '560px',
+                  overflowY: 'auto',
+                  padding: '0',
+                }
               }}
             >
               <Form.Item

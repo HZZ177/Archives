@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func, desc, text
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
+from dateutil.relativedelta import relativedelta
 from fastapi import HTTPException, status
 
 from backend.app.core.logger import logger
@@ -119,11 +121,13 @@ class CodingBugService:
         keyword: Optional[str] = None,
         priority: Optional[str] = None,
         status_name: Optional[str] = None,
-        labels: Optional[List[str]] = None
+        labels: Optional[List[str]] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
     ) -> PaginatedCodingBugResponse:
         """
         分页获取工作区的缺陷数据
-        
+
         Args:
             db: 数据库会话
             workspace_id: 工作区ID
@@ -132,7 +136,10 @@ class CodingBugService:
             keyword: 搜索关键词
             priority: 优先级筛选
             status_name: 状态筛选
-            
+            labels: 标签筛选
+            start_date: 开始日期 YYYY-MM-DD
+            end_date: 结束日期 YYYY-MM-DD
+
         Returns:
             分页的缺陷数据
         """
@@ -160,6 +167,14 @@ class CodingBugService:
                     label_conditions.append(CodingBug.labels.contains([label]))
                 if label_conditions:
                     conditions.append(or_(*label_conditions))
+
+            # 时间筛选
+            if start_date:
+                start_timestamp = int(datetime.strptime(start_date, '%Y-%m-%d').timestamp() * 1000)
+                conditions.append(CodingBug.coding_created_at >= start_timestamp)
+            if end_date:
+                end_timestamp = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp() * 1000)
+                conditions.append(CodingBug.coding_created_at <= end_timestamp)
 
             # 获取总数
             total_query = select(func.count(CodingBug.id)).where(and_(*conditions))
@@ -1037,31 +1052,44 @@ class CodingBugService:
                 min_timestamp = min(timestamps)
                 max_timestamp = max(timestamps)
 
-                start_datetime = datetime.fromtimestamp(min_timestamp / 1000).replace(hour=0, minute=0, second=0, microsecond=0)
-                end_datetime = datetime.fromtimestamp(max_timestamp / 1000).replace(hour=23, minute=59, second=59, microsecond=999999)
+                # 按月的第一天开始，最后一天结束
+                start_datetime = datetime.fromtimestamp(min_timestamp / 1000).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                end_datetime = datetime.fromtimestamp(max_timestamp / 1000)
+                # 获取该月的最后一天
+                end_datetime = end_datetime.replace(day=1) + relativedelta(months=1) - timedelta(days=1)
+                end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
             else:
-                # 使用指定的时间范围
-                start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
+                # 使用指定的时间范围，按月对齐
+                start_datetime = datetime.strptime(start_date, '%Y-%m-%d').replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                 end_datetime = datetime.strptime(end_date, '%Y-%m-%d')
+                # 获取结束月份的最后一天
+                end_datetime = end_datetime.replace(day=1) + relativedelta(months=1) - timedelta(days=1)
+                end_datetime = end_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
 
             trend_data = []
             current_date = start_datetime
 
             while current_date <= end_datetime:
-                date_str = current_date.strftime('%Y-%m-%d')
-                current_timestamp = int(current_date.timestamp() * 1000)
-                next_day_timestamp = int((current_date + timedelta(days=1)).timestamp() * 1000)
+                # 使用年-月格式
+                date_str = current_date.strftime('%Y-%m')
 
-                # 统计当天的数据
-                day_bugs = [
+                # 计算当月的开始和结束时间戳
+                month_start = current_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                month_end = (month_start + relativedelta(months=1)) - timedelta(microseconds=1)
+
+                month_start_timestamp = int(month_start.timestamp() * 1000)
+                month_end_timestamp = int(month_end.timestamp() * 1000)
+
+                # 统计当月的新增数据
+                month_bugs = [
                     b for b in bugs
-                    if b.coding_created_at and current_timestamp <= b.coding_created_at < next_day_timestamp
+                    if b.coding_created_at and month_start_timestamp <= b.coding_created_at <= month_end_timestamp
                 ]
 
-                # 统计截止当天的累计数据
+                # 统计截止当月的累计数据
                 cumulative_bugs = [
                     b for b in bugs
-                    if b.coding_created_at and b.coding_created_at <= next_day_timestamp
+                    if b.coding_created_at and b.coding_created_at <= month_end_timestamp
                 ]
 
                 resolved_bugs = len([
@@ -1076,13 +1104,14 @@ class CodingBugService:
 
                 trend_data.append({
                     'date': date_str,
-                    'newBugs': len(day_bugs),
+                    'newBugs': len(month_bugs),
                     'totalBugs': len(cumulative_bugs),
                     'resolvedBugs': resolved_bugs,
                     'pendingBugs': pending_bugs
                 })
 
-                current_date += timedelta(days=1)
+                # 移动到下一个月
+                current_date = current_date + relativedelta(months=1)
 
             return {'trendData': trend_data}
 

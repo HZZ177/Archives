@@ -9,17 +9,10 @@ const BASE_URL = API_BASE_URL;
 // 获取当前工作区ID的函数
 export const getCurrentWorkspaceId = (): number | null => {
   try {
-    // 优先从sessionStorage获取(会话级别)，确保刷新页面后使用的仍是当前工作区
+    // 仅从sessionStorage获取当前会话的工作区ID
     const sessionWorkspace = sessionStorage.getItem('currentWorkspace');
     if (sessionWorkspace) {
       const workspace = JSON.parse(sessionWorkspace);
-      return workspace.id || null;
-    }
-    
-    // 其次从localStorage获取(持久存储)
-    const localWorkspace = localStorage.getItem('currentWorkspace');
-    if (localWorkspace) {
-      const workspace = JSON.parse(localWorkspace);
       return workspace.id || null;
     }
   } catch (error) {

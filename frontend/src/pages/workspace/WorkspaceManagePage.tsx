@@ -419,7 +419,7 @@ const WorkspaceManagePage: React.FC = () => {
         />
 
         <AddUserToWorkspaceModal
-          visible={addUserModalVisible}
+          open={addUserModalVisible}
           workspaceId={selectedWorkspace.id}
           workspaceName={selectedWorkspace.name}
           existingUserIds={workspaceUsers.map(user => user.user_id)}

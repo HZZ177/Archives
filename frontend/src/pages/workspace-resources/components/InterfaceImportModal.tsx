@@ -44,7 +44,7 @@ interface ImportResultItem {
 }
 
 interface InterfaceImportModalProps {
-  visible: boolean;
+  open: boolean;
   onCancel: () => void;
   workspaceId?: number;
   onSuccess: () => void;
@@ -54,9 +54,9 @@ interface InterfaceImportModalProps {
  * 接口导入Modal组件（适配workspace-resources）
  */
 const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
-  visible, 
-  onCancel, 
-  workspaceId, 
+  open,
+  onCancel,
+  workspaceId,
   onSuccess
 }) => {
   const [fileList, setFileList] = useState<RcFile[]>([]);
@@ -673,7 +673,7 @@ const InterfaceImportModal: React.FC<InterfaceImportModalProps> = ({
           </Space>
         </div>
       }
-      open={visible}
+      open={open}
       onCancel={handleClose}
       footer={null}
       width={800}

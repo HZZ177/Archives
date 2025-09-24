@@ -13,7 +13,6 @@ import DatabaseTableCard from './DatabaseTableCard';
 
 const { TextArea } = Input;
 const { Option } = Select;
-const { TabPane } = Tabs;
 const { Text } = Typography;
 const { Search } = Input;
 
@@ -441,7 +440,6 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
     
     try {
       setTablesLoading(true);
-      console.log('获取工作区表列表，参数:', { page, pageSize, search });
       
       // 使用分页参数和搜索关键词调用API
       const result = await getWorkspaceTables(
@@ -450,8 +448,6 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
         pageSize, 
         search
       );
-      
-      console.log('获取到的工作区表列表:', result);
       
       // 更新状态
       if (Array.isArray(result.items)) {
@@ -1116,7 +1112,9 @@ const DatabaseTablesSection = forwardRef<ValidationHandle, DatabaseTablesSection
         {/* 表格内容 */}
         {tablesLoading ? (
           <div style={{ textAlign: 'center', padding: '30px 0' }}>
-            <Spin tip="加载中..." />
+            <Spin tip="加载中...">
+              <div style={{ minHeight: '100px' }} />
+            </Spin>
           </div>
         ) : (
           <>

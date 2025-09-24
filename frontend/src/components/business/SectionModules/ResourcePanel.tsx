@@ -20,7 +20,6 @@ import { debounce } from '../../../utils/throttle';
 import styles from './ResourcePanel.module.css';
 
 const { Title, Paragraph } = Typography;
-const { TabPane } = Tabs;
 const { Search } = Input;
 
 // 资源类型
@@ -197,13 +196,13 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
             className={`${styles.resourceCard} ${styles.tableCard} ${!isEditable ? styles.readOnly : ''}`}
             draggable={isEditable}
             onDragStart={(e) => onTableDragStart(table, e)}
-            bodyStyle={{ padding: '12px' }}
-            bordered={false}
+            styles={{ body: { padding: '12px' } }}
+            variant="borderless"
           >
             <Title level={5} className={styles.resourceName}>
               {table.name}
               <div style={{ display: 'flex', marginLeft: 'auto' }}>
-                <Tooltip title="查看表详情" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
+                <Tooltip title="查看表详情" placement="top" color="white" styles={{ body: { color: 'black' } }}>
                   <Button
                     type="text"
                     size="small"
@@ -225,7 +224,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                   />
                 </Tooltip>
                 {isEditable && (
-                  <Tooltip title="可拖拽到画布" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
+                  <Tooltip title="可拖拽到画布" placement="top" color="white" styles={{ body: { color: 'black' } }}>
                     <DragOutlined style={{ fontSize: '14px', color: '#8e7cc3' }} />
                   </Tooltip>
                 )}
@@ -293,8 +292,8 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
             className={`${styles.resourceCard} ${styles.interfaceCard} ${!isEditable ? styles.readOnly : ''}`}
             draggable={isEditable}
             onDragStart={(e) => onInterfaceDragStart(api, e)}
-            bodyStyle={{ padding: '12px' }}
-            bordered={false}
+            styles={{ body: { padding: '12px' } }}
+            variant="borderless"
           >
             <Title level={5} className={styles.resourceName}>
               <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
@@ -303,13 +302,13 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                   title={api.path} 
                   placement="top" 
                   color="white" 
-                  overlayInnerStyle={{ color: 'black' }}
+                  styles={{ body: { color: 'black' } }}
                 >
                   <span className={styles.interfacePath}>{api.path}</span>
                 </Tooltip>
               </div>
               <div style={{ display: 'flex', marginLeft: 'auto', flexShrink: 0 }}>
-                <Tooltip title="查看接口详情" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
+                <Tooltip title="查看接口详情" placement="top" color="white" styles={{ body: { color: 'black' } }}>
                   <Button
                     type="text"
                     size="small"
@@ -324,7 +323,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                   />
                 </Tooltip>
                 {isEditable && (
-                  <Tooltip title="可拖拽到画布" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
+                  <Tooltip title="可拖拽到画布" placement="top" color="white" styles={{ body: { color: 'black' } }}>
                     <DragOutlined style={{ fontSize: '14px', color: '#1890ff' }} />
                   </Tooltip>
                 )}
@@ -384,7 +383,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
             </Title>
             <div className={styles.headerActions}>
               {isEditable && onRefresh && (
-                <Tooltip title="刷新资源" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
+                <Tooltip title="刷新资源" placement="top" color="white" styles={{ body: { color: 'black' } }}>
                   <Button
                     type="text"
                     icon={<ReloadOutlined />}
@@ -393,7 +392,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
                   />
                 </Tooltip>
               )}
-              <Tooltip title="收起面板" placement="top" color="white" overlayInnerStyle={{ color: 'black' }}>
+              <Tooltip title="收起面板" placement="top" color="white" styles={{ body: { color: 'black' } }}>
                 <Button
                   type="text"
                   icon={<MenuFoldOutlined />}
@@ -421,24 +420,25 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
               className={styles.resourceTypeTabs}
               centered
               type="card"
-            >
-              <TabPane 
-                tab={
-                  <span>
-                    <DatabaseOutlined /> 数据库表
-                  </span>
-                } 
-                key="database" 
-              />
-              <TabPane 
-                tab={
-                  <span>
-                    <ApiOutlined /> 接口资源
-                  </span>
-                } 
-                key="interface" 
-              />
-            </Tabs>
+              items={[
+                {
+                  key: 'database',
+                  label: (
+                    <span>
+                      <DatabaseOutlined /> 数据库表
+                    </span>
+                  )
+                },
+                {
+                  key: 'interface',
+                  label: (
+                    <span>
+                      <ApiOutlined /> 接口资源
+                    </span>
+                  )
+                }
+              ]}
+            />
           </div>
           
           {/* 添加搜索框 */}

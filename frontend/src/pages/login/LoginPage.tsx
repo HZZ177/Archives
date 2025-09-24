@@ -14,9 +14,8 @@ const LoginPage: React.FC = () => {
   const { userState, login } = useUser();
   const navigate = useNavigate();
 
-  // 在组件挂载时清理localStorage和sessionStorage中与工作区相关的数据
+  // 在组件挂载时清理sessionStorage中的工作区数据
   useEffect(() => {
-    localStorage.removeItem('currentWorkspace');
     sessionStorage.removeItem('currentWorkspace');
   }, []);
 
@@ -67,7 +66,7 @@ const LoginPage: React.FC = () => {
   return (
     <div className={styles.loginContainer}>
       <div className={styles.loginBox}>
-        <Card bordered={false} className={styles.loginCard}>
+        <Card variant="borderless" className={styles.loginCard}>
           <div className={styles.logoContainer}>
             <img src="/logo.svg" alt="Logo" className={styles.logo} />
             <Title level={3}>智源资料系统</Title>

@@ -28,7 +28,9 @@ const AIModelManagePage = lazy(() => import('./pages/ai-models/AIModelManagePage
 // 加载指示器组件
 const LoadingComponent = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', minHeight: '200px' }}>
-    <Spin tip="页面加载中..." />
+    <Spin tip="页面加载中..." size="large">
+      <div style={{ minHeight: '100px' }} />
+    </Spin>
   </div>
 );
 
@@ -195,6 +197,8 @@ const router = createBrowserRouter([
   // 启用滚动恢复，改善用户体验
   future: {
     v7_normalizeFormMethod: true,
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
   },
 });
 

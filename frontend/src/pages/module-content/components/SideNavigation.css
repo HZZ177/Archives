@@ -86,7 +86,7 @@
 
 /* 编辑模式下模式面板更高，需要进一步调整线条起始位置 */
 .nav-mode-panel.edit-mode + .nav-line {
-  top: 230px; /* 适应编辑模式的面板高度，确保线条从第一个节点开始 */
+  top: 250px; /* 适应编辑模式的面板高度，确保线条从第一个节点开始 */
 }
 
 .nav-column .side-navigation {

@@ -63,7 +63,7 @@ class WorkspaceCodingConfig(Base):
                          nullable=False, unique=True, comment="工作区ID")
     api_token = Column(String(500), nullable=False, comment="Coding API Token")
     project_name = Column(String(200), nullable=False, comment="Coding项目名称")
-    api_base_url = Column(String(500), default="https://e.coding.net/open-api", comment="API基础URL")
+
     is_enabled = Column(Boolean, default=True, comment="是否启用")
     last_sync_at = Column(DateTime, nullable=True, comment="最后同步时间")
     sync_conditions = Column(JSON, nullable=True, comment="同步条件配置")

@@ -179,10 +179,13 @@ class MonthlyReportService {
     onProgress: (progress: GenerationProgress) => void,
     onComplete: (report: MonthlyReport) => void,
     onError: (error: string) => void,
-    interval: number = 1500
-  ): Promise<void> {
-    let lastDisplayedStep = 0;
+    interval: number = 1500,
+    initialStep: number = 0  // 新增参数：初始步骤，用于页面恢复时的状态
+  ): Promise<() => void> {  // 返回取消函数
+    let lastDisplayedStep = initialStep;
     let stepDisplayTimer: NodeJS.Timeout | null = null;
+    let pollTimer: NodeJS.Timeout | null = null;
+    let cancelled = false;
 
     // 渐进式显示步骤
     const showStepsGradually = (targetStep: number, progress: GenerationProgress) => {
@@ -213,7 +216,21 @@ class MonthlyReportService {
       showNextStep();
     };
 
+    // 取消函数
+    const cancel = () => {
+      cancelled = true;
+      if (stepDisplayTimer) {
+        clearTimeout(stepDisplayTimer);
+        stepDisplayTimer = null;
+      }
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+      }
+    };
+
     const poll = async () => {
+      if (cancelled) return;
       try {
         const progressResponse = await this.getGenerationProgress(reportId);
         if (progressResponse.success && progressResponse.data) {
@@ -254,7 +271,9 @@ class MonthlyReportService {
           }
 
           // 继续轮询
-          setTimeout(poll, interval);
+          if (!cancelled) {
+            pollTimer = setTimeout(poll, interval);
+          }
         } else {
           // 没有进度信息，检查报告状态
           const reportResponse = await this.getReport(reportId);
@@ -265,7 +284,9 @@ class MonthlyReportService {
               onError(reportResponse.data.error_message || '生成失败');
             } else if (reportResponse.data.status === 'generating') {
               // 继续轮询
-              setTimeout(poll, interval);
+              if (!cancelled) {
+                pollTimer = setTimeout(poll, interval);
+              }
             } else {
               onError('报告状态异常');
             }
@@ -280,6 +301,7 @@ class MonthlyReportService {
     };
 
     poll();
+    return cancel;
   }
 }
 

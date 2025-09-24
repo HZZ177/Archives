@@ -22,7 +22,7 @@ const { Step } = Steps;
 const { Title, Text } = Typography;
 
 interface GenerationProgressProps {
-  visible: boolean;
+  open: boolean;
   onCancel: () => void;
   progress?: ProgressData;
   error?: string;
@@ -30,7 +30,7 @@ interface GenerationProgressProps {
 }
 
 const GenerationProgress: React.FC<GenerationProgressProps> = ({
-  visible,
+  open,
   onCancel,
   progress,
   error,
@@ -111,7 +111,7 @@ const GenerationProgress: React.FC<GenerationProgressProps> = ({
           <span>AI月度报告生成中</span>
         </Space>
       }
-      open={visible}
+      open={open}
       onCancel={onCancel}
       width={700}
       footer={[

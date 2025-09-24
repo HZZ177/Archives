@@ -31,7 +31,6 @@ import TableForm from './components/TableForm';
 import { debounce } from '../../utils/throttle';
 
 const { Title, Text } = Typography;
-const { TabPane } = Tabs;
 
 const WorkspaceTablesPage: React.FC = () => {
   const { currentWorkspace } = useWorkspace();

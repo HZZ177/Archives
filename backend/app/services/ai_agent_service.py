@@ -77,22 +77,24 @@ class AIAgentService:
                 # 使用asyncio在线程池中执行同步的crew.kickoff()
                 import asyncio
                 loop = asyncio.get_event_loop()
-                analysis_result = await loop.run_in_executor(None, crew.kickoff)
+                analysis_result = await loop.run_in_executor(None, crew.kickoff, None)
+                analysis_result_thought = analysis_result["thought"]
+                analysis_result_report = analysis_result["report"]
 
                 duration_ms = int((time.time() - start_time) * 1000)
                 logger.info(f"缺陷分析任务完成，耗时: {duration_ms}ms")
 
             finally:
-                # 确保释放LLM实例
-                await self.llm_pool.release_llm(llm)
-            
+                # 内层finally不释放连接，让外层finally统一处理
+                pass
+
             # 6. 处理分析结果
             processed_result = await self._process_analysis_result(
-                str(analysis_result),
+                str(analysis_result_report),
                 defect_data,
                 execution_record.id
             )
-            
+
             # 7. 更新执行记录
             await self._update_execution_record(
                 db=db,
@@ -101,12 +103,12 @@ class AIAgentService:
                 output_data=json.dumps(processed_result, ensure_ascii=False, default=str),
                 duration_ms=duration_ms
             )
-            
+
             return DefectAnalysisResult(**processed_result)
-            
+
         except Exception as e:
             logger.error(f"执行缺陷分析失败: {str(e)}")
-            
+
             # 更新执行记录为失败状态
             if execution_record:
                 await self._update_execution_record(
@@ -115,11 +117,11 @@ class AIAgentService:
                     status="failed",
                     error_message=str(e)
                 )
-            
+
             raise AgentExecutionException(f"缺陷分析执行失败: {str(e)}")
-            
+
         finally:
-            # 释放LLM实例
+            # 确保释放LLM实例
             if llm:
                 await self.llm_pool.release_llm(llm)
     

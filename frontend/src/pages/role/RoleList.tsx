@@ -374,7 +374,7 @@ const RoleList: React.FC = () => {
         onCancel={handleModalClose}
         footer={null}
         width={1200}
-        bodyStyle={{ maxHeight: 'calc(90vh - 108px)', overflowY: 'auto', padding: '24px' }}
+        styles={{ body: { maxHeight: 'calc(90vh - 108px)', overflowY: 'auto', padding: '24px' } }}
       >
         <RoleForm
           role={currentRole}

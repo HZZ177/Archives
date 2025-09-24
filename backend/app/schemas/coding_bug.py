@@ -68,7 +68,6 @@ class WorkspaceCodingConfigBase(BaseModel):
     """工作区Coding配置基础模型"""
     api_token: str = Field(..., description="Coding API Token")
     project_name: str = Field(..., description="Coding项目名称")
-    api_base_url: Optional[str] = Field("https://e.coding.net/open-api", description="API基础URL")
     is_enabled: Optional[bool] = Field(True, description="是否启用")
     sync_conditions: Optional[List[Dict[str, str]]] = Field(None, description="同步条件配置")
     selected_iteration: Optional[str] = Field(None, description="选中的迭代ID")
@@ -83,7 +82,6 @@ class WorkspaceCodingConfigUpdate(BaseModel):
     """更新工作区Coding配置请求模型"""
     api_token: Optional[str] = Field(None, description="Coding API Token")
     project_name: Optional[str] = Field(None, description="Coding项目名称")
-    api_base_url: Optional[str] = Field(None, description="API基础URL")
     is_enabled: Optional[bool] = Field(None, description="是否启用")
     sync_conditions: Optional[List[Dict[str, str]]] = Field(None, description="同步条件配置")
     selected_iteration: Optional[str] = Field(None, description="选中的迭代ID")
@@ -111,6 +109,8 @@ class CodingBugListParams(BaseModel):
     priority: Optional[str] = Field(None, description="优先级筛选")
     status_name: Optional[str] = Field(None, description="状态筛选")
     workspace_id: Optional[int] = Field(None, description="工作区ID")
+    start_date: Optional[str] = Field(None, description="开始日期 YYYY-MM-DD")
+    end_date: Optional[str] = Field(None, description="结束日期 YYYY-MM-DD")
 
 
 class CodingBugSyncParams(BaseModel):

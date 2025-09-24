@@ -25,7 +25,7 @@ import { debounce } from '../../../utils/throttle';
 const { Search } = Input;
 
 interface InterfaceBatchEditModalProps {
-  visible: boolean;
+  open: boolean;
   onCancel: () => void;
   workspaceId?: number;
   onSuccess: () => void;
@@ -35,7 +35,7 @@ interface InterfaceBatchEditModalProps {
  * 接口批量编辑Modal组件
  */
 const InterfaceBatchEditModal: React.FC<InterfaceBatchEditModalProps> = ({
-  visible,
+  open,
   onCancel,
   workspaceId,
   onSuccess
@@ -111,7 +111,7 @@ const InterfaceBatchEditModal: React.FC<InterfaceBatchEditModalProps> = ({
   
   // 当弹窗打开时加载数据
   React.useEffect(() => {
-    if (visible && workspaceId) {
+    if (open && workspaceId) {
       // 重置状态
       setSelectedInterfaceIds([]);
       setSearchKeyword('');
@@ -120,11 +120,11 @@ const InterfaceBatchEditModal: React.FC<InterfaceBatchEditModalProps> = ({
         pageSize: 10,
         total: 0
       });
-      
+
       // 加载数据
       loadInterfaces(1, 10, '');
     }
-  }, [visible, workspaceId]);
+  }, [open, workspaceId]);
 
   // 处理批量删除
   const handleBatchDelete = async () => {
@@ -212,7 +212,7 @@ const InterfaceBatchEditModal: React.FC<InterfaceBatchEditModalProps> = ({
           </Space>
         </div>
       }
-      open={visible}
+      open={open}
       onCancel={onCancel}
       footer={[
         <Button key="cancel" onClick={onCancel}>
@@ -255,7 +255,9 @@ const InterfaceBatchEditModal: React.FC<InterfaceBatchEditModalProps> = ({
       
       {loading ? (
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-          <Spin tip="加载中..." />
+          <Spin tip="加载中...">
+            <div style={{ minHeight: '100px' }} />
+          </Spin>
         </div>
       ) : interfaces.length === 0 ? (
         <Empty 

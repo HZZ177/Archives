@@ -73,7 +73,9 @@ const HomePage: React.FC = () => {
     <div className="home-page-container">
       <Card className="workspace-info-card-home" title={cardTitle}>
         {workspaceLoading ? (
-          <Spin tip="加载工作区信息..." />
+          <Spin tip="加载工作区信息...">
+            <div style={{ minHeight: '50px' }} />
+          </Spin>
         ) : currentWorkspace ? (
           <Text strong style={{ fontSize: '20px' }}>工作区结构图谱</Text> 
         ) : (
@@ -84,7 +86,9 @@ const HomePage: React.FC = () => {
       <div className="module-graph-container-home">
         {modulesLoading ? (
           <div className="module-graph-loading">
-            <Spin tip="加载模块关系图谱..." />
+            <Spin tip="加载模块关系图谱...">
+              <div style={{ minHeight: '200px' }} />
+            </Spin>
           </div>
         ) : (
           modules.length > 0 ? (

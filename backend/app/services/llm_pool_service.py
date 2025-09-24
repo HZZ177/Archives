@@ -1,4 +1,5 @@
 import asyncio
+import os
 import time
 from typing import Optional
 from crewai import LLM
@@ -12,8 +13,18 @@ from backend.app.core.logger import logger
 
 class LLMPoolService:
     """LLM连接池管理服务"""
-    
+
     _instance = None
+
+    # 提供商到环境变量名的映射
+    PROVIDER_ENV_VAR_MAP = {
+        'openai': 'OPENAI_API_KEY',
+        'anthropic': 'ANTHROPIC_API_KEY',
+        'google': 'GOOGLE_API_KEY',
+        'metallama': 'LLAMA_API_KEY',
+        'openrouter': 'OPENROUTER_API_KEY',
+        'azureopenai': 'AZURE_OPENAI_API_KEY'
+    }
     
     def __new__(cls):
         if cls._instance is None:
@@ -30,7 +41,7 @@ class LLMPoolService:
     def __init__(self):
         if not hasattr(self, '_initialized') or not self._initialized:
             logger.info("初始化LLM连接池实例")
-            self.pool_size = 3
+            self.pool_size = 5
             self.llm_pool = []
             self.available_llms = asyncio.Queue()
             self._lock = asyncio.Lock()
@@ -56,6 +67,25 @@ class LLMPoolService:
         except Exception as e:
             logger.error(f"自动初始化连接池失败: {str(e)}")
 
+    def _set_provider_env_var(self, provider: str, api_key: str):
+        """根据提供商名称设置对应的环境变量"""
+        try:
+            # 转换为小写进行匹配，支持大小写不敏感
+            provider_lower = provider.lower()
+
+            # 查找对应的环境变量名
+            env_var_name = self.PROVIDER_ENV_VAR_MAP.get(provider_lower)
+
+            if env_var_name:
+                os.environ[env_var_name] = api_key
+                logger.info(f"已为提供商 '{provider}' 设置环境变量 '{env_var_name}'")
+            else:
+                # 如果找不到对应的映射，记录警告但不抛出异常
+                logger.warning(f"未找到提供商 '{provider}' 对应的环境变量映射，支持的提供商: {list(self.PROVIDER_ENV_VAR_MAP.keys())}")
+
+        except Exception as e:
+            logger.error(f"设置提供商环境变量失败: {str(e)}")
+
     async def initialize_pool(self, db: AsyncSession):
         """初始化连接池"""
         async with self._lock:
@@ -74,6 +104,9 @@ class LLMPoolService:
                     return
                 
                 # 创建LLM实例
+                # 同步设置环境变量，crewai框架中某些功能可能需要单独设置环境变量，不遵循传入的配置，比如Task的output_pydantic功能
+                self._set_provider_env_var(config.model_provider, config.api_key)
+
                 for i in range(self.pool_size):
                     try:
                         llm = self._create_llm_instance(config)
@@ -120,13 +153,17 @@ class LLMPoolService:
             if not self.llm_pool:
                 raise PoolExhaustedException("连接池为空，请先配置AI模型")
 
-            logger.debug("尝试获取LLM实例")
+            available_before = self.available_llms.qsize()
+            logger.debug(f"尝试获取LLM实例，当前可用连接数: {available_before}")
+
             llm = await asyncio.wait_for(self.available_llms.get(), timeout=timeout)
-            logger.debug("成功获取LLM实例")
+
+            available_after = self.available_llms.qsize()
+            logger.info(f"成功获取LLM实例，可用连接数: {available_before} -> {available_after}")
             return llm
-            
+
         except asyncio.TimeoutError:
-            logger.error(f"获取LLM实例超时({timeout}秒)")
+            logger.error(f"获取LLM实例超时({timeout}秒)，当前可用连接数: {self.available_llms.qsize()}")
             raise PoolExhaustedException(f"获取LLM实例超时({timeout}秒)")
         except Exception as e:
             logger.error(f"获取LLM实例失败: {str(e)}")
@@ -135,12 +172,19 @@ class LLMPoolService:
     async def release_llm(self, llm: LLM):
         """释放LLM实例"""
         try:
+            if llm is None:
+                logger.warning("尝试释放空的LLM实例")
+                return
+
+            available_before = self.available_llms.qsize()
+
             if llm in self.llm_pool:
                 await self.available_llms.put(llm)
-                logger.debug("成功释放LLM实例")
+                available_after = self.available_llms.qsize()
+                logger.info(f"成功释放LLM实例，可用连接数: {available_before} -> {available_after}")
             else:
                 logger.warning("尝试释放不属于连接池的LLM实例")
-                
+
         except Exception as e:
             logger.error(f"释放LLM实例失败: {str(e)}")
     
@@ -162,15 +206,33 @@ class LLMPoolService:
         try:
             ai_model_service = AIModelService()
             current_config = await ai_model_service.get_active_config(db)
-            
+
+            total_size = len(self.llm_pool)
+            available_count = self.available_llms.qsize()
+
+            # 确保状态一致性，防止出现负数
+            if available_count > total_size:
+                logger.warning(f"连接池状态异常：可用连接数({available_count}) > 总连接数({total_size})，正在修复...")
+                # 清理多余的连接
+                while self.available_llms.qsize() > total_size and not self.available_llms.empty():
+                    try:
+                        self.available_llms.get_nowait()
+                    except:
+                        break
+                available_count = self.available_llms.qsize()
+
+            active_count = max(0, total_size - available_count)  # 确保不为负数
+
+            logger.debug(f"连接池状态 - 总数: {total_size}, 可用: {available_count}, 活跃: {active_count}")
+
             return PoolStatus(
-                total_size=len(self.llm_pool),
-                available_count=self.available_llms.qsize(),
-                active_count=len(self.llm_pool) - self.available_llms.qsize(),
+                total_size=total_size,
+                available_count=available_count,
+                active_count=active_count,
                 pending_count=0,  # 暂时不实现等待队列
                 current_config=current_config
             )
-            
+
         except Exception as e:
             logger.error(f"获取连接池状态失败: {str(e)}")
             return PoolStatus(

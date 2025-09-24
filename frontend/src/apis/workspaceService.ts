@@ -315,17 +315,14 @@ export const getWorkspaceTables = async <T extends boolean = false>(
       params.search = search;
     }
     
-    console.log(`获取工作区数据库表，参数:`, { workspaceId, page, pageSize, search, returnAllItems });
-    
     const response = await request.get<APIResponse<{
       items: WorkspaceTableRead[],
       total: number,
       page: number,
       page_size: number
     }>>(`/workspaces/${workspaceId}/tables`, { params });
-    
+
     const data = unwrapResponse(response.data);
-    console.log('获取工作区数据库表响应:', data);
     
     // 确保items是数组
     const result = {
@@ -337,7 +334,6 @@ export const getWorkspaceTables = async <T extends boolean = false>(
     
     // 根据returnAllItems参数决定返回类型
     if (returnAllItems) {
-      console.log('仅返回数据库表数组:', result.items);
       return result.items as any;
     }
     
@@ -452,17 +448,14 @@ export const getWorkspaceInterfaces = async <T extends boolean = false>(
       params.search = search;
     }
     
-    console.log(`获取工作区接口，参数:`, { workspaceId, page, pageSize, search, returnAllItems });
-    
     const response = await request.get<APIResponse<{
       items: WorkspaceInterface[],
       total: number,
       page: number,
       page_size: number
     }>>(`/workspaces/${workspaceId}/interfaces`, { params });
-    
+
     const data = unwrapResponse(response.data);
-    console.log('获取工作区接口响应:', data);
     
     // 确保items是数组
     const result = {
@@ -474,7 +467,6 @@ export const getWorkspaceInterfaces = async <T extends boolean = false>(
     
     // 根据returnAllItems参数决定返回类型
     if (returnAllItems) {
-      console.log('仅返回接口数组:', result.items);
       return result.items as any;
     }
     
@@ -521,17 +513,9 @@ export const getWorkspaceInterface = async (workspaceId: number, interfaceId: nu
  */
 export const createWorkspaceInterface = async (workspaceId: number, data: WorkspaceInterfaceCreate): Promise<WorkspaceInterface> => {
   try {
-    console.log('API调用 - 创建接口请求数据:', data);
-    console.log('API调用 - 请求示例:', data.request_example);
-    console.log('API调用 - 响应示例:', data.response_example);
-    
     const response = await request.post<APIResponse<WorkspaceInterface>>(`/workspaces/${workspaceId}/interfaces`, data);
     const result = unwrapResponse(response.data);
-    
-    console.log('API调用 - 创建接口响应:', result);
-    console.log('API调用 - 响应中的请求示例:', result.request_example);
-    console.log('API调用 - 响应中的响应示例:', result.response_example);
-    
+
     return result;
   } catch (error) {
     console.error(`创建工作区(ID:${workspaceId})接口失败:`, error);
@@ -548,17 +532,9 @@ export const createWorkspaceInterface = async (workspaceId: number, data: Worksp
  */
 export const updateWorkspaceInterface = async (workspaceId: number, interfaceId: number, data: WorkspaceInterfaceUpdate): Promise<WorkspaceInterface> => {
   try {
-    console.log('API调用 - 更新接口请求数据:', data);
-    console.log('API调用 - 请求示例:', data.request_example);
-    console.log('API调用 - 响应示例:', data.response_example);
-    
     const response = await request.put<APIResponse<WorkspaceInterface>>(`/workspaces/${workspaceId}/interfaces/${interfaceId}`, data);
     const result = unwrapResponse(response.data);
-    
-    console.log('API调用 - 更新接口响应:', result);
-    console.log('API调用 - 响应中的请求示例:', result.request_example);
-    console.log('API调用 - 响应中的响应示例:', result.response_example);
-    
+
     return result;
   } catch (error) {
     console.error(`更新工作区(ID:${workspaceId})接口(ID:${interfaceId})失败:`, error);
@@ -600,14 +576,10 @@ export const checkInterfaceExists = async (
       params.exclude_id = excludeId;
     }
     
-    console.log('检查接口唯一性请求参数:', { workspaceId, path, method, excludeId, params });
-    
     const response = await request.get<APIResponse<boolean>>(
-      `/workspace-interfaces/workspace/${workspaceId}/check-exists`, 
+      `/workspace-interfaces/workspace/${workspaceId}/check-exists`,
       { params }
     );
-    
-    console.log('检查接口唯一性响应:', response.data);
     
     return unwrapResponse(response.data);
   } catch (error) {

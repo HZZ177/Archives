@@ -8,7 +8,7 @@ import { Role } from '../../../types/role';
 import UserWorkspacePermissions from './UserWorkspacePermissions';
 import { useUser } from '../../../contexts/UserContext';
 
-const { TabPane } = Tabs;
+
 
 const UserDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -271,16 +271,22 @@ const UserDetail: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <Card>
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane tab="基础信息" key="info">
-            {renderUserForm()}
-          </TabPane>
-          {!isNewUser && (
-            <TabPane tab="工作区与权限" key="permissions">
-              <UserWorkspacePermissions userId={Number(id)} username={username} />
-            </TabPane>
-          )}
-        </Tabs>
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              key: 'info',
+              label: '基础信息',
+              children: renderUserForm()
+            },
+            ...(isNewUser ? [] : [{
+              key: 'permissions',
+              label: '工作区与权限',
+              children: <UserWorkspacePermissions userId={Number(id)} username={username} />
+            }])
+          ]}
+        />
       </Card>
     </Spin>
   );
